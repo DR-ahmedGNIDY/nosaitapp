@@ -1,0 +1,28 @@
+// GENERATED CODE - DO NOT MODIFY BY HAND
+
+part of 'academy_model.dart';
+
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+AcademyModel _$AcademyModelFromJson(Map<String, dynamic> json) => AcademyModel(
+      id: json['_id'] as String,
+      name: json['name'] as String,
+      logoUrl: json['logo_url'] as String?,
+      phone: json['phone'] as String,
+      address: json['address'] as String,
+      createdAt: DateTime.parse(json['created_at'] as String),
+      playerCount: (json['player_count'] as num?)?.toInt(),
+    );
+
+Map<String, dynamic> _$AcademyModelToJson(AcademyModel instance) =>
+    <String, dynamic>{
+      '_id': instance.id,
+      'name': instance.name,
+      'logo_url': instance.logoUrl,
+      'phone': instance.phone,
+      'address': instance.address,
+      'created_at': instance.createdAt.toIso8601String(),
+      'player_count': instance.playerCount,
+    };

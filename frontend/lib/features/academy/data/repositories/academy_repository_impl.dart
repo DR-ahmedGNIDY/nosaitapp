@@ -1,0 +1,106 @@
+import 'package:basketball_academy/core/errors/exceptions.dart';
+import 'package:basketball_academy/core/errors/failures.dart';
+import 'package:basketball_academy/features/academy/data/datasources/academy_remote_datasource.dart';
+import 'package:basketball_academy/features/academy/domain/entities/academy_entity.dart';
+import 'package:basketball_academy/features/academy/domain/repositories/academy_repository.dart';
+import 'package:dartz/dartz.dart';
+
+class AcademyRepositoryImpl implements AcademyRepository {
+  final AcademyRemoteDatasource _remoteDatasource;
+
+  AcademyRepositoryImpl({required AcademyRemoteDatasource remoteDatasource})
+      : _remoteDatasource = remoteDatasource;
+
+  @override
+  Future<Either<Failure, List<AcademyEntity>>> getAcademies() async {
+    try {
+      final models = await _remoteDatasource.getAcademies();
+      return Right(models.map((m) => m.toEntity()).toList());
+    } on UnauthorizedException {
+      return const Left(UnauthorizedFailure());
+    } on NetworkException {
+      return const Left(NetworkFailure());
+    } on TimeoutException {
+      return const Left(TimeoutFailure());
+    } on AppException catch (e) {
+      return Left(ServerFailure(message: e.message));
+    } catch (_) {
+      return const Left(UnknownFailure());
+    }
+  }
+
+  @override
+  Future<Either<Failure, AcademyEntity>> getAcademyById(String id) async {
+    try {
+      final model = await _remoteDatasource.getAcademyById(id);
+      return Right(model.toEntity());
+    } on NotFoundException {
+      return const Left(NotFoundFailure());
+    } on AppException catch (e) {
+      return Left(ServerFailure(message: e.message));
+    } catch (_) {
+      return const Left(UnknownFailure());
+    }
+  }
+
+  @override
+  Future<Either<Failure, AcademyEntity>> createAcademy({
+    required String name,
+    required String phone,
+    required String address,
+    String? logoUrl,
+  }) async {
+    try {
+      final model = await _remoteDatasource.createAcademy({
+        'name': name,
+        'phone': phone,
+        'address': address,
+        if (logoUrl != null) 'logo_url': logoUrl,
+      });
+      return Right(model.toEntity());
+    } on ValidationException catch (e) {
+      return Left(ValidationFailure(message: e.message));
+    } on AppException catch (e) {
+      return Left(ServerFailure(message: e.message));
+    } catch (_) {
+      return const Left(UnknownFailure());
+    }
+  }
+
+  @override
+  Future<Either<Failure, AcademyEntity>> updateAcademy({
+    required String id,
+    required String name,
+    required String phone,
+    required String address,
+    String? logoUrl,
+  }) async {
+    try {
+      final model = await _remoteDatasource.updateAcademy(id, {
+        'name': name,
+        'phone': phone,
+        'address': address,
+        if (logoUrl != null) 'logo_url': logoUrl,
+      });
+      return Right(model.toEntity());
+    } on ValidationException catch (e) {
+      return Left(ValidationFailure(message: e.message));
+    } on AppException catch (e) {
+      return Left(ServerFailure(message: e.message));
+    } catch (_) {
+      return const Left(UnknownFailure());
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> deleteAcademy(String id) async {
+    try {
+      await _remoteDatasource.deleteAcademy(id);
+      return const Right(null);
+    } on AppException catch (e) {
+      return Left(ServerFailure(message: e.message));
+    } catch (_) {
+      return const Left(UnknownFailure());
+    }
+  }
+}
