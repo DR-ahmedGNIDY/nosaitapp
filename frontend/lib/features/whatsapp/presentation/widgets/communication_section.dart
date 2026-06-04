@@ -1,0 +1,216 @@
+import 'package:basketball_academy/core/constants/app_colors.dart';
+import 'package:basketball_academy/core/constants/app_strings.dart';
+import 'package:basketball_academy/features/evaluation/domain/entities/evaluation_entity.dart';
+import 'package:basketball_academy/features/player/domain/entities/player_entity.dart';
+import 'package:basketball_academy/features/subscription/domain/entities/subscription_entity.dart';
+import 'package:basketball_academy/features/whatsapp/presentation/screens/custom_message_screen.dart';
+import 'package:basketball_academy/features/whatsapp/utils/whatsapp_utils.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:gap/gap.dart';
+import 'package:intl/intl.dart';
+
+class CommunicationSection extends StatelessWidget {
+  final PlayerEntity player;
+  final SubscriptionEntity? latestSubscription;
+  final EvaluationEntity? latestEvaluation;
+
+  const CommunicationSection({
+    super.key,
+    required this.player,
+    this.latestSubscription,
+    this.latestEvaluation,
+  });
+
+  Future<void> _launch(BuildContext context, String message) async {
+    final opened = await WhatsAppUtils.open(
+      player.parentPhone,
+      message: message,
+    );
+    if (!opened && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(AppStrings.whatsappNotInstalled),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Card(
+      margin: EdgeInsets.symmetric(horizontal: 16.w),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+      child: Padding(
+        padding: EdgeInsets.all(16.r),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Header
+            Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(8.r),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF25D366).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10.r),
+                  ),
+                  child: Icon(
+                    Icons.chat_bubble_outline,
+                    color: const Color(0xFF25D366),
+                    size: 20.sp,
+                  ),
+                ),
+                Gap(10.w),
+                Text(
+                  AppStrings.communication,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            Gap(14.h),
+
+            // 1. Contact Parent
+            _ActionButton(
+              icon: Icons.phone_in_talk_outlined,
+              label: AppStrings.contactParent,
+              color: AppColors.secondary,
+              onTap: () => _launch(
+                context,
+                WhatsAppUtils.contactTemplate(
+                  parentName: player.parentName,
+                  playerName: player.fullName,
+                ),
+              ),
+            ),
+            Gap(8.h),
+
+            // 2. Subscription Reminder
+            _ActionButton(
+              icon: Icons.notification_important_outlined,
+              label: AppStrings.subscriptionReminder,
+              color: AppColors.warning,
+              onTap: () {
+                final endDate = latestSubscription != null
+                    ? DateFormat('dd/MM/yyyy', 'ar').format(latestSubscription!.endDate)
+                    : '---';
+                _launch(
+                  context,
+                  WhatsAppUtils.subscriptionReminderTemplate(
+                    parentName: player.parentName,
+                    playerName: player.fullName,
+                    endDate: endDate,
+                  ),
+                );
+              },
+            ),
+            Gap(8.h),
+
+            // 3. Expired Subscription Reminder
+            _ActionButton(
+              icon: Icons.event_busy_outlined,
+              label: AppStrings.expiredSubscriptionReminder,
+              color: AppColors.error,
+              onTap: () => _launch(
+                context,
+                WhatsAppUtils.expiredSubscriptionTemplate(
+                  parentName: player.parentName,
+                  playerName: player.fullName,
+                ),
+              ),
+            ),
+            Gap(8.h),
+
+            // 4. Evaluation Follow-up
+            _ActionButton(
+              icon: Icons.assessment_outlined,
+              label: AppStrings.evaluationFollowUp,
+              color: AppColors.primary,
+              onTap: () {
+                final avg = latestEvaluation != null
+                    ? latestEvaluation!.average.toStringAsFixed(1)
+                    : '---';
+                final grade = latestEvaluation?.gradeLabel ?? '---';
+                _launch(
+                  context,
+                  WhatsAppUtils.evaluationFollowUpTemplate(
+                    parentName: player.parentName,
+                    playerName: player.fullName,
+                    average: avg,
+                    grade: grade,
+                  ),
+                );
+              },
+            ),
+            Gap(8.h),
+
+            // 5. Custom Message
+            _ActionButton(
+              icon: Icons.edit_note_outlined,
+              label: AppStrings.customMessage,
+              color: const Color(0xFF25D366),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => CustomMessageScreen(
+                    phone: player.parentPhone,
+                    parentName: player.parentName,
+                    playerName: player.fullName,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: color,
+        side: BorderSide(color: color.withValues(alpha: 0.4)),
+        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 11.h),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+        alignment: AlignmentDirectional.centerStart,
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 20.sp),
+          Gap(10.w),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const Spacer(),
+          Icon(Icons.arrow_forward_ios, size: 14.sp, color: color.withValues(alpha: 0.6)),
+        ],
+      ),
+    );
+  }
+}

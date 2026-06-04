@@ -145,6 +145,17 @@ class AppStrings {
   static const String noEvaluations = 'لا توجد تقييمات بعد';
   static const String evaluator = 'المقيّم';
 
+  // WhatsApp / Communication
+  static const String communication = 'التواصل مع ولي الأمر';
+  static const String contactParent = 'تواصل مع ولي الأمر';
+  static const String subscriptionReminder = 'تذكير بالاشتراك';
+  static const String expiredSubscriptionReminder = 'تذكير بانتهاء الاشتراك';
+  static const String evaluationFollowUp = 'متابعة نتيجة التقييم';
+  static const String customMessage = 'رسالة مخصصة';
+  static const String sendViaWhatsApp = 'إرسال عبر واتساب';
+  static const String writeMessageHere = 'اكتب رسالتك هنا...';
+  static const String whatsappNotInstalled = 'تطبيق واتساب غير مثبت على الجهاز';
+
   // Navigation
   static const String home = 'الرئيسية';
   static const String players = 'اللاعبون';

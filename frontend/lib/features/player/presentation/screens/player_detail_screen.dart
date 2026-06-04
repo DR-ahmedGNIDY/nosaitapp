@@ -7,9 +7,12 @@ import 'package:basketball_academy/features/evaluation/presentation/screens/eval
 import 'package:basketball_academy/features/player/domain/entities/player_entity.dart';
 import 'package:basketball_academy/features/player/presentation/providers/player_provider.dart';
 import 'package:basketball_academy/features/player/presentation/screens/edit_player_screen.dart';
+import 'package:basketball_academy/features/subscription/domain/entities/subscription_entity.dart';
+import 'package:basketball_academy/features/subscription/presentation/providers/subscription_provider.dart';
 import 'package:basketball_academy/features/subscription/presentation/screens/add_subscription_screen.dart';
 import 'package:basketball_academy/features/subscription/presentation/screens/player_subscription_history_screen.dart';
 import 'package:basketball_academy/features/subscription/presentation/screens/renew_subscription_screen.dart';
+import 'package:basketball_academy/features/whatsapp/presentation/widgets/communication_section.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -490,6 +493,8 @@ class _PlayerDetailContent extends ConsumerWidget {
                   ),
                   Gap(16.h),
 
+                  // Communication section (WhatsApp)
+                  _CommunicationWidget(player: player),
                   Gap(80.h),
                 ],
               ),
@@ -818,6 +823,36 @@ class _LatestEvaluationCard extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Communication Widget (WhatsApp)
+// ---------------------------------------------------------------------------
+
+class _CommunicationWidget extends ConsumerWidget {
+  final PlayerEntity player;
+  const _CommunicationWidget({required this.player});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final subsAsync = ref.watch(playerSubscriptionsProvider);
+    final latestEvalAsync = ref.watch(latestEvaluationProvider(player.id));
+
+    SubscriptionEntity? latestSub;
+    subsAsync.whenData((subs) {
+      if (subs.isNotEmpty) {
+        final sorted = [...subs]
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        latestSub = sorted.first;
+      }
+    });
+
+    return CommunicationSection(
+      player: player,
+      latestSubscription: latestSub,
+      latestEvaluation: latestEvalAsync.valueOrNull,
     );
   }
 }
