@@ -5,6 +5,7 @@ import 'package:basketball_academy/core/constants/app_strings.dart';
 import 'package:basketball_academy/features/academy/presentation/providers/academy_provider.dart';
 import 'package:basketball_academy/features/auth/presentation/providers/auth_provider.dart';
 import 'package:basketball_academy/features/reports/domain/models/report_filter.dart';
+import 'package:basketball_academy/features/reports/services/excel_report_service.dart';
 import 'package:basketball_academy/features/reports/services/pdf_report_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -68,8 +69,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   String? _selectedAcademyId;
   String _subscriptionStatusFilter = 'all'; // 'all' | 'active' | 'expired'
 
-  // Loading states per report index
+  // Loading states per report index (PDF)
   final List<bool> _loading = [false, false, false, false];
+  // Loading states per report index (Excel)
+  final List<bool> _loadingExcel = [false, false, false, false];
 
   ReportFilter get _currentFilter {
     return ReportFilter(
@@ -196,6 +199,61 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     );
   }
 
+  Future<void> _generateExcel(int index) async {
+    if (_selectedAcademyId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('يرجى اختيار الأكاديمية أولاً'),
+          backgroundColor: AppColors.warning,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _loadingExcel[index] = true);
+
+    try {
+      Uint8List bytes;
+      String fileName;
+
+      switch (index) {
+        case 0:
+          bytes = await ExcelReportService.generatePlayersExcel(_currentFilter);
+          fileName = 'players_report.xlsx';
+          break;
+        case 1:
+          bytes = await ExcelReportService.generateSubscriptionsExcel(_currentFilter);
+          fileName = 'subscriptions_report.xlsx';
+          break;
+        case 2:
+          bytes = await ExcelReportService.generateRevenueExcel(_currentFilter);
+          fileName = 'revenue_report.xlsx';
+          break;
+        case 3:
+          bytes = await ExcelReportService.generateEvaluationsExcel(_currentFilter);
+          fileName = 'evaluations_report.xlsx';
+          break;
+        default:
+          return;
+      }
+
+      if (!mounted) return;
+      await ExcelReportService.shareExcel(bytes, fileName);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${AppStrings.reportError}: ${e.toString()}'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _loadingExcel[index] = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider).valueOrNull;
@@ -315,7 +373,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   description:
                       'قائمة اللاعبين المسجلين مع حالة اشتراكاتهم ومعلومات أولياء الأمور',
                   loading: _loading[0],
+                  loadingExcel: _loadingExcel[0],
                   onGenerate: () => _generateReport(0),
+                  onExport: () => _generateExcel(0),
                 ),
                 Gap(12.h),
                 _ReportCard(
@@ -326,7 +386,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   description:
                       'سجل الاشتراكات والتجديدات مع تفاصيل المبالغ والتواريخ',
                   loading: _loading[1],
+                  loadingExcel: _loadingExcel[1],
                   onGenerate: () => _generateReport(1),
+                  onExport: () => _generateExcel(1),
                 ),
                 Gap(12.h),
                 _ReportCard(
@@ -337,7 +399,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   description:
                       'ملخص الإيرادات الكلية والشهرية وإحصائيات الاشتراكات',
                   loading: _loading[2],
+                  loadingExcel: _loadingExcel[2],
                   onGenerate: () => _generateReport(2),
+                  onExport: () => _generateExcel(2),
                 ),
                 Gap(12.h),
                 _ReportCard(
@@ -348,7 +412,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   description:
                       'سجل تقييمات اللاعبين بجميع المعايير والتقديرات',
                   loading: _loading[3],
+                  loadingExcel: _loadingExcel[3],
                   onGenerate: () => _generateReport(3),
+                  onExport: () => _generateExcel(3),
                 ),
                 Gap(24.h),
               ],
@@ -504,7 +570,9 @@ class _ReportCard extends StatelessWidget {
   final String title;
   final String description;
   final bool loading;
+  final bool loadingExcel;
   final VoidCallback onGenerate;
+  final VoidCallback onExport;
 
   const _ReportCard({
     required this.index,
@@ -513,7 +581,9 @@ class _ReportCard extends StatelessWidget {
     required this.title,
     required this.description,
     required this.loading,
+    required this.loadingExcel,
     required this.onGenerate,
+    required this.onExport,
   });
 
   @override
@@ -569,38 +639,76 @@ class _ReportCard extends StatelessWidget {
                 ],
               ),
             ),
-            Gap(12.w),
-            // Button
-            SizedBox(
-              width: 90.w,
-              child: ElevatedButton(
-                onPressed: loading ? null : onGenerate,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: AppColors.white,
-                  padding: EdgeInsets.symmetric(
-                      horizontal: 8.w, vertical: 10.h),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10.r),
+            Gap(8.w),
+            // Buttons column
+            Column(
+              children: [
+                // PDF button
+                SizedBox(
+                  width: 82.w,
+                  child: ElevatedButton(
+                    onPressed: loading ? null : onGenerate,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.white,
+                      padding: EdgeInsets.symmetric(
+                          horizontal: 6.w, vertical: 9.h),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10.r),
+                      ),
+                    ),
+                    child: loading
+                        ? SizedBox(
+                            width: 16.w,
+                            height: 16.w,
+                            child: const CircularProgressIndicator(
+                              color: AppColors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            AppStrings.generatePdf,
+                            style: TextStyle(
+                                fontSize: 10.sp,
+                                fontWeight: FontWeight.w600),
+                            textAlign: TextAlign.center,
+                          ),
                   ),
                 ),
-                child: loading
-                    ? SizedBox(
-                        width: 18.w,
-                        height: 18.w,
-                        child: const CircularProgressIndicator(
-                          color: AppColors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : Text(
-                        AppStrings.generatePdf,
-                        style: TextStyle(
-                            fontSize: 11.sp,
-                            fontWeight: FontWeight.w600),
-                        textAlign: TextAlign.center,
+                Gap(6.h),
+                // Excel button
+                SizedBox(
+                  width: 82.w,
+                  child: ElevatedButton(
+                    onPressed: loadingExcel ? null : onExport,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF217346), // Excel green
+                      foregroundColor: AppColors.white,
+                      padding: EdgeInsets.symmetric(
+                          horizontal: 6.w, vertical: 9.h),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10.r),
                       ),
-              ),
+                    ),
+                    child: loadingExcel
+                        ? SizedBox(
+                            width: 16.w,
+                            height: 16.w,
+                            child: const CircularProgressIndicator(
+                              color: AppColors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            AppStrings.generateExcel,
+                            style: TextStyle(
+                                fontSize: 10.sp,
+                                fontWeight: FontWeight.w600),
+                            textAlign: TextAlign.center,
+                          ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

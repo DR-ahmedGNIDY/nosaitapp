@@ -51,6 +51,10 @@ dependencies:
   printing: ^5.13.1
   path_provider: ^2.1.4
 
+  # Excel Export
+  excel: ^4.0.3
+  share_plus: ^10.1.4
+
   cupertino_icons: ^1.0.8
 
 dev_dependencies:

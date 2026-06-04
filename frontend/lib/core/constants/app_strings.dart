@@ -171,6 +171,9 @@ class AppStrings {
   static const String allTime = 'كل الوقت';
   static const String generatingReport = 'جارٍ إنشاء التقرير...';
   static const String reportError = 'حدث خطأ أثناء إنشاء التقرير';
+  static const String generateExcel = 'Excel';
+  static const String shareExcel = 'مشاركة Excel';
+  static const String excelReport = 'تقرير Excel';
 
   // Navigation
   static const String home = 'الرئيسية';
