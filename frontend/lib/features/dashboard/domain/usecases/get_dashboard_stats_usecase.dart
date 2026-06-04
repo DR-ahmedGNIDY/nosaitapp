@@ -1,0 +1,21 @@
+import 'package:basketball_academy/core/errors/failures.dart';
+import 'package:basketball_academy/core/utils/usecase.dart';
+import 'package:basketball_academy/features/dashboard/domain/entities/dashboard_entity.dart';
+import 'package:basketball_academy/features/dashboard/domain/repositories/dashboard_repository.dart';
+import 'package:dartz/dartz.dart';
+
+class GetDashboardStatsParams {
+  final String? academyId;
+  const GetDashboardStatsParams({this.academyId});
+}
+
+class GetDashboardStatsUsecase extends UseCase<DashboardStatsEntity, GetDashboardStatsParams> {
+  final DashboardRepository _repository;
+
+  GetDashboardStatsUsecase(this._repository);
+
+  @override
+  Future<Either<Failure, DashboardStatsEntity>> call(GetDashboardStatsParams params) {
+    return _repository.getStats(academyId: params.academyId);
+  }
+}

@@ -2,6 +2,7 @@ import 'package:basketball_academy/features/academy/presentation/screens/academy
 import 'package:basketball_academy/features/academy/presentation/screens/academy_list_screen.dart';
 import 'package:basketball_academy/features/auth/presentation/providers/auth_provider.dart';
 import 'package:basketball_academy/features/auth/presentation/screens/login_screen.dart';
+import 'package:basketball_academy/features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'package:basketball_academy/features/evaluation/presentation/screens/evaluation_history_screen.dart';
 import 'package:basketball_academy/features/player/presentation/screens/player_detail_screen.dart';
 import 'package:basketball_academy/features/player/presentation/screens/players_list_screen.dart';
@@ -27,6 +28,7 @@ class AppRoutes {
       '/academies/:id/players/:playerId/subscriptions';
   static const String playerEvaluations =
       '/academies/:id/players/:playerId/evaluations';
+  static const String dashboard = '/dashboard';
 }
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -54,7 +56,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.home,
-        builder: (context, state) => const AcademyListScreen(),
+        builder: (context, state) => const DashboardScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.dashboard,
+        builder: (context, state) => const DashboardScreen(),
       ),
       GoRoute(
         path: AppRoutes.academyList,

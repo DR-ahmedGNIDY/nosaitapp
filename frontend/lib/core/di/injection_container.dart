@@ -1,4 +1,13 @@
 import 'package:basketball_academy/core/network/api_client.dart';
+import 'package:basketball_academy/features/dashboard/data/datasources/dashboard_remote_datasource.dart';
+import 'package:basketball_academy/features/dashboard/data/repositories/dashboard_repository_impl.dart';
+import 'package:basketball_academy/features/dashboard/domain/repositories/dashboard_repository.dart';
+import 'package:basketball_academy/features/dashboard/domain/usecases/get_dashboard_stats_usecase.dart';
+import 'package:basketball_academy/features/dashboard/domain/usecases/get_evaluation_distribution_usecase.dart';
+import 'package:basketball_academy/features/dashboard/domain/usecases/get_players_by_birth_year_usecase.dart';
+import 'package:basketball_academy/features/dashboard/domain/usecases/get_recent_activities_usecase.dart';
+import 'package:basketball_academy/features/dashboard/domain/usecases/get_revenue_by_month_usecase.dart';
+import 'package:basketball_academy/features/dashboard/domain/usecases/get_subscriptions_by_type_usecase.dart';
 import 'package:basketball_academy/core/network/token_manager.dart';
 import 'package:basketball_academy/features/evaluation/data/datasources/evaluation_remote_datasource.dart';
 import 'package:basketball_academy/features/evaluation/data/repositories/evaluation_repository_impl.dart';
@@ -227,5 +236,31 @@ Future<void> initDependencies() async {
   );
   sl.registerLazySingleton<DeleteEvaluationUsecase>(
     () => DeleteEvaluationUsecase(sl<EvaluationRepository>()),
+  );
+
+  // Dashboard
+  sl.registerLazySingleton<DashboardRemoteDatasource>(
+    () => DashboardRemoteDatasourceImpl(sl<ApiClient>()),
+  );
+  sl.registerLazySingleton<DashboardRepository>(
+    () => DashboardRepositoryImpl(remoteDatasource: sl<DashboardRemoteDatasource>()),
+  );
+  sl.registerLazySingleton<GetDashboardStatsUsecase>(
+    () => GetDashboardStatsUsecase(sl<DashboardRepository>()),
+  );
+  sl.registerLazySingleton<GetRevenueByMonthUsecase>(
+    () => GetRevenueByMonthUsecase(sl<DashboardRepository>()),
+  );
+  sl.registerLazySingleton<GetSubscriptionsByTypeUsecase>(
+    () => GetSubscriptionsByTypeUsecase(sl<DashboardRepository>()),
+  );
+  sl.registerLazySingleton<GetPlayersByBirthYearUsecase>(
+    () => GetPlayersByBirthYearUsecase(sl<DashboardRepository>()),
+  );
+  sl.registerLazySingleton<GetEvaluationDistributionUsecase>(
+    () => GetEvaluationDistributionUsecase(sl<DashboardRepository>()),
+  );
+  sl.registerLazySingleton<GetRecentActivitiesUsecase>(
+    () => GetRecentActivitiesUsecase(sl<DashboardRepository>()),
   );
 }

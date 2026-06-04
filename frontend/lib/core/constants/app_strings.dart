@@ -153,6 +153,21 @@ class AppStrings {
   static const String reports = 'التقارير';
   static const String settings = 'الإعدادات';
 
+  // Dashboard
+  static const String dashboard = 'لوحة التحكم';
+  static const String totalPlayers = 'إجمالي اللاعبين';
+  static const String activePlayers = 'لاعبون نشطون';
+  static const String activeSubscriptions = 'اشتراكات نشطة';
+  static const String expiredSubscriptions = 'اشتراكات منتهية';
+  static const String revenueByMonth = 'الإيرادات الشهرية (آخر 12 شهر)';
+  static const String subscriptionDistribution = 'توزيع الاشتراكات';
+  static const String playersByBirthYear = 'اللاعبون حسب سنة الميلاد';
+  static const String evaluationDistribution = 'توزيع التقييمات';
+  static const String recentActivities = 'آخر الأنشطة';
+  static const String noChartData = 'لا توجد بيانات للعرض';
+  static const String currency = 'ريال';
+  static const String outOf10 = '/ 10';
+
   // Errors
   static const String networkError = 'تحقق من اتصالك بالإنترنت';
   static const String serverError = 'خطأ في الخادم، الرجاء المحاولة لاحقاً';
