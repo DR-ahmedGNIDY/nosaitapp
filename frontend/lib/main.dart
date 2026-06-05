@@ -43,7 +43,7 @@ class BasketballAcademyApp extends ConsumerWidget {
       splitScreenMode: true,
       builder: (context, child) {
         return MaterialApp.router(
-          title: 'أكاديمية كرة السلة',
+          title: 'Basketball Academy Manager',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,

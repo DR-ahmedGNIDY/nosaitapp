@@ -61,73 +61,66 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [AppColors.secondary, AppColors.primaryDark],
-          ),
-        ),
-        child: Center(
-          child: FadeTransition(
-            opacity: _fadeAnimation,
-            child: ScaleTransition(
-              scale: _scaleAnimation,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 110.w,
-                    height: 110.w,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(26.r),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.45),
-                          blurRadius: 28,
-                          offset: const Offset(0, 14),
+        color: AppColors.primary,
+        child: Stack(
+          children: [
+            Center(
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: ScaleTransition(
+                  scale: _scaleAnimation,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.sports_basketball,
+                        size: 80.sp,
+                        color: AppColors.white,
+                      ),
+                      Gap(20.h),
+                      Text(
+                        'Basketball Academy Manager',
+                        style: TextStyle(
+                          fontFamily: 'Cairo',
+                          fontSize: 22.sp,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.white,
                         ),
-                      ],
-                    ),
-                    child: Icon(
-                      Icons.sports_basketball,
-                      size: 62.sp,
-                      color: AppColors.white,
-                    ),
+                        textAlign: TextAlign.center,
+                      ),
+                      Gap(8.h),
+                      Text(
+                        'نظام إدارة الأكاديمية',
+                        style: TextStyle(
+                          fontFamily: 'Cairo',
+                          fontSize: 14.sp,
+                          color: AppColors.white.withValues(alpha: 0.70),
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
                   ),
-                  Gap(24.h),
-                  Text(
-                    'أكاديمية كرة السلة',
-                    style: TextStyle(
-                      fontFamily: 'Cairo',
-                      fontSize: 26.sp,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.white,
-                    ),
-                  ),
-                  Gap(6.h),
-                  Text(
-                    'نظام الإدارة الاحترافي',
-                    style: TextStyle(
-                      fontFamily: 'Cairo',
-                      fontSize: 14.sp,
-                      color: AppColors.white.withValues(alpha: 0.65),
-                    ),
-                  ),
-                  Gap(56.h),
-                  SizedBox(
-                    width: 28.w,
-                    height: 28.w,
-                    child: const CircularProgressIndicator(
-                      color: AppColors.primary,
-                      strokeWidth: 2.5,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
+            Positioned(
+              bottom: 40.h,
+              left: 0,
+              right: 0,
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: Text(
+                  'v1.0.0',
+                  style: TextStyle(
+                    fontFamily: 'Cairo',
+                    fontSize: 12.sp,
+                    color: AppColors.white.withValues(alpha: 0.50),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

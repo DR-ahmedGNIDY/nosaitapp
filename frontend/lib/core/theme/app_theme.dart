@@ -127,6 +127,11 @@ class AppTheme {
           color: colorScheme.onSurface,
         ),
       ),
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: ZoomPageTransitionsBuilder(),
+        },
+      ),
       textTheme: _buildTextTheme(),
     );
   }
