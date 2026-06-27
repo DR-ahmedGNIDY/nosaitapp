@@ -8,12 +8,16 @@ class CreateAcademyParams {
   final String name;
   final String phone;
   final String address;
+  final String currency;
+  final List<String> sports;
   final String? logoUrl;
 
   const CreateAcademyParams({
     required this.name,
     required this.phone,
     required this.address,
+    this.currency = 'EGP',
+    this.sports = const [],
     this.logoUrl,
   });
 }
@@ -28,6 +32,8 @@ class CreateAcademyUsecase extends UseCase<AcademyEntity, CreateAcademyParams> {
       name: params.name,
       phone: params.phone,
       address: params.address,
+      currency: params.currency,
+      sports: params.sports,
       logoUrl: params.logoUrl,
     );
   }

@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-enum UserRole { superAdmin, academyAdmin }
+enum UserRole { superAdmin, academyAdmin, admin }
 
 class UserEntity extends Equatable {
   final String id;
@@ -25,6 +25,14 @@ class UserEntity extends Equatable {
 
   bool get isSuperAdmin => role == UserRole.superAdmin;
   bool get isAcademyAdmin => role == UserRole.academyAdmin;
+  bool get isAdmin => role == UserRole.admin;
+
+  /// يملك صلاحيات اللاعبين والاشتراكات فقط
+  bool get isLimitedAdmin => role == UserRole.admin;
+
+  /// يملك صلاحيات كاملة على أكاديميته
+  bool get isAcademyLevel => role == UserRole.academyAdmin || role == UserRole.admin;
+
   String get fullName => name;
 
   @override

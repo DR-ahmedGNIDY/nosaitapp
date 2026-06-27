@@ -1,5 +1,8 @@
 import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/constants/app_strings.dart';
+import 'package:basketball_academy/core/constants/sports_constants.dart';
+import 'package:basketball_academy/core/utils/currency_utils.dart';
+import 'package:basketball_academy/core/widgets/multi_select_chips.dart';
 import 'package:basketball_academy/features/academy/presentation/providers/academy_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,6 +22,8 @@ class _AddAcademyScreenState extends ConsumerState<AddAcademyScreen> {
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
 
+  String _selectedCurrency = CurrencyUtils.defaultCode;
+  List<String> _selectedSports = const [];
   bool _isLoading = false;
 
   @override
@@ -50,12 +55,25 @@ class _AddAcademyScreenState extends ConsumerState<AddAcademyScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    if (_selectedSports.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('يجب اختيار رياضة واحدة على الأقل'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     final error = await ref.read(academiesProvider.notifier).createAcademy(
           name: _nameController.text.trim(),
           phone: _phoneController.text.trim(),
           address: _addressController.text.trim(),
+          currency: _selectedCurrency,
+          sports: _selectedSports,
         );
 
     if (!mounted) return;
@@ -186,6 +204,53 @@ class _AddAcademyScreenState extends ConsumerState<AddAcademyScreen> {
                       borderRadius: BorderRadius.circular(12.r),
                     ),
                   ),
+                ),
+                Gap(20.h),
+
+                // Currency field
+                Text(
+                  AppStrings.currencyField,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: AppColors.grey700,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Gap(8.h),
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedCurrency,
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.payments_outlined),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                  ),
+                  items: CurrencyUtils.codes
+                      .map((c) => DropdownMenuItem(
+                            value: c,
+                            child: Text(CurrencyUtils.labelWithCode(c)),
+                          ))
+                      .toList(),
+                  onChanged: (val) => setState(
+                      () => _selectedCurrency = val ?? CurrencyUtils.defaultCode),
+                ),
+                Gap(20.h),
+
+                // Sports multi-select
+                Text(
+                  'الرياضات الموجودة بالأكاديمية',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: AppColors.grey700,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Gap(8.h),
+                MultiSelectChips(
+                  options: SportsConstants.defaultSports,
+                  selected: _selectedSports,
+                  allowCustom: true,
+                  customHint: 'إضافة رياضة أخرى',
+                  onChanged: (sports) =>
+                      setState(() => _selectedSports = sports),
                 ),
                 Gap(32.h),
 

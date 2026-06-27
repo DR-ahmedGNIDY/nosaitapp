@@ -3,6 +3,7 @@ import 'package:basketball_academy/features/academy/domain/entities/academy_enti
 import 'package:basketball_academy/features/academy/domain/usecases/create_academy_usecase.dart';
 import 'package:basketball_academy/features/academy/domain/usecases/delete_academy_usecase.dart';
 import 'package:basketball_academy/features/academy/domain/usecases/get_academies_usecase.dart';
+import 'package:basketball_academy/features/academy/domain/usecases/get_academy_usecase.dart';
 import 'package:basketball_academy/features/academy/domain/usecases/update_academy_usecase.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -38,6 +39,8 @@ class AcademiesNotifier extends AsyncNotifier<List<AcademyEntity>> {
     required String name,
     required String phone,
     required String address,
+    String currency = 'EGP',
+    List<String> sports = const [],
     String? logoUrl,
   }) async {
     final result = await _createAcademyUsecase(
@@ -45,6 +48,8 @@ class AcademiesNotifier extends AsyncNotifier<List<AcademyEntity>> {
         name: name,
         phone: phone,
         address: address,
+        currency: currency,
+        sports: sports,
         logoUrl: logoUrl,
       ),
     );
@@ -62,6 +67,8 @@ class AcademiesNotifier extends AsyncNotifier<List<AcademyEntity>> {
     required String name,
     required String phone,
     required String address,
+    String currency = 'EGP',
+    List<String> sports = const [],
     String? logoUrl,
   }) async {
     final result = await _updateAcademyUsecase(
@@ -70,6 +77,8 @@ class AcademiesNotifier extends AsyncNotifier<List<AcademyEntity>> {
         name: name,
         phone: phone,
         address: address,
+        currency: currency,
+        sports: sports,
         logoUrl: logoUrl,
       ),
     );
@@ -100,3 +109,15 @@ final academiesProvider =
     AsyncNotifierProvider<AcademiesNotifier, List<AcademyEntity>>(
   AcademiesNotifier.new,
 );
+
+/// Fetches a single academy by id — used to read the academy's sports list
+/// when adding/editing a player or building the dashboard sport section.
+final academyByIdProvider =
+    FutureProvider.family<AcademyEntity, String>((ref, id) async {
+  final usecase = sl<GetAcademyUsecase>();
+  final result = await usecase(GetAcademyParams(id: id));
+  return result.fold(
+    (failure) => throw Exception(failure.message),
+    (academy) => academy,
+  );
+});

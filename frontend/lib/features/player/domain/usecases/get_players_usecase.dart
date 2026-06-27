@@ -8,6 +8,8 @@ class GetPlayersParams {
   final String? academyId;
   final String? search;
   final int? birthYear;
+  final String? sport;
+  final String? attendanceDay;
   final int page;
   final int limit;
 
@@ -15,6 +17,8 @@ class GetPlayersParams {
     this.academyId,
     this.search,
     this.birthYear,
+    this.sport,
+    this.attendanceDay,
     this.page = 1,
     this.limit = 20,
   });
@@ -34,6 +38,8 @@ class GetPlayersUsecase extends UseCase<
       academyId: params.academyId,
       search: params.search,
       birthYear: params.birthYear,
+      sport: params.sport,
+      attendanceDay: params.attendanceDay,
       page: params.page,
       limit: params.limit,
     );

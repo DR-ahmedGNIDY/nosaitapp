@@ -146,7 +146,8 @@ class ApiClient {
         final message = (e.response?.data is Map)
             ? (e.response?.data['message'] as String? ?? 'خطأ في الخادم')
             : 'خطأ في الخادم';
-        if (statusCode == 401) return const UnauthorizedException();
+        if (statusCode == 401) return UnauthorizedException(message: message);
+        if (statusCode == 403) return UnauthorizedException(message: message);
         if (statusCode == 404) return const NotFoundException();
         if (statusCode == 422) return ValidationException(message: message);
         return ServerException(message: message, statusCode: statusCode);

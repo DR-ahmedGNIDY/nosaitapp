@@ -13,6 +13,7 @@ abstract class UserRepository {
     required String email,
     required String password,
     required String academyId,
+    String role = 'academy_admin',
   });
 
   Future<Either<Failure, UserManagementEntity>> updateUser({
@@ -26,4 +27,6 @@ abstract class UserRepository {
   Future<Either<Failure, void>> activateUser(String id);
 
   Future<Either<Failure, void>> deactivateUser(String id);
+
+  Future<Either<Failure, void>> resetPassword(String id, String newPassword);
 }

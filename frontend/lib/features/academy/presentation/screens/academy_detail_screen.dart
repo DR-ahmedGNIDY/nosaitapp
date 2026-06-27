@@ -336,7 +336,7 @@ class _AcademyDetailContent extends ConsumerWidget {
                   _DetailCard(
                     children: [
                       InkWell(
-                        onTap: () => context.go(
+                        onTap: () => context.push(
                           AppRoutes.playersList.replaceFirst(
                               ':id', academy.id),
                         ),
@@ -379,8 +379,53 @@ class _AcademyDetailContent extends ConsumerWidget {
                         ),
                       ),
                       _RowDivider(),
+                      if (isSuperAdmin)
+                        InkWell(
+                          onTap: () => context.push(
+                            AppRoutes.academyUsers.replaceFirst(
+                                ':id', academy.id),
+                          ),
+                          borderRadius: BorderRadius.circular(16.r),
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 16.w, vertical: 14.h),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 40.w,
+                                  height: 40.w,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primaryContainer,
+                                    borderRadius: BorderRadius.circular(10.r),
+                                  ),
+                                  child: Icon(
+                                    Icons.manage_accounts_outlined,
+                                    color: AppColors.primary,
+                                    size: 20.sp,
+                                  ),
+                                ),
+                                Gap(12.w),
+                                Expanded(
+                                  child: Text(
+                                    AppStrings.academyUsers,
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.grey800,
+                                    ),
+                                  ),
+                                ),
+                                Icon(
+                                  Icons.chevron_left,
+                                  color: AppColors.grey400,
+                                  size: 20.sp,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      _RowDivider(),
                       InkWell(
-                        onTap: () => context.go(AppRoutes.reports),
+                        onTap: () => context.push(AppRoutes.reports),
                         borderRadius: BorderRadius.circular(16.r),
                         child: Padding(
                           padding: EdgeInsets.symmetric(

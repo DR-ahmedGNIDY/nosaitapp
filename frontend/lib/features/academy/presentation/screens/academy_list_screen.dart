@@ -55,7 +55,7 @@ class AcademyListScreen extends ConsumerWidget {
                   itemBuilder: (context, index) {
                     return _AcademyCard(
                       academy: academies[index],
-                      onTap: () => context.go(
+                      onTap: () => context.push(
                         AppRoutes.academyDetail.replaceFirst(
                           ':id',
                           academies[index].id,

@@ -2,10 +2,15 @@ import 'dart:async';
 
 import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/constants/app_strings.dart';
+import 'package:basketball_academy/core/constants/sports_constants.dart';
 import 'package:basketball_academy/core/router/app_router.dart';
+import 'package:basketball_academy/features/academy/presentation/providers/academy_provider.dart';
+import 'package:basketball_academy/features/attendance/presentation/screens/attendance_hub_screen.dart';
 import 'package:basketball_academy/features/auth/presentation/providers/auth_provider.dart';
+import 'package:basketball_academy/features/notification/presentation/screens/notifications_screen.dart';
 import 'package:basketball_academy/features/player/domain/entities/player_entity.dart';
 import 'package:basketball_academy/features/player/presentation/providers/player_provider.dart';
+import 'package:basketball_academy/features/subscription/presentation/providers/subscription_provider.dart';
 import 'package:basketball_academy/features/player/presentation/screens/add_player_screen.dart';
 import 'package:basketball_academy/features/player/presentation/screens/player_detail_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -26,38 +31,66 @@ class PlayersListScreen extends ConsumerStatefulWidget {
 
 class _PlayersListScreenState extends ConsumerState<PlayersListScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   Timer? _debounce;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref
-          .read(playersProvider.notifier)
-          .filterByAcademy(widget.academyId);
+      ref.read(playersProvider.notifier).filterByAcademy(widget.academyId);
     });
+  }
+
+  @override
+  void didUpdateWidget(PlayersListScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // When super_admin navigates from one academy to another, reload players
+    if (oldWidget.academyId != widget.academyId) {
+      _searchController.clear();
+      _debounce?.cancel();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(playersProvider.notifier).filterByAcademy(widget.academyId);
+      });
+    }
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      ref.read(playersProvider.notifier).loadMore();
+    }
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
   void _onSearchChanged(String value) {
+    // Rebuild so the clear (X) icon reflects the field's current state.
+    setState(() {});
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 500), () {
-      if (value.isEmpty) {
+    if (value.trim().isEmpty) {
+      // Field cleared — drop the filter immediately and show all players.
+      _debounce = Timer(const Duration(milliseconds: 200), () {
         ref.read(playersProvider.notifier).clearSearch();
-      } else {
-        ref.read(playersProvider.notifier).search(value);
-      }
-    });
+      });
+    } else {
+      _debounce = Timer(const Duration(milliseconds: 500), () {
+        ref.read(playersProvider.notifier).search(value.trim());
+      });
+    }
   }
 
   void _clearSearch() {
+    _debounce?.cancel();
     _searchController.clear();
+    setState(() {});
     ref.read(playersProvider.notifier).clearSearch();
   }
 
@@ -66,10 +99,19 @@ class _PlayersListScreenState extends ConsumerState<PlayersListScreen> {
     final playersAsync = ref.watch(playersProvider);
     final authState = ref.watch(authStateProvider).valueOrNull;
     final isSuperAdmin = authState?.user?.isSuperAdmin ?? false;
-    final isAcademyAdmin = !isSuperAdmin;
+    final isAcademyLevel = authState?.user?.isAcademyLevel ?? false;
+    final statusMap = ref
+        .watch(academyPlayerStatusMapProvider(widget.academyId))
+        .valueOrNull ??
+        {};
+
+    final academy =
+        ref.watch(academyByIdProvider(widget.academyId)).valueOrNull;
+    final isMultiSport = academy?.isMultiSport ?? false;
+    final academySports = academy?.sports ?? const <String>[];
 
     final canAdd = isSuperAdmin ||
-        (isAcademyAdmin &&
+        (isAcademyLevel &&
             authState?.user?.academyId == widget.academyId);
 
     return Scaffold(
@@ -107,6 +149,24 @@ class _PlayersListScreenState extends ConsumerState<PlayersListScreen> {
         ),
         centerTitle: true,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.qr_code_scanner),
+            tooltip: 'الحضور والانصراف',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) =>
+                    AttendanceHubScreen(academyId: widget.academyId),
+              ),
+            ),
+          ),
+          NotificationBellIcon(
+            onTap: () => context.push(AppRoutes.notifications),
+          ),
+          IconButton(
+            icon: const Icon(Icons.manage_accounts_outlined),
+            tooltip: 'إعدادات الحساب',
+            onPressed: () => context.push(AppRoutes.accountSettings),
+          ),
           IconButton(
             icon: const Icon(Icons.logout_outlined),
             tooltip: AppStrings.logout,
@@ -156,6 +216,33 @@ class _PlayersListScreenState extends ConsumerState<PlayersListScreen> {
               ),
             ),
           ),
+
+          // Filter row - sport chips (multi-sport academies only)
+          if (isMultiSport)
+            playersAsync.whenOrNull(
+                  data: (state) => _ChipFilterRow(
+                    allLabel: 'الكل',
+                    options: academySports,
+                    selected: state.sportFilter,
+                    onSelected: (sport) => ref
+                        .read(playersProvider.notifier)
+                        .filterBySport(sport),
+                  ),
+                ) ??
+                const SizedBox.shrink(),
+
+          // Filter row - attendance day chips
+          playersAsync.whenOrNull(
+                data: (state) => _ChipFilterRow(
+                  allLabel: 'كل الأيام',
+                  options: SportsConstants.weekDays,
+                  selected: state.attendanceDayFilter,
+                  onSelected: (day) => ref
+                      .read(playersProvider.notifier)
+                      .filterByAttendanceDay(day),
+                ),
+              ) ??
+              const SizedBox.shrink(),
 
           // Filter row - birth year chips
           playersAsync.whenOrNull(
@@ -214,14 +301,23 @@ class _PlayersListScreenState extends ConsumerState<PlayersListScreen> {
                   onRefresh: () =>
                       ref.read(playersProvider.notifier).refresh(),
                   child: ListView.separated(
+                    controller: _scrollController,
                     padding:
                         EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
-                    itemCount: state.players.length,
+                    itemCount: state.players.length + (state.hasMore ? 1 : 0),
                     separatorBuilder: (_, __) => Gap(10.h),
                     itemBuilder: (context, index) {
+                      if (index == state.players.length) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Center(child: CircularProgressIndicator()),
+                        );
+                      }
                       final player = state.players[index];
                       return _PlayerCard(
                         player: player,
+                        subscriptionStatus:
+                            statusMap[player.id] ?? 'جديد',
                         onTap: () {
                           Navigator.of(context).push(
                             MaterialPageRoute(
@@ -255,6 +351,81 @@ class _PlayersListScreenState extends ConsumerState<PlayersListScreen> {
               label: const Text(AppStrings.addPlayer),
             )
           : null,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Generic horizontal chip filter row (sports / attendance days)
+// ---------------------------------------------------------------------------
+
+class _ChipFilterRow extends StatelessWidget {
+  final String allLabel;
+  final List<String> options;
+  final String? selected;
+  final ValueChanged<String?> onSelected;
+
+  const _ChipFilterRow({
+    required this.allLabel,
+    required this.options,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 48.h,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+        itemCount: options.length + 1,
+        separatorBuilder: (_, __) => Gap(8.w),
+        itemBuilder: (context, index) {
+          // First chip = "All"
+          if (index == 0) {
+            final isSelected = selected == null;
+            return FilterChip(
+              label: Text(
+                allLabel,
+                style: TextStyle(
+                  fontSize: 12.sp,
+                  color: isSelected ? AppColors.white : AppColors.grey700,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+              selected: isSelected,
+              onSelected: (_) => onSelected(null),
+              selectedColor: AppColors.primary,
+              backgroundColor: AppColors.white,
+              side: BorderSide(
+                color: isSelected ? AppColors.primary : AppColors.grey200,
+              ),
+              checkmarkColor: AppColors.white,
+            );
+          }
+          final option = options[index - 1];
+          final isSelected = selected == option;
+          return FilterChip(
+            label: Text(
+              option,
+              style: TextStyle(
+                fontSize: 12.sp,
+                color: isSelected ? AppColors.white : AppColors.grey700,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+            selected: isSelected,
+            onSelected: (_) => onSelected(isSelected ? null : option),
+            selectedColor: AppColors.primary,
+            backgroundColor: AppColors.white,
+            side: BorderSide(
+              color: isSelected ? AppColors.primary : AppColors.grey200,
+            ),
+            checkmarkColor: AppColors.white,
+          );
+        },
+      ),
     );
   }
 }
@@ -342,14 +513,19 @@ class _BirthYearFilterRow extends StatelessWidget {
 // Player card
 // ---------------------------------------------------------------------------
 
-class _PlayerCard extends StatelessWidget {
+class _PlayerCard extends ConsumerWidget {
   final PlayerEntity player;
+  final String subscriptionStatus;
   final VoidCallback onTap;
 
-  const _PlayerCard({required this.player, required this.onTap});
+  const _PlayerCard({
+    required this.player,
+    required this.subscriptionStatus,
+    required this.onTap,
+  });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
 
     return Card(
@@ -370,14 +546,20 @@ class _PlayerCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      player.fullName,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.grey900,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            player.fullName,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.grey900,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
                     Gap(4.h),
                     Row(
@@ -409,7 +591,7 @@ class _PlayerCard extends StatelessWidget {
                 ),
               ),
               Gap(8.w),
-              // Player code badge
+              // Player code + subscription status badges
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -431,7 +613,9 @@ class _PlayerCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  Gap(6.h),
+                  Gap(4.h),
+                  _MiniStatusBadge(status: subscriptionStatus),
+                  Gap(2.h),
                   Icon(Icons.chevron_left,
                       size: 20.sp, color: AppColors.grey300),
                 ],
@@ -634,6 +818,49 @@ class _ErrorState extends StatelessWidget {
               label: const Text(AppStrings.retry),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Mini Status Badge — compact version for player list
+// ---------------------------------------------------------------------------
+
+class _MiniStatusBadge extends StatelessWidget {
+  final String status;
+  const _MiniStatusBadge({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    Color bg;
+    Color fg;
+    switch (status) {
+      case 'نشط':
+        bg = AppColors.successLight;
+        fg = AppColors.success;
+        break;
+      case 'منتهي':
+        bg = AppColors.errorLight;
+        fg = AppColors.error;
+        break;
+      default: // جديد
+        bg = AppColors.primaryContainer;
+        fg = AppColors.primaryDark;
+    }
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 7.w, vertical: 3.h),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(6.r),
+      ),
+      child: Text(
+        status,
+        style: TextStyle(
+          fontSize: 10.sp,
+          color: fg,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );

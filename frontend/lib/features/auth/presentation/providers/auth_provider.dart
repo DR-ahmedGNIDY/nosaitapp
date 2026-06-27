@@ -1,5 +1,6 @@
 import 'package:basketball_academy/core/di/injection_container.dart';
 import 'package:basketball_academy/features/auth/domain/entities/user_entity.dart';
+import 'package:basketball_academy/features/auth/domain/repositories/auth_repository.dart';
 import 'package:basketball_academy/features/auth/domain/usecases/get_current_user_usecase.dart';
 import 'package:basketball_academy/features/auth/domain/usecases/login_usecase.dart';
 import 'package:basketball_academy/features/auth/domain/usecases/logout_usecase.dart';
@@ -82,6 +83,35 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     state = const AsyncValue.loading();
     await _logoutUsecase();
     state = const AsyncValue.data(AuthState(isAuthenticated: false));
+  }
+
+  /// Update the current user's own name. Returns null on success, error otherwise.
+  Future<String?> updateName(String name) async {
+    final repo = sl<AuthRepository>();
+    final result = await repo.updateProfile(name: name);
+    return result.fold(
+      (failure) => failure.message,
+      (user) {
+        final current = state.valueOrNull ?? const AuthState();
+        state = AsyncValue.data(
+          current.copyWith(isAuthenticated: true, user: user),
+        );
+        return null;
+      },
+    );
+  }
+
+  /// Change the current user's own password (verifies current password server-side).
+  Future<String?> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final repo = sl<AuthRepository>();
+    final result = await repo.changePassword(
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+    );
+    return result.fold((failure) => failure.message, (_) => null);
   }
 
   void clearError() {

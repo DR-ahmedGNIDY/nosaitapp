@@ -22,8 +22,11 @@ const login = async (req, res, next) => {
 
   logger.info(`User logged in: ${user.email} [${user.role}]`);
 
-  return sendSuccess(res, {
+  return res.status(200).json({
+    success: true,
     message: 'تم تسجيل الدخول بنجاح',
+    token,
+    refreshToken,
     data: {
       _id: user._id,
       name: user.name,
@@ -33,7 +36,6 @@ const login = async (req, res, next) => {
       academy_name: user.academyId ? user.academyId.name : null,
       created_at: user.created_at,
     },
-    statusCode: 200,
   });
 };
 
@@ -46,6 +48,31 @@ const getMe = async (req, res, next) => {
   if (!user) return next(new AppError('المستخدم غير موجود', 404));
 
   return sendSuccess(res, {
+    data: {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      academy_id: user.academyId ? user.academyId._id : null,
+      academy_name: user.academyId ? user.academyId.name : null,
+      created_at: user.created_at,
+    },
+  });
+};
+
+// PATCH /api/v1/auth/me — current user updates own profile (name only)
+const updateMe = async (req, res, next) => {
+  const { name } = req.body;
+  const user = await User.findById(req.user._id).populate('academyId', 'name');
+  if (!user) return next(new AppError('المستخدم غير موجود', 404));
+
+  if (name) user.name = name;
+  await user.save();
+
+  logger.info(`Profile updated for user: ${user.email}`);
+
+  return sendSuccess(res, {
+    message: 'تم تحديث البيانات بنجاح',
     data: {
       _id: user._id,
       name: user.name,
@@ -73,4 +100,4 @@ const changePassword = async (req, res, next) => {
   return sendSuccess(res, { message: 'تم تغيير كلمة المرور بنجاح' });
 };
 
-module.exports = { login, logout, getMe, changePassword };
+module.exports = { login, logout, getMe, updateMe, changePassword };

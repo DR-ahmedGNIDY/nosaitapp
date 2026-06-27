@@ -3,13 +3,18 @@ const Academy = require('../models/academy.model');
 const AppError = require('../utils/AppError');
 const { sendSuccess } = require('../utils/apiResponse');
 const logger = require('../utils/logger');
+const { logActivity } = require('../utils/activityLogger');
 
 /**
  * POST /api/v1/users
- * super_admin only — creates a new academy_admin user
+ * super_admin only — creates academy_admin or admin users
  */
 const createUser = async (req, res, next) => {
-  const { name, email, password, academyId } = req.body;
+  // ── TRACE: طباعة كل ما وصل في req.body ──────────────────────────────────
+  console.log('[createUser] req.body =', JSON.stringify(req.body));
+  console.log('[createUser] req.body.role =', req.body.role);
+  // ─────────────────────────────────────────────────────────────────────────
+  const { name, email, password, academyId, role: requestedRole } = req.body;
 
   // Verify the target academy exists and is active
   const academy = await Academy.findById(academyId);
@@ -26,15 +31,24 @@ const createUser = async (req, res, next) => {
     return next(new AppError('البريد الإلكتروني مستخدم بالفعل', 409));
   }
 
+  // super_admin can create academy_admin or admin; default to academy_admin
+  const allowedRoles = ['academy_admin', 'admin'];
+  const newRole = allowedRoles.includes(requestedRole) ? requestedRole : 'academy_admin';
+  logger.info(`createUser — requestedRole="${requestedRole}" → newRole="${newRole}"`);
+
   const user = await User.create({
     name,
     email,
     password,
-    role: 'academy_admin',
+    role: newRole,
     academyId,
   });
 
   logger.info(`User created: ${user.email} for academy ${academy.name} by ${req.user.email}`);
+  logActivity(req, {
+    actionType: 'ADD_USER', entityType: 'USER',
+    entityId: user._id, entityName: user.name, academyId,
+  });
 
   // Populate academyId before returning so the response includes academy details
   await user.populate('academyId', 'name');
@@ -73,11 +87,37 @@ const updateUser = async (req, res, next) => {
   await user.populate('academyId', 'name');
 
   logger.info(`User updated: ${user.email} by ${req.user.email}`);
+  logActivity(req, {
+    actionType: 'UPDATE_USER', entityType: 'USER',
+    entityId: user._id, entityName: user.name, academyId: user.academyId,
+  });
 
   return sendSuccess(res, {
     data: user,
     message: 'تم تحديث المستخدم بنجاح',
   });
+};
+
+/**
+ * PATCH /api/v1/users/:id/reset-password
+ * super_admin only — sets a new password for any user.
+ * Uses the same bcrypt hashing via the user model pre-save hook.
+ */
+const resetUserPassword = async (req, res, next) => {
+  const { newPassword } = req.body;
+
+  // select +password so the pre-save hook re-hashes correctly
+  const user = await User.findById(req.params.id).select('+password');
+  if (!user) {
+    return next(new AppError('المستخدم غير موجود', 404));
+  }
+
+  user.password = newPassword;
+  await user.save();
+
+  logger.info(`Password reset for user: ${user.email} by ${req.user.email}`);
+
+  return sendSuccess(res, { message: 'تم تغيير كلمة مرور المستخدم بنجاح' });
 };
 
 /**
@@ -103,6 +143,10 @@ const deleteUser = async (req, res, next) => {
   await user.save();
 
   logger.info(`User soft-deleted: ${user.email} by ${req.user.email}`);
+  logActivity(req, {
+    actionType: 'DELETE_USER', entityType: 'USER',
+    entityId: user._id, entityName: user.name, academyId: user.academyId,
+  });
 
   return sendSuccess(res, { message: 'تم حذف المستخدم بنجاح' });
 };
@@ -170,9 +214,9 @@ const deactivateUser = async (req, res, next) => {
 const getUsersByAcademy = async (req, res, next) => {
   const { academyId } = req.params;
 
-  // academy_admin may only query their own academy
+  // academy_admin and admin may only query their own academy
   if (
-    req.user.role === 'academy_admin' &&
+    (req.user.role === 'academy_admin' || req.user.role === 'admin') &&
     req.user.academyId?.toString() !== academyId
   ) {
     return next(new AppError('ليس لديك صلاحية للوصول إلى مستخدمي هذه الأكاديمية', 403));
@@ -205,9 +249,9 @@ const getUserById = async (req, res, next) => {
     return next(new AppError('المستخدم غير موجود', 404));
   }
 
-  // academy_admin can only see users from their own academy
+  // academy_admin and admin can only see users from their own academy
   if (
-    req.user.role === 'academy_admin' &&
+    (req.user.role === 'academy_admin' || req.user.role === 'admin') &&
     user.academyId?._id?.toString() !== req.user.academyId?.toString()
   ) {
     return next(new AppError('ليس لديك صلاحية للوصول إلى هذا المستخدم', 403));
@@ -219,6 +263,7 @@ const getUserById = async (req, res, next) => {
 module.exports = {
   createUser,
   updateUser,
+  resetUserPassword,
   deleteUser,
   activateUser,
   deactivateUser,

@@ -11,7 +11,10 @@ class PlayerEntity extends Equatable {
   final String parentRelationship;
   final String? parentJob;
   final String parentPhone;
+  final String? playerPhone;
   final String? notes;
+  final String? sport;
+  final List<String> attendanceDays;
   final DateTime createdAt;
   final DateTime? updatedAt;
 
@@ -26,7 +29,10 @@ class PlayerEntity extends Equatable {
     required this.parentRelationship,
     this.parentJob,
     required this.parentPhone,
+    this.playerPhone,
     this.notes,
+    this.sport,
+    this.attendanceDays = const [],
     required this.createdAt,
     this.updatedAt,
   });
@@ -46,7 +52,10 @@ class PlayerEntity extends Equatable {
         parentRelationship,
         parentJob,
         parentPhone,
+        playerPhone,
         notes,
+        sport,
+        attendanceDays,
         createdAt,
         updatedAt,
       ];

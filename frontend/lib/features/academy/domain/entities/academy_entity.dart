@@ -6,6 +6,8 @@ class AcademyEntity extends Equatable {
   final String? logoUrl;
   final String phone;
   final String address;
+  final String currency;
+  final List<String> sports;
   final DateTime createdAt;
   final DateTime? updatedAt;
   final int? playerCount;
@@ -16,11 +18,17 @@ class AcademyEntity extends Equatable {
     this.logoUrl,
     required this.phone,
     required this.address,
+    this.currency = 'EGP',
+    this.sports = const [],
     required this.createdAt,
     this.updatedAt,
     this.playerCount,
   });
 
+  /// True when the academy runs more than one sport — controls whether
+  /// sport sections / filters / selectors are shown across the UI.
+  bool get isMultiSport => sports.length > 1;
+
   @override
-  List<Object?> get props => [id, name, logoUrl, phone, address, createdAt, updatedAt, playerCount];
+  List<Object?> get props => [id, name, logoUrl, phone, address, currency, sports, createdAt, updatedAt, playerCount];
 }

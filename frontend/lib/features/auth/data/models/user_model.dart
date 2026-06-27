@@ -40,7 +40,11 @@ class UserModel {
       id: id,
       name: name,
       email: email,
-      role: role == 'super_admin' ? UserRole.superAdmin : UserRole.academyAdmin,
+      role: role == 'super_admin'
+          ? UserRole.superAdmin
+          : role == 'admin'
+              ? UserRole.admin
+              : UserRole.academyAdmin,
       academyId: academyId,
       academyName: academyName,
       isActive: isActive,

@@ -12,5 +12,12 @@ abstract class AuthRepository {
 
   Future<Either<Failure, UserEntity>> getCurrentUser();
 
+  Future<Either<Failure, UserEntity>> updateProfile({required String name});
+
+  Future<Either<Failure, void>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  });
+
   Future<bool> isAuthenticated();
 }

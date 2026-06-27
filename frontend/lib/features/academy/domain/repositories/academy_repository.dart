@@ -9,6 +9,8 @@ abstract class AcademyRepository {
     required String name,
     required String phone,
     required String address,
+    String currency,
+    List<String> sports,
     String? logoUrl,
   });
   Future<Either<Failure, AcademyEntity>> updateAcademy({
@@ -16,6 +18,8 @@ abstract class AcademyRepository {
     required String name,
     required String phone,
     required String address,
+    String currency,
+    List<String> sports,
     String? logoUrl,
   });
   Future<Either<Failure, void>> deleteAcademy(String id);

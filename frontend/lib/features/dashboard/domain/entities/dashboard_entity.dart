@@ -97,58 +97,58 @@ class EvaluationDistributionEntity extends Equatable {
   List<Object?> get props => [excellent, good, needsImprovement, total];
 }
 
+/// نشاط واحد من سجل النشاط الحقيقي (من قام بالإجراء).
 class RecentActivityEntity extends Equatable {
-  final String type; // 'PLAYER' | 'NEW_SUBSCRIPTION' | 'RENEWAL' | 'EVALUATION'
-  final String? playerName;
-  final String? playerCode;
-  final double? amount;
-  final double? average;
-  final String? gradeLabel;
+  final String userName;
+  final String actionType; // CREATE_PLAYER, RENEW_SUBSCRIPTION, ...
+  final String entityType; // PLAYER, SUBSCRIPTION, EVALUATION, ATTENDANCE, USER, ACADEMY
+  final String entityName;
   final DateTime createdAt;
 
   const RecentActivityEntity({
-    required this.type,
-    this.playerName,
-    this.playerCode,
-    this.amount,
-    this.average,
-    this.gradeLabel,
+    required this.userName,
+    required this.actionType,
+    required this.entityType,
+    required this.entityName,
     required this.createdAt,
   });
 
-  @override
-  List<Object?> get props => [
-        type,
-        playerName,
-        playerCode,
-        amount,
-        average,
-        gradeLabel,
-        createdAt,
-      ];
-}
-
-class RecentActivitiesEntity extends Equatable {
-  final List<RecentActivityEntity> recentPlayers;
-  final List<RecentActivityEntity> recentSubscriptions;
-  final List<RecentActivityEntity> recentEvaluations;
-
-  const RecentActivitiesEntity({
-    required this.recentPlayers,
-    required this.recentSubscriptions,
-    required this.recentEvaluations,
-  });
-
-  List<RecentActivityEntity> get all {
-    final combined = [
-      ...recentPlayers,
-      ...recentSubscriptions,
-      ...recentEvaluations,
-    ];
-    combined.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    return combined;
+  /// الجملة المعروضة: «{المستخدم} {فعل} {اسم العنصر}».
+  String get sentence {
+    final who = userName.trim().isNotEmpty ? userName : 'مستخدم';
+    final verb = switch (actionType) {
+      'CREATE_PLAYER' => 'قام بإضافة اللاعب',
+      'UPDATE_PLAYER' => 'قام بتعديل بيانات اللاعب',
+      'DELETE_PLAYER' => 'قام بحذف اللاعب',
+      'ADD_SUBSCRIPTION' => 'قام بإضافة اشتراك للاعب',
+      'RENEW_SUBSCRIPTION' => 'قام بتجديد اشتراك اللاعب',
+      'DELETE_SUBSCRIPTION' => 'قام بحذف اشتراك اللاعب',
+      'ADD_EVALUATION' => 'قام بإضافة تقييم للاعب',
+      'UPDATE_EVALUATION' => 'قام بتعديل تقييم اللاعب',
+      'DELETE_EVALUATION' => 'قام بحذف تقييم اللاعب',
+      'RECORD_ATTENDANCE' => 'قام بتسجيل حضور اللاعب',
+      'ADD_USER' => 'قام بإضافة المستخدم',
+      'UPDATE_USER' => 'قام بتعديل المستخدم',
+      'DELETE_USER' => 'قام بحذف المستخدم',
+      'UPDATE_ACADEMY' => 'قام بتعديل بيانات الأكاديمية',
+      _ => 'قام بإجراء',
+    };
+    return entityName.trim().isNotEmpty ? '$who $verb $entityName' : '$who $verb';
   }
 
   @override
-  List<Object?> get props => [recentPlayers, recentSubscriptions, recentEvaluations];
+  List<Object?> get props =>
+      [userName, actionType, entityType, entityName, createdAt];
+}
+
+class RecentActivitiesEntity extends Equatable {
+  final List<RecentActivityEntity> activities;
+
+  const RecentActivitiesEntity({required this.activities});
+
+  /// الأحدث أولاً (الـ backend يُرتّب بالفعل، ونحافظ على الترتيب).
+  List<RecentActivityEntity> get all => activities;
+
+  @override
+  List<Object?> get props => [activities];
 }

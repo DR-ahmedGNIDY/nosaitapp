@@ -5,6 +5,63 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
+// ─── بطاقة اختيار الدور — بديل موثوق عن SegmentedButton ───────────────────
+class _RoleCard extends StatelessWidget {
+  final String value;
+  final String label;
+  final IconData icon;
+  final String selectedValue;
+  final void Function(String) onTap;
+
+  const _RoleCard({
+    required this.value,
+    required this.label,
+    required this.icon,
+    required this.selectedValue,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isSelected = value == selectedValue;
+    return GestureDetector(
+      onTap: () => onTap(value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: EdgeInsets.symmetric(vertical: 14.h, horizontal: 8.w),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : AppColors.white,
+          border: Border.all(
+            color: isSelected ? AppColors.primary : AppColors.grey300,
+            width: isSelected ? 2 : 1,
+          ),
+          borderRadius: BorderRadius.circular(12.r),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              color: isSelected ? AppColors.white : AppColors.grey500,
+              size: 24.sp,
+            ),
+            SizedBox(height: 6.h),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w600,
+                color: isSelected ? AppColors.white : AppColors.grey700,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class AddUserScreen extends ConsumerStatefulWidget {
   final String academyId;
 
@@ -22,6 +79,7 @@ class _AddUserScreenState extends ConsumerState<AddUserScreen> {
 
   bool _isLoading = false;
   bool _obscurePassword = true;
+  String _selectedRole = 'academy_admin';
 
   @override
   void dispose() {
@@ -53,14 +111,22 @@ class _AddUserScreenState extends ConsumerState<AddUserScreen> {
     if (value == null || value.trim().isEmpty) {
       return 'هذا الحقل مطلوب';
     }
-    if (value.length < 6) {
-      return 'كلمة المرور يجب أن تكون 6 أحرف على الأقل';
+    if (value.length < 8) {
+      return 'كلمة المرور يجب أن تكون 8 أحرف على الأقل';
     }
     return null;
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // ── تأكيد نهائي من القيمة قبل الإرسال ──
+    final roleToSend = _selectedRole;
+    assert(() {
+      // ignore: avoid_print
+      print('[AddUserScreen] _submit called — roleToSend="$roleToSend"');
+      return true;
+    }());
 
     setState(() => _isLoading = true);
 
@@ -69,6 +135,7 @@ class _AddUserScreenState extends ConsumerState<AddUserScreen> {
           email: _emailController.text.trim(),
           password: _passwordController.text,
           academyId: widget.academyId,
+          role: roleToSend,
         );
 
     if (!mounted) return;
@@ -208,6 +275,48 @@ class _AddUserScreenState extends ConsumerState<AddUserScreen> {
                       borderRadius: BorderRadius.circular(12.r),
                     ),
                   ),
+                ),
+                Gap(20.h),
+
+                // Role selector — بطاقات مخصصة بدلاً من SegmentedButton
+                Text(
+                  'الدور الوظيفي',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: AppColors.grey700,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Gap(8.h),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _RoleCard(
+                        value: 'academy_admin',
+                        label: 'مدير أكاديمية',
+                        icon: Icons.admin_panel_settings_outlined,
+                        selectedValue: _selectedRole,
+                        onTap: (v) => setState(() {
+                          _selectedRole = v;
+                          // ignore: avoid_print
+                          assert(() { print('[RoleCard] selected="$_selectedRole"'); return true; }());
+                        }),
+                      ),
+                    ),
+                    SizedBox(width: 12.w),
+                    Expanded(
+                      child: _RoleCard(
+                        value: 'admin',
+                        label: 'مشرف',
+                        icon: Icons.manage_accounts_outlined,
+                        selectedValue: _selectedRole,
+                        onTap: (v) => setState(() {
+                          _selectedRole = v;
+                          // ignore: avoid_print
+                          assert(() { print('[RoleCard] selected="$_selectedRole"'); return true; }());
+                        }),
+                      ),
+                    ),
+                  ],
                 ),
                 Gap(32.h),
 

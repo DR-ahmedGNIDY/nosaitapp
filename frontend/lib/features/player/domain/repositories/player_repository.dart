@@ -15,6 +15,8 @@ abstract class PlayerRepository {
     String? academyId,
     String? search,
     int? birthYear,
+    String? sport,
+    String? attendanceDay,
     int page = 1,
     int limit = 20,
   });
@@ -30,7 +32,10 @@ abstract class PlayerRepository {
     required String parentRelationship,
     String? parentJob,
     required String parentPhone,
+    String? playerPhone,
     String? notes,
+    String? sport,
+    List<String> attendanceDays,
     String? academyId,
     String? imagePath,
   });
@@ -43,7 +48,10 @@ abstract class PlayerRepository {
     String? parentRelationship,
     String? parentJob,
     String? parentPhone,
+    String? playerPhone,
     String? notes,
+    String? sport,
+    List<String>? attendanceDays,
     String? imagePath,
   });
 

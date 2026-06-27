@@ -10,8 +10,15 @@ class UserManagementModel {
   final String name;
   final String email;
   final String role;
-  @JsonKey(name: 'academyId')
+  // academyId may be a plain String (ObjectId) or a populated object {"_id":..., "name":...}
+  @JsonKey(name: 'academyId', fromJson: _academyIdFromJson)
   final String academyId;
+
+  static String _academyIdFromJson(dynamic value) {
+    if (value is String) return value;
+    if (value is Map) return (value['_id'] as String?) ?? '';
+    return '';
+  }
   @JsonKey(name: 'isActive', defaultValue: true)
   final bool isActive;
   @JsonKey(name: 'created_at')

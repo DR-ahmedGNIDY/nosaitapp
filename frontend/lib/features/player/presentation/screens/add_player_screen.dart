@@ -2,7 +2,11 @@ import 'dart:io';
 
 import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/constants/app_strings.dart';
+import 'package:basketball_academy/core/constants/sports_constants.dart';
+import 'package:basketball_academy/core/widgets/multi_select_chips.dart';
+import 'package:basketball_academy/features/academy/presentation/providers/academy_provider.dart';
 import 'package:basketball_academy/features/player/presentation/providers/player_provider.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -25,10 +29,13 @@ class _AddPlayerScreenState extends ConsumerState<AddPlayerScreen> {
   final _parentNameController = TextEditingController();
   final _parentJobController = TextEditingController();
   final _parentPhoneController = TextEditingController();
+  final _playerPhoneController = TextEditingController();
   final _notesController = TextEditingController();
 
   DateTime? _birthDate;
   String? _selectedRelationship;
+  String? _selectedSport;
+  List<String> _selectedAttendanceDays = const [];
   XFile? _pickedImage;
   bool _isLoading = false;
 
@@ -54,6 +61,7 @@ class _AddPlayerScreenState extends ConsumerState<AddPlayerScreen> {
     _parentNameController.dispose();
     _parentJobController.dispose();
     _parentPhoneController.dispose();
+    _playerPhoneController.dispose();
     _notesController.dispose();
     super.dispose();
   }
@@ -166,6 +174,20 @@ class _AddPlayerScreenState extends ConsumerState<AddPlayerScreen> {
       return;
     }
 
+    // Sport is required only for multi-sport academies.
+    final academy = ref.read(academyByIdProvider(widget.academyId)).valueOrNull;
+    final isMultiSport = academy?.isMultiSport ?? false;
+    if (isMultiSport && (_selectedSport == null || _selectedSport!.isEmpty)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('الرجاء اختيار الرياضة'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     final error = await ref.read(playersProvider.notifier).createPlayer(
@@ -177,9 +199,15 @@ class _AddPlayerScreenState extends ConsumerState<AddPlayerScreen> {
               ? null
               : _parentJobController.text.trim(),
           parentPhone: _parentPhoneController.text.trim(),
+          playerPhone: _playerPhoneController.text.trim().isEmpty
+              ? null
+              : _playerPhoneController.text.trim(),
           notes: _notesController.text.trim().isEmpty
               ? null
               : _notesController.text.trim(),
+          // Single-sport academies leave this null; the backend auto-assigns.
+          sport: isMultiSport ? _selectedSport : null,
+          attendanceDays: _selectedAttendanceDays,
           academyId: widget.academyId,
           imagePath: _pickedImage?.path,
         );
@@ -209,6 +237,11 @@ class _AddPlayerScreenState extends ConsumerState<AddPlayerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final academyAsync = ref.watch(academyByIdProvider(widget.academyId));
+    final academy = academyAsync.valueOrNull;
+    final isMultiSport = academy?.isMultiSport ?? false;
+    final sports = academy?.sports ?? const <String>[];
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -232,7 +265,10 @@ class _AddPlayerScreenState extends ConsumerState<AddPlayerScreen> {
                         radius: 60.r,
                         backgroundColor: AppColors.primaryContainer,
                         backgroundImage: _pickedImage != null
-                            ? FileImage(File(_pickedImage!.path))
+                            ? (kIsWeb
+                                ? NetworkImage(_pickedImage!.path)
+                                    as ImageProvider
+                                : FileImage(File(_pickedImage!.path)))
                             : null,
                         child: _pickedImage == null
                             ? Icon(
@@ -355,6 +391,34 @@ class _AddPlayerScreenState extends ConsumerState<AddPlayerScreen> {
 
               Gap(16.h),
 
+              // Sport (multi-sport academies only — auto-assigned otherwise)
+              if (isMultiSport) ...[
+                _buildLabel('الرياضة'),
+                Gap(6.h),
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedSport,
+                  decoration: _inputDecoration(hint: 'اختر الرياضة'),
+                  items: sports
+                      .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                      .toList(),
+                  onChanged: (val) => setState(() => _selectedSport = val),
+                  validator: (v) => v == null ? AppStrings.required : null,
+                ),
+                Gap(16.h),
+              ],
+
+              // Attendance days (optional)
+              _buildLabel('أيام الحضور (اختياري)'),
+              Gap(6.h),
+              MultiSelectChips(
+                options: SportsConstants.weekDays,
+                selected: _selectedAttendanceDays,
+                onChanged: (days) =>
+                    setState(() => _selectedAttendanceDays = days),
+              ),
+
+              Gap(16.h),
+
               // Parent job (optional)
               _buildLabel('${AppStrings.parentJob} (اختياري)'),
               Gap(6.h),
@@ -375,6 +439,22 @@ class _AddPlayerScreenState extends ConsumerState<AddPlayerScreen> {
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) return AppStrings.required;
                   if (v.trim().length < 9) return 'رقم الهاتف غير صحيح';
+                  return null;
+                },
+              ),
+
+              Gap(16.h),
+
+              // Player phone (optional)
+              _buildLabel('${AppStrings.playerPhone} (اختياري)'),
+              Gap(6.h),
+              TextFormField(
+                controller: _playerPhoneController,
+                keyboardType: TextInputType.phone,
+                decoration: _inputDecoration(hint: '05XXXXXXXX'),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return null; // optional
+                  if (v.trim().length < 7) return 'رقم الهاتف غير صحيح';
                   return null;
                 },
               ),

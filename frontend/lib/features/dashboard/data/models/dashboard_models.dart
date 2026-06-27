@@ -162,82 +162,60 @@ class EvaluationDistributionModel {
 }
 
 class RecentActivityModel {
-  final String type;
-  final String? playerName;
-  final String? playerCode;
-  final double? amount;
-  final double? average;
-  final String? gradeLabel;
+  final String userName;
+  final String actionType;
+  final String entityType;
+  final String entityName;
   final DateTime createdAt;
 
   const RecentActivityModel({
-    required this.type,
-    this.playerName,
-    this.playerCode,
-    this.amount,
-    this.average,
-    this.gradeLabel,
+    required this.userName,
+    required this.actionType,
+    required this.entityType,
+    required this.entityName,
     required this.createdAt,
   });
 
   factory RecentActivityModel.fromJson(Map<String, dynamic> json) {
     return RecentActivityModel(
-      type: (json['type'] as String?) ?? 'PLAYER',
-      playerName: json['playerName'] as String?,
-      playerCode: json['playerCode'] as String?,
-      amount: (json['amount'] as num?)?.toDouble(),
-      average: (json['average'] as num?)?.toDouble(),
-      gradeLabel: json['gradeLabel'] as String?,
+      userName: (json['userName'] as String?) ?? '',
+      actionType: (json['actionType'] as String?) ?? '',
+      entityType: (json['entityType'] as String?) ?? '',
+      entityName: (json['entityName'] as String?) ?? '',
       createdAt: json['createdAt'] != null
-          ? DateTime.tryParse(json['createdAt'] as String) ?? DateTime.now()
+          ? DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now()
           : DateTime.now(),
     );
   }
 
   RecentActivityEntity toEntity() {
     return RecentActivityEntity(
-      type: type,
-      playerName: playerName,
-      playerCode: playerCode,
-      amount: amount,
-      average: average,
-      gradeLabel: gradeLabel,
+      userName: userName,
+      actionType: actionType,
+      entityType: entityType,
+      entityName: entityName,
       createdAt: createdAt,
     );
   }
 }
 
 class RecentActivitiesModel {
-  final List<RecentActivityModel> recentPlayers;
-  final List<RecentActivityModel> recentSubscriptions;
-  final List<RecentActivityModel> recentEvaluations;
+  final List<RecentActivityModel> activities;
 
-  const RecentActivitiesModel({
-    required this.recentPlayers,
-    required this.recentSubscriptions,
-    required this.recentEvaluations,
-  });
+  const RecentActivitiesModel({required this.activities});
 
-  factory RecentActivitiesModel.fromJson(Map<String, dynamic> json) {
-    List<RecentActivityModel> parseList(dynamic raw) {
-      if (raw == null) return [];
-      return (raw as List<dynamic>)
-          .map((e) => RecentActivityModel.fromJson(e as Map<String, dynamic>))
-          .toList();
-    }
-
+  /// الـ backend يُرجع قائمة مسطّحة من سجل النشاط (الأحدث أولاً).
+  factory RecentActivitiesModel.fromList(List<dynamic> raw) {
     return RecentActivitiesModel(
-      recentPlayers: parseList(json['recentPlayers']),
-      recentSubscriptions: parseList(json['recentSubscriptions']),
-      recentEvaluations: parseList(json['recentEvaluations']),
+      activities: raw
+          .map((e) => RecentActivityModel.fromJson(e as Map<String, dynamic>))
+          .toList(),
     );
   }
 
   RecentActivitiesEntity toEntity() {
     return RecentActivitiesEntity(
-      recentPlayers: recentPlayers.map((m) => m.toEntity()).toList(),
-      recentSubscriptions: recentSubscriptions.map((m) => m.toEntity()).toList(),
-      recentEvaluations: recentEvaluations.map((m) => m.toEntity()).toList(),
+      activities: activities.map((m) => m.toEntity()).toList(),
     );
   }
 }

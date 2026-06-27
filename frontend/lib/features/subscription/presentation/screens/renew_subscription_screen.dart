@@ -1,5 +1,6 @@
 import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/constants/app_strings.dart';
+import 'package:basketball_academy/features/academy/presentation/providers/currency_provider.dart';
 import 'package:basketball_academy/features/subscription/presentation/providers/subscription_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -83,7 +84,7 @@ class _RenewSubscriptionScreenState
     setState(() => _isLoading = true);
 
     final error = await ref
-        .read(playerSubscriptionsProvider.notifier)
+        .read(playerSubscriptionsProvider(widget.playerId).notifier)
         .createSubscription(
           playerId: widget.playerId,
           type: 'RENEWAL',
@@ -122,6 +123,8 @@ class _RenewSubscriptionScreenState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final currencyLabel =
+        ref.watch(academyCurrencyLabelProvider(widget.academyId));
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -199,7 +202,7 @@ class _RenewSubscriptionScreenState
                 decoration: InputDecoration(
                   hintText: 'مثال: 500',
                   prefixIcon: const Icon(Icons.monetization_on_outlined),
-                  suffixText: 'ريال',
+                  suffixText: currencyLabel,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12.r),
                   ),

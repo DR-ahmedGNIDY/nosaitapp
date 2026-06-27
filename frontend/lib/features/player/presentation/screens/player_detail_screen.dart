@@ -1,5 +1,6 @@
 import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/constants/app_strings.dart';
+import 'package:basketball_academy/features/academy/presentation/providers/academy_provider.dart';
 import 'package:basketball_academy/features/auth/presentation/providers/auth_provider.dart';
 import 'package:basketball_academy/features/evaluation/presentation/providers/evaluation_provider.dart';
 import 'package:basketball_academy/features/evaluation/presentation/screens/add_evaluation_screen.dart';
@@ -7,6 +8,7 @@ import 'package:basketball_academy/features/evaluation/presentation/screens/eval
 import 'package:basketball_academy/features/player/domain/entities/player_entity.dart';
 import 'package:basketball_academy/features/player/presentation/providers/player_provider.dart';
 import 'package:basketball_academy/features/player/presentation/screens/edit_player_screen.dart';
+import 'package:basketball_academy/features/player/presentation/screens/player_card_screen.dart';
 import 'package:basketball_academy/features/subscription/domain/entities/subscription_entity.dart';
 import 'package:basketball_academy/features/subscription/presentation/providers/subscription_provider.dart';
 import 'package:basketball_academy/features/subscription/presentation/screens/add_subscription_screen.dart';
@@ -253,9 +255,9 @@ class _PlayerDetailContent extends ConsumerWidget {
     final theme = Theme.of(context);
     final authState = ref.watch(authStateProvider).valueOrNull;
     final isSuperAdmin = authState?.user?.isSuperAdmin ?? false;
-    final isAcademyAdminSame =
+    final isAcademyLevelSame =
         !isSuperAdmin && authState?.user?.academyId == academyId;
-    final canEdit = isSuperAdmin || isAcademyAdminSame;
+    final canEdit = isSuperAdmin || isAcademyLevelSame;
 
     final dateFormat = DateFormat('dd/MM/yyyy', 'ar');
 
@@ -361,6 +363,8 @@ class _PlayerDetailContent extends ConsumerWidget {
                     ),
                     textAlign: TextAlign.center,
                   ),
+                  Gap(8.h),
+                  _PlayerStatusBadge(playerId: player.id),
                 ],
               ),
             ),
@@ -392,6 +396,15 @@ class _PlayerDetailContent extends ConsumerWidget {
                         label: AppStrings.age,
                         value: '${player.age} ${AppStrings.yearsOld}',
                       ),
+                      if (player.playerPhone != null &&
+                          player.playerPhone!.isNotEmpty) ...[
+                        _RowDivider(),
+                        _InfoRow(
+                          icon: Icons.phone_android_outlined,
+                          label: AppStrings.playerPhone,
+                          value: player.playerPhone!,
+                        ),
+                      ],
                       if (isSuperAdmin) ...[
                         _RowDivider(),
                         _InfoRow(
@@ -479,6 +492,26 @@ class _PlayerDetailContent extends ConsumerWidget {
                       ),
                     ),
                   ],
+
+                  Gap(16.h),
+                  // Player Card (QR) button — متاح للجميع لعرض/طباعة البطاقة
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.white,
+                        padding: EdgeInsets.symmetric(vertical: 12.h),
+                      ),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => PlayerCardScreen(player: player),
+                        ),
+                      ),
+                      icon: const Icon(Icons.badge_outlined),
+                      label: const Text('بطاقة اللاعب'),
+                    ),
+                  ),
 
                   Gap(16.h),
                   // Subscription Actions Card
@@ -653,7 +686,52 @@ class _LatestEvaluationCard extends ConsumerWidget {
 
     return latestAsync.when(
       loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
+      // عند خطأ: نعرض بطاقة "لا توجد تقييمات" مع زر الإضافة
+      error: (_, __) => Card(
+        margin: EdgeInsets.symmetric(horizontal: 0.w),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.r),
+        ),
+        elevation: 1,
+        child: Padding(
+          padding: EdgeInsets.all(16.r),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                AppStrings.latestEvaluation,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.grey800,
+                ),
+              ),
+              Gap(8.h),
+              Text(
+                AppStrings.noEvaluations,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.grey500,
+                ),
+              ),
+              if (canEdit) ...[
+                Gap(8.h),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => AddEvaluationScreen(
+                        playerId: playerId,
+                        academyId: academyId,
+                        playerName: playerName,
+                      ),
+                    ),
+                  ),
+                  icon: const Icon(Icons.add_chart),
+                  label: const Text(AppStrings.addEvaluation),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
       data: (evaluation) {
         if (evaluation == null) {
           return Card(
@@ -837,22 +915,96 @@ class _CommunicationWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final subsAsync = ref.watch(playerSubscriptionsProvider);
+    final subsAsync = ref.watch(playerSubscriptionsProvider(player.id));
     final latestEvalAsync = ref.watch(latestEvaluationProvider(player.id));
 
     SubscriptionEntity? latestSub;
     subsAsync.whenData((subs) {
       if (subs.isNotEmpty) {
         final sorted = [...subs]
-          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          ..sort((a, b) => b.endDate.compareTo(a.endDate));
         latestSub = sorted.first;
       }
     });
 
+    final academyName =
+        ref.watch(academyByIdProvider(player.academyId)).valueOrNull?.name ??
+            'الأكاديمية';
+
     return CommunicationSection(
       player: player,
+      academyName: academyName,
       latestSubscription: latestSub,
       latestEvaluation: latestEvalAsync.valueOrNull,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Player Status Badge
+// ---------------------------------------------------------------------------
+
+class _PlayerStatusBadge extends ConsumerWidget {
+  final String playerId;
+  const _PlayerStatusBadge({required this.playerId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final statusAsync = ref.watch(playerStatusProvider(playerId));
+    return statusAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (status) => _StatusChip(status: status),
+    );
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  final String status;
+  const _StatusChip({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    Color bg;
+    Color fg;
+    IconData icon;
+    switch (status) {
+      case 'نشط':
+        bg = AppColors.successLight;
+        fg = AppColors.success;
+        icon = Icons.check_circle_outline;
+        break;
+      case 'منتهي':
+        bg = AppColors.errorLight;
+        fg = AppColors.error;
+        icon = Icons.cancel_outlined;
+        break;
+      default: // جديد
+        bg = AppColors.primaryContainer;
+        fg = AppColors.primaryDark;
+        icon = Icons.fiber_new_outlined;
+    }
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 5.h),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(20.r),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14.sp, color: fg),
+          Gap(4.w),
+          Text(
+            status,
+            style: TextStyle(
+              fontSize: 12.sp,
+              color: fg,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

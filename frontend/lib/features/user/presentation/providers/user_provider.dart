@@ -5,28 +5,25 @@ import 'package:basketball_academy/features/user/domain/usecases/create_user_use
 import 'package:basketball_academy/features/user/domain/usecases/deactivate_user_usecase.dart';
 import 'package:basketball_academy/features/user/domain/usecases/delete_user_usecase.dart';
 import 'package:basketball_academy/features/user/domain/usecases/get_users_by_academy_usecase.dart';
+import 'package:basketball_academy/features/user/domain/usecases/reset_password_usecase.dart';
 import 'package:basketball_academy/features/user/domain/usecases/update_user_usecase.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final selectedAcademyIdProvider = StateProvider<String>((ref) => '');
 
 class UsersNotifier extends AsyncNotifier<List<UserManagementEntity>> {
-  late final GetUsersByAcademyUsecase _getUsersByAcademyUsecase;
-  late final CreateUserUsecase _createUserUsecase;
-  late final UpdateUserUsecase _updateUserUsecase;
-  late final DeleteUserUsecase _deleteUserUsecase;
-  late final ActivateUserUsecase _activateUserUsecase;
-  late final DeactivateUserUsecase _deactivateUserUsecase;
+  // تهيئة مباشرة خارج build() — تحدث مرة واحدة فقط عند إنشاء الـ Notifier
+  // وليس في كل مرة يُعاد فيها build() بسبب ref.watch
+  final _getUsersByAcademyUsecase = sl<GetUsersByAcademyUsecase>();
+  final _createUserUsecase = sl<CreateUserUsecase>();
+  final _updateUserUsecase = sl<UpdateUserUsecase>();
+  final _deleteUserUsecase = sl<DeleteUserUsecase>();
+  final _activateUserUsecase = sl<ActivateUserUsecase>();
+  final _deactivateUserUsecase = sl<DeactivateUserUsecase>();
+  final _resetPasswordUsecase = sl<ResetPasswordUsecase>();
 
   @override
   Future<List<UserManagementEntity>> build() async {
-    _getUsersByAcademyUsecase = sl<GetUsersByAcademyUsecase>();
-    _createUserUsecase = sl<CreateUserUsecase>();
-    _updateUserUsecase = sl<UpdateUserUsecase>();
-    _deleteUserUsecase = sl<DeleteUserUsecase>();
-    _activateUserUsecase = sl<ActivateUserUsecase>();
-    _deactivateUserUsecase = sl<DeactivateUserUsecase>();
-
     final academyId = ref.watch(selectedAcademyIdProvider);
     if (academyId.isEmpty) return [];
     return _fetchUsers(academyId);
@@ -54,13 +51,20 @@ class UsersNotifier extends AsyncNotifier<List<UserManagementEntity>> {
     required String email,
     required String password,
     required String academyId,
+    String role = 'academy_admin',
   }) async {
+    assert(() {
+      // ignore: avoid_print
+      print('[UsersNotifier.createUser] role="$role"');
+      return true;
+    }());
     final result = await _createUserUsecase(
       CreateUserParams(
         name: name,
         email: email,
         password: password,
         academyId: academyId,
+        role: role,
       ),
     );
     return result.fold(
@@ -120,6 +124,17 @@ class UsersNotifier extends AsyncNotifier<List<UserManagementEntity>> {
         refresh();
         return null;
       },
+    );
+  }
+
+  /// super_admin only — reset another user's password. No list refresh needed.
+  Future<String?> resetPassword(String id, String newPassword) async {
+    final result = await _resetPasswordUsecase(
+      ResetPasswordParams(id: id, newPassword: newPassword),
+    );
+    return result.fold(
+      (failure) => failure.message,
+      (_) => null,
     );
   }
 }

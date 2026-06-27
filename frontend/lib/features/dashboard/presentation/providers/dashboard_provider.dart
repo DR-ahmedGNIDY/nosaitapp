@@ -7,6 +7,7 @@ import 'package:basketball_academy/features/dashboard/domain/usecases/get_recent
 import 'package:basketball_academy/features/dashboard/domain/usecases/get_revenue_by_month_usecase.dart';
 import 'package:basketball_academy/features/dashboard/domain/usecases/get_subscriptions_by_type_usecase.dart';
 import 'package:dartz/dartz.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class DashboardState {
@@ -66,6 +67,8 @@ class DashboardNotifier extends AsyncNotifier<DashboardState> {
   }
 
   Future<DashboardState> _loadAll({String? academyId}) async {
+    debugPrint('[DASHBOARD] _loadAll() → starting 6 parallel API calls academyId=$academyId');
+    final stopwatch = Stopwatch()..start();
     final results = await Future.wait([
       sl<GetDashboardStatsUsecase>()(GetDashboardStatsParams(academyId: academyId)),
       sl<GetRevenueByMonthUsecase>()(GetRevenueByMonthParams(academyId: academyId)),
@@ -74,6 +77,8 @@ class DashboardNotifier extends AsyncNotifier<DashboardState> {
       sl<GetEvaluationDistributionUsecase>()(GetEvaluationDistributionParams(academyId: academyId)),
       sl<GetRecentActivitiesUsecase>()(GetRecentActivitiesParams(academyId: academyId)),
     ]);
+    stopwatch.stop();
+    debugPrint('[DASHBOARD] _loadAll() → all 6 calls done in ${stopwatch.elapsedMilliseconds}ms');
 
     final statsResult = results[0] as Either;
     final revenueResult = results[1] as Either;
@@ -94,8 +99,10 @@ class DashboardNotifier extends AsyncNotifier<DashboardState> {
   }
 
   Future<void> refresh({String? academyId}) async {
+    debugPrint('[DASHBOARD] refresh() → academyId=$academyId');
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() => _loadAll(academyId: academyId));
+    debugPrint('[DASHBOARD] refresh() → done, isLoading=${state.isLoading} hasError=${state.hasError}');
   }
 }
 

@@ -1,25 +1,58 @@
-# Flutter / Dart
-frontend/.dart_tool/
-frontend/build/
-frontend/.flutter-plugins
-frontend/.flutter-plugins-dependencies
-frontend/.packages
-frontend/pubspec.lock
+# Flutter / Dart build outputs (single-segment patterns match at any depth)
+build/
+.cxx/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+pubspec.lock
 
-# Android build outputs (redirected to G:)
-frontend/android/.gradle/
-frontend/android/local.properties
+# IDE
+.idea/
+.vscode/
+
+# Android (multi-segment patterns need **/ to match at any depth)
+**/android/.gradle/
+**/android/local.properties
+
+# Android release signing — NEVER commit these
+**/android/key.properties
+**/android/keystore/
+*.jks
+*.keystore
 
 # iOS
-frontend/ios/Pods/
-frontend/ios/.symlinks/
+**/ios/Pods/
+**/ios/.symlinks/
 
-# Backend
-backend/node_modules/
-backend/.env
+# Desktop / iOS ephemeral
+**/windows/flutter/ephemeral/
+**/linux/flutter/ephemeral/
+**/macos/Flutter/ephemeral/
+**/ios/Flutter/ephemeral/
+
+# Web
+**/web/.dart_tool/
+
+# Backend / secrets
+node_modules/
+.env
+.env.local
+.env.production
 
 # General
 *.log
 *.tmp
 .DS_Store
 Thumbs.db
+
+# Packaged app binaries (large, not source — build them from CI/locally instead)
+*.apk
+*.aab
+*.ipa
+
+# Contains a real production credential (super_admin password) — never commit
+backend/create-admin.js
+
+# Stray duplicate build copy (looks like an unsubstituted installer $dest path)
+/$dest/

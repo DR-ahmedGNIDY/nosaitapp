@@ -12,21 +12,21 @@ import 'package:intl/intl.dart';
 
 class CommunicationSection extends StatelessWidget {
   final PlayerEntity player;
+  final String academyName;
   final SubscriptionEntity? latestSubscription;
   final EvaluationEntity? latestEvaluation;
 
   const CommunicationSection({
     super.key,
     required this.player,
+    required this.academyName,
     this.latestSubscription,
     this.latestEvaluation,
   });
 
-  Future<void> _launch(BuildContext context, String message) async {
-    final opened = await WhatsAppUtils.open(
-      player.parentPhone,
-      message: message,
-    );
+  Future<void> _launchPhone(
+      BuildContext context, String phone, String message) async {
+    final opened = await WhatsAppUtils.open(phone, message: message);
     if (!opened && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -37,6 +37,9 @@ class CommunicationSection extends StatelessWidget {
       );
     }
   }
+
+  Future<void> _launch(BuildContext context, String message) =>
+      _launchPhone(context, player.parentPhone, message);
 
   @override
   Widget build(BuildContext context) {
@@ -76,6 +79,23 @@ class CommunicationSection extends StatelessWidget {
             ),
             Gap(14.h),
 
+            // 0. Contact Player directly (only when the player has a phone)
+            if (player.playerPhone != null &&
+                player.playerPhone!.isNotEmpty) ...[
+              _ActionButton(
+                icon: Icons.sports_basketball_outlined,
+                label: AppStrings.contactPlayer,
+                color: const Color(0xFF25D366),
+                onTap: () => _launchPhone(
+                  context,
+                  player.playerPhone!,
+                  'السلام عليكم ${player.fullName}،\n'
+                      'أتواصل معك من $academyName 🏀',
+                ),
+              ),
+              Gap(8.h),
+            ],
+
             // 1. Contact Parent
             _ActionButton(
               icon: Icons.phone_in_talk_outlined,
@@ -86,6 +106,7 @@ class CommunicationSection extends StatelessWidget {
                 WhatsAppUtils.contactTemplate(
                   parentName: player.parentName,
                   playerName: player.fullName,
+                  academyName: academyName,
                 ),
               ),
             ),
@@ -106,6 +127,7 @@ class CommunicationSection extends StatelessWidget {
                     parentName: player.parentName,
                     playerName: player.fullName,
                     endDate: endDate,
+                    academyName: academyName,
                   ),
                 );
               },
@@ -122,6 +144,7 @@ class CommunicationSection extends StatelessWidget {
                 WhatsAppUtils.expiredSubscriptionTemplate(
                   parentName: player.parentName,
                   playerName: player.fullName,
+                  academyName: academyName,
                 ),
               ),
             ),
@@ -144,6 +167,7 @@ class CommunicationSection extends StatelessWidget {
                     playerName: player.fullName,
                     average: avg,
                     grade: grade,
+                    academyName: academyName,
                   ),
                 );
               },

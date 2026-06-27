@@ -79,6 +79,7 @@ class _AddEvaluationScreenState extends ConsumerState<AddEvaluationScreen> {
     final error = await ref
         .read(playerEvaluationsProvider.notifier)
         .createEvaluation(
+          playerId: widget.playerId,
           fitness: _fitness,
           basicSkills: _basicSkills,
           attack: _attack,

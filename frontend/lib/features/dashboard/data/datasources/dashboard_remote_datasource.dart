@@ -83,6 +83,6 @@ class DashboardRemoteDatasourceImpl implements DashboardRemoteDatasource {
       queryParameters: _buildQuery(academyId),
     );
     final body = response.data as Map<String, dynamic>;
-    return RecentActivitiesModel.fromJson(body['data'] as Map<String, dynamic>);
+    return RecentActivitiesModel.fromList((body['data'] as List<dynamic>?) ?? []);
   }
 }

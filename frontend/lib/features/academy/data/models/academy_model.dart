@@ -12,6 +12,10 @@ class AcademyModel {
   final String? logoUrl;
   final String phone;
   final String address;
+  @JsonKey(defaultValue: 'EGP')
+  final String currency;
+  @JsonKey(defaultValue: <String>[])
+  final List<String> sports;
   @JsonKey(name: 'created_at')
   final DateTime createdAt;
   @JsonKey(name: 'updated_at')
@@ -25,6 +29,8 @@ class AcademyModel {
     this.logoUrl,
     required this.phone,
     required this.address,
+    this.currency = 'EGP',
+    this.sports = const [],
     required this.createdAt,
     this.updatedAt,
     this.playerCount,
@@ -41,6 +47,8 @@ class AcademyModel {
         logoUrl: logoUrl,
         phone: phone,
         address: address,
+        currency: currency,
+        sports: sports,
         createdAt: createdAt,
         updatedAt: updatedAt,
         playerCount: playerCount,

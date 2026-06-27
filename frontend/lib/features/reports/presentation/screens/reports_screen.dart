@@ -2,8 +2,11 @@ import 'dart:typed_data';
 
 import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/constants/app_strings.dart';
+import 'package:basketball_academy/core/router/app_router.dart';
 import 'package:basketball_academy/features/academy/presentation/providers/academy_provider.dart';
+import 'package:basketball_academy/features/academy/presentation/providers/currency_provider.dart';
 import 'package:basketball_academy/features/auth/presentation/providers/auth_provider.dart';
+import 'package:go_router/go_router.dart';
 import 'package:basketball_academy/features/reports/domain/models/report_filter.dart';
 import 'package:basketball_academy/features/reports/services/excel_report_service.dart';
 import 'package:basketball_academy/features/reports/services/pdf_report_service.dart';
@@ -67,6 +70,8 @@ class ReportsScreen extends ConsumerStatefulWidget {
 class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   _ReportPeriod _period = _ReportPeriod.allTime;
   String? _selectedAcademyId;
+  String? _selectedAcademyName;
+  String? _selectedSport; // null = all sports
   String _subscriptionStatusFilter = 'all'; // 'all' | 'active' | 'expired'
 
   // Loading states per report index (PDF)
@@ -77,10 +82,21 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   ReportFilter get _currentFilter {
     return ReportFilter(
       academyId: _selectedAcademyId,
+      academyName: _selectedAcademyName,
       startDate: _period.startDate,
       endDate: _period.endDate,
       subscriptionStatus:
           _subscriptionStatusFilter == 'all' ? null : _subscriptionStatusFilter,
+      currencyLabel:
+          ref.read(academyCurrencyLabelProvider(_selectedAcademyId)),
+      sport: _selectedSport,
+      isMultiSport: _selectedAcademyId == null
+          ? false
+          : (ref
+                  .read(academyByIdProvider(_selectedAcademyId!))
+                  .valueOrNull
+                  ?.isMultiSport ??
+              false),
     );
   }
 
@@ -257,15 +273,43 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider).valueOrNull;
-    final isSuperAdmin = authState?.user?.isSuperAdmin ?? false;
-    final userAcademyId = authState?.user?.academyId;
+    final user = authState?.user;
+    final isSuperAdmin = user?.isSuperAdmin ?? false;
+    final userAcademyId = user?.academyId;
 
-    // For non-superadmin, use their academy id
-    if (!isSuperAdmin && _selectedAcademyId == null && userAcademyId != null) {
+    // admin لا يملك صلاحية التقارير
+    if (user?.isAdmin == true) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) setState(() => _selectedAcademyId = userAcademyId);
+        if (!mounted) return;
+        if (userAcademyId != null) {
+          context.go(AppRoutes.playersList.replaceFirst(':id', userAcademyId));
+        }
+      });
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    // For non-superadmin, use their academy id and resolve name
+    if (!isSuperAdmin && _selectedAcademyId == null && userAcademyId != null) {
+      final academiesAsync = ref.watch(academiesProvider);
+      final academyName = academiesAsync.valueOrNull
+          ?.firstWhere((a) => a.id == userAcademyId,
+              orElse: () => academiesAsync.valueOrNull!.first)
+          .name;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _selectedAcademyId = userAcademyId;
+            _selectedAcademyName = academyName;
+          });
+        }
       });
     }
+
+    // Resolve the selected academy's sports for the (optional) sport filter.
+    final academyForSport = _selectedAcademyId != null
+        ? ref.watch(academyByIdProvider(_selectedAcademyId!)).valueOrNull
+        : null;
+    final sportsForFilter = academyForSport?.sports ?? const <String>[];
 
     return Scaffold(
       appBar: AppBar(
@@ -287,8 +331,48 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 if (isSuperAdmin) ...[
                   _AcademyDropdown(
                     selectedAcademyId: _selectedAcademyId,
-                    onChanged: (id) =>
-                        setState(() => _selectedAcademyId = id),
+                    onChanged: (id, name) => setState(() {
+                      _selectedAcademyId = id;
+                      _selectedAcademyName = name;
+                      _selectedSport = null; // reset sport on academy change
+                    }),
+                  ),
+                  Gap(12.h),
+                ],
+                // Sport filter — only for multi-sport academies
+                if (sportsForFilter.length > 1) ...[
+                  Text(
+                    'الرياضة',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          color: AppColors.grey600,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                  Gap(8.h),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.only(left: 8.w),
+                          child: _StatusChip(
+                            label: 'الكل',
+                            selected: _selectedSport == null,
+                            onTap: () => setState(() => _selectedSport = null),
+                          ),
+                        ),
+                        ...sportsForFilter.map(
+                          (s) => Padding(
+                            padding: EdgeInsets.only(left: 8.w),
+                            child: _StatusChip(
+                              label: s,
+                              selected: _selectedSport == s,
+                              onTap: () => setState(() => _selectedSport = s),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   Gap(12.h),
                 ],
@@ -432,7 +516,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
 class _AcademyDropdown extends ConsumerWidget {
   final String? selectedAcademyId;
-  final ValueChanged<String?> onChanged;
+  final void Function(String? id, String? name) onChanged;
 
   const _AcademyDropdown({
     required this.selectedAcademyId,
@@ -466,7 +550,10 @@ class _AcademyDropdown extends ConsumerWidget {
               ),
             )
             .toList(),
-        onChanged: onChanged,
+        onChanged: (id) {
+          final name = academies.firstWhere((a) => a.id == id).name;
+          onChanged(id, name);
+        },
       ),
     );
   }

@@ -2,6 +2,7 @@ import 'package:basketball_academy/features/academy/presentation/screens/academy
 import 'package:basketball_academy/features/reports/presentation/screens/reports_screen.dart';
 import 'package:basketball_academy/features/academy/presentation/screens/academy_list_screen.dart';
 import 'package:basketball_academy/features/auth/presentation/providers/auth_provider.dart';
+import 'package:basketball_academy/features/auth/presentation/screens/account_settings_screen.dart';
 import 'package:basketball_academy/features/auth/presentation/screens/login_screen.dart';
 import 'package:basketball_academy/features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'package:basketball_academy/features/evaluation/presentation/screens/evaluation_history_screen.dart';
@@ -11,6 +12,9 @@ import 'package:basketball_academy/features/player/presentation/screens/players_
 import 'package:basketball_academy/features/splash/presentation/screens/splash_screen.dart';
 import 'package:basketball_academy/features/subscription/presentation/screens/player_subscription_history_screen.dart';
 import 'package:basketball_academy/features/user/presentation/screens/users_list_screen.dart';
+import 'package:basketball_academy/features/staff/presentation/screens/staff_list_screen.dart';
+import 'package:basketball_academy/features/payroll/presentation/screens/payroll_list_screen.dart';
+import 'package:basketball_academy/features/expenses/presentation/screens/expenses_list_screen.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,7 +37,11 @@ class AppRoutes {
       '/academies/:id/players/:playerId/evaluations';
   static const String dashboard = '/dashboard';
   static const String reports = '/reports';
+  static const String staffList = '/academies/:id/staff';
+  static const String payrollList = '/academies/:id/payroll';
+  static const String expensesList = '/academies/:id/expenses';
   static const String notifications = '/notifications';
+  static const String accountSettings = '/account-settings';
 }
 
 // RouterNotifier يُبلِّغ GoRouter عند تغيّر حالة المصادقة
@@ -70,6 +78,7 @@ class _RouterNotifier extends ChangeNotifier {
       final allowedPrefixes = [
         '/academies/${academyId ?? ''}/players',
         AppRoutes.notifications,
+        AppRoutes.accountSettings,
       ];
       final isAllowed = academyId != null &&
           allowedPrefixes.any((prefix) => loc.startsWith(prefix));
@@ -173,8 +182,33 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const ReportsScreen(),
       ),
       GoRoute(
+        path: AppRoutes.staffList,
+        builder: (context, state) {
+          final academyId = state.pathParameters['id']!;
+          return StaffListScreen(academyId: academyId);
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.payrollList,
+        builder: (context, state) {
+          final academyId = state.pathParameters['id']!;
+          return PayrollListScreen(academyId: academyId);
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.expensesList,
+        builder: (context, state) {
+          final academyId = state.pathParameters['id']!;
+          return ExpensesListScreen(academyId: academyId);
+        },
+      ),
+      GoRoute(
         path: AppRoutes.notifications,
         builder: (context, state) => const NotificationsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.accountSettings,
+        builder: (context, state) => const AccountSettingsScreen(),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

@@ -9,6 +9,8 @@ class UpdateAcademyParams {
   final String name;
   final String phone;
   final String address;
+  final String currency;
+  final List<String> sports;
   final String? logoUrl;
 
   const UpdateAcademyParams({
@@ -16,6 +18,8 @@ class UpdateAcademyParams {
     required this.name,
     required this.phone,
     required this.address,
+    this.currency = 'EGP',
+    this.sports = const [],
     this.logoUrl,
   });
 }
@@ -31,6 +35,8 @@ class UpdateAcademyUsecase extends UseCase<AcademyEntity, UpdateAcademyParams> {
       name: params.name,
       phone: params.phone,
       address: params.address,
+      currency: params.currency,
+      sports: params.sports,
       logoUrl: params.logoUrl,
     );
   }

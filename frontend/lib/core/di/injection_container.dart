@@ -59,8 +59,24 @@ import 'package:basketball_academy/features/user/domain/usecases/activate_user_u
 import 'package:basketball_academy/features/user/domain/usecases/create_user_usecase.dart';
 import 'package:basketball_academy/features/user/domain/usecases/deactivate_user_usecase.dart';
 import 'package:basketball_academy/features/user/domain/usecases/delete_user_usecase.dart';
+import 'package:basketball_academy/features/user/domain/usecases/reset_password_usecase.dart';
 import 'package:basketball_academy/features/user/domain/usecases/get_users_by_academy_usecase.dart';
 import 'package:basketball_academy/features/user/domain/usecases/update_user_usecase.dart';
+import 'package:basketball_academy/features/attendance/data/datasources/attendance_remote_datasource.dart';
+import 'package:basketball_academy/features/attendance/data/repositories/attendance_repository_impl.dart';
+import 'package:basketball_academy/features/attendance/domain/repositories/attendance_repository.dart';
+import 'package:basketball_academy/features/attendance/domain/usecases/get_attendance_log_usecase.dart';
+import 'package:basketball_academy/features/attendance/domain/usecases/get_attendance_report_usecase.dart';
+import 'package:basketball_academy/features/attendance/domain/usecases/record_attendance_usecase.dart';
+import 'package:basketball_academy/features/staff/data/datasources/staff_remote_datasource.dart';
+import 'package:basketball_academy/features/staff/data/repositories/staff_repository_impl.dart';
+import 'package:basketball_academy/features/staff/domain/repositories/staff_repository.dart';
+import 'package:basketball_academy/features/payroll/data/datasources/payroll_remote_datasource.dart';
+import 'package:basketball_academy/features/payroll/data/repositories/payroll_repository_impl.dart';
+import 'package:basketball_academy/features/payroll/domain/repositories/payroll_repository.dart';
+import 'package:basketball_academy/features/expenses/data/datasources/expense_remote_datasource.dart';
+import 'package:basketball_academy/features/expenses/data/repositories/expense_repository_impl.dart';
+import 'package:basketball_academy/features/expenses/domain/repositories/expense_repository.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
 
@@ -154,6 +170,9 @@ Future<void> initDependencies() async {
   );
   sl.registerLazySingleton<DeactivateUserUsecase>(
     () => DeactivateUserUsecase(sl<UserRepository>()),
+  );
+  sl.registerLazySingleton<ResetPasswordUsecase>(
+    () => ResetPasswordUsecase(sl<UserRepository>()),
   );
 
   // Player
@@ -266,5 +285,47 @@ Future<void> initDependencies() async {
   );
   sl.registerLazySingleton<GetRecentActivitiesUsecase>(
     () => GetRecentActivitiesUsecase(sl<DashboardRepository>()),
+  );
+
+  // Attendance
+  sl.registerLazySingleton<AttendanceRemoteDatasource>(
+    () => AttendanceRemoteDatasourceImpl(sl<ApiClient>()),
+  );
+  sl.registerLazySingleton<AttendanceRepository>(
+    () => AttendanceRepositoryImpl(
+        remoteDatasource: sl<AttendanceRemoteDatasource>()),
+  );
+  sl.registerLazySingleton<RecordAttendanceUsecase>(
+    () => RecordAttendanceUsecase(sl<AttendanceRepository>()),
+  );
+  sl.registerLazySingleton<GetAttendanceLogUsecase>(
+    () => GetAttendanceLogUsecase(sl<AttendanceRepository>()),
+  );
+  sl.registerLazySingleton<GetAttendanceReportUsecase>(
+    () => GetAttendanceReportUsecase(sl<AttendanceRepository>()),
+  );
+
+  // Staff
+  sl.registerLazySingleton<StaffRemoteDatasource>(
+    () => StaffRemoteDatasourceImpl(sl<ApiClient>()),
+  );
+  sl.registerLazySingleton<StaffRepository>(
+    () => StaffRepositoryImpl(remoteDatasource: sl<StaffRemoteDatasource>()),
+  );
+
+  // Payroll
+  sl.registerLazySingleton<PayrollRemoteDatasource>(
+    () => PayrollRemoteDatasourceImpl(sl<ApiClient>()),
+  );
+  sl.registerLazySingleton<PayrollRepository>(
+    () => PayrollRepositoryImpl(remoteDatasource: sl<PayrollRemoteDatasource>()),
+  );
+
+  // Expenses
+  sl.registerLazySingleton<ExpenseRemoteDatasource>(
+    () => ExpenseRemoteDatasourceImpl(sl<ApiClient>()),
+  );
+  sl.registerLazySingleton<ExpenseRepository>(
+    () => ExpenseRepositoryImpl(remoteDatasource: sl<ExpenseRemoteDatasource>()),
   );
 }

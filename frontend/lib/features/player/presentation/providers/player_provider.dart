@@ -20,6 +20,8 @@ class PlayersState {
   final String? search;
   final int? birthYearFilter;
   final String? academyIdFilter;
+  final String? sportFilter;
+  final String? attendanceDayFilter;
 
   const PlayersState({
     this.players = const [],
@@ -30,6 +32,8 @@ class PlayersState {
     this.search,
     this.birthYearFilter,
     this.academyIdFilter,
+    this.sportFilter,
+    this.attendanceDayFilter,
   });
 
   PlayersState copyWith({
@@ -41,6 +45,8 @@ class PlayersState {
     Object? search = _sentinel,
     Object? birthYearFilter = _sentinel,
     Object? academyIdFilter = _sentinel,
+    Object? sportFilter = _sentinel,
+    Object? attendanceDayFilter = _sentinel,
   }) {
     return PlayersState(
       players: players ?? this.players,
@@ -55,6 +61,11 @@ class PlayersState {
       academyIdFilter: academyIdFilter == _sentinel
           ? this.academyIdFilter
           : academyIdFilter as String?,
+      sportFilter:
+          sportFilter == _sentinel ? this.sportFilter : sportFilter as String?,
+      attendanceDayFilter: attendanceDayFilter == _sentinel
+          ? this.attendanceDayFilter
+          : attendanceDayFilter as String?,
     );
   }
 }
@@ -77,21 +88,29 @@ class PlayersNotifier extends AsyncNotifier<PlayersState> {
     _createPlayerUsecase = sl<CreatePlayerUsecase>();
     _updatePlayerUsecase = sl<UpdatePlayerUsecase>();
     _deletePlayerUsecase = sl<DeletePlayerUsecase>();
-    return _fetchPlayers();
+    // Do NOT fetch on build — academy context is required.
+    // PlayersListScreen.initState calls filterByAcademy() which triggers the first load.
+    return const PlayersState();
   }
 
   Future<PlayersState> _fetchPlayers({
     String? search,
     int? birthYearFilter,
     String? academyIdFilter,
+    String? sportFilter,
+    String? attendanceDayFilter,
     int page = 1,
+    int limit = 50,
   }) async {
     final result = await _getPlayersUsecase(
       GetPlayersParams(
         search: search,
         birthYear: birthYearFilter,
         academyId: academyIdFilter,
+        sport: sportFilter,
+        attendanceDay: attendanceDayFilter,
         page: page,
+        limit: limit,
       ),
     );
     return result.fold(
@@ -105,6 +124,8 @@ class PlayersNotifier extends AsyncNotifier<PlayersState> {
         search: search,
         birthYearFilter: birthYearFilter,
         academyIdFilter: academyIdFilter,
+        sportFilter: sportFilter,
+        attendanceDayFilter: attendanceDayFilter,
       ),
     );
   }
@@ -117,50 +138,128 @@ class PlayersNotifier extends AsyncNotifier<PlayersState> {
         search: current?.search,
         birthYearFilter: current?.birthYearFilter,
         academyIdFilter: current?.academyIdFilter,
+        sportFilter: current?.sportFilter,
+        attendanceDayFilter: current?.attendanceDayFilter,
       ),
     );
   }
 
   Future<void> search(String query) async {
+    // Capture current filters BEFORE switching to loading —
+    // AsyncLoading() clears valueOrNull, otherwise academy/year filters are lost.
+    final current = state.valueOrNull;
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(
       () => _fetchPlayers(
         search: query.isEmpty ? null : query,
-        birthYearFilter: state.valueOrNull?.birthYearFilter,
-        academyIdFilter: state.valueOrNull?.academyIdFilter,
+        birthYearFilter: current?.birthYearFilter,
+        academyIdFilter: current?.academyIdFilter,
+        sportFilter: current?.sportFilter,
+        attendanceDayFilter: current?.attendanceDayFilter,
       ),
     );
   }
 
   Future<void> clearSearch() async {
+    // Remove the search term entirely and reload the full list,
+    // preserving academy and birth-year filters.
+    final current = state.valueOrNull;
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(
       () => _fetchPlayers(
-        birthYearFilter: state.valueOrNull?.birthYearFilter,
-        academyIdFilter: state.valueOrNull?.academyIdFilter,
+        search: null,
+        birthYearFilter: current?.birthYearFilter,
+        academyIdFilter: current?.academyIdFilter,
+        sportFilter: current?.sportFilter,
+        attendanceDayFilter: current?.attendanceDayFilter,
       ),
     );
   }
 
   Future<void> filterByBirthYear(int? year) async {
+    final current = state.valueOrNull;
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(
       () => _fetchPlayers(
-        search: state.valueOrNull?.search,
+        search: current?.search,
         birthYearFilter: year,
-        academyIdFilter: state.valueOrNull?.academyIdFilter,
+        academyIdFilter: current?.academyIdFilter,
+        sportFilter: current?.sportFilter,
+        attendanceDayFilter: current?.attendanceDayFilter,
       ),
     );
   }
 
   Future<void> filterByAcademy(String? academyId) async {
+    final current = state.valueOrNull;
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(
       () => _fetchPlayers(
-        search: state.valueOrNull?.search,
-        birthYearFilter: state.valueOrNull?.birthYearFilter,
+        search: current?.search,
+        birthYearFilter: current?.birthYearFilter,
         academyIdFilter: academyId,
+        sportFilter: current?.sportFilter,
+        attendanceDayFilter: current?.attendanceDayFilter,
       ),
+    );
+  }
+
+  Future<void> filterBySport(String? sport) async {
+    final current = state.valueOrNull;
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(
+      () => _fetchPlayers(
+        search: current?.search,
+        birthYearFilter: current?.birthYearFilter,
+        academyIdFilter: current?.academyIdFilter,
+        sportFilter: sport,
+        attendanceDayFilter: current?.attendanceDayFilter,
+      ),
+    );
+  }
+
+  Future<void> filterByAttendanceDay(String? day) async {
+    final current = state.valueOrNull;
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(
+      () => _fetchPlayers(
+        search: current?.search,
+        birthYearFilter: current?.birthYearFilter,
+        academyIdFilter: current?.academyIdFilter,
+        sportFilter: current?.sportFilter,
+        attendanceDayFilter: day,
+      ),
+    );
+  }
+
+  Future<void> loadMore() async {
+    final current = state.valueOrNull;
+    if (current == null || !current.hasMore) return;
+    final nextPage = current.page + 1;
+    final result = await _getPlayersUsecase(
+      GetPlayersParams(
+        search: current.search,
+        birthYear: current.birthYearFilter,
+        academyId: current.academyIdFilter,
+        sport: current.sportFilter,
+        attendanceDay: current.attendanceDayFilter,
+        page: nextPage,
+        limit: 50,
+      ),
+    );
+    result.fold(
+      (_) {},
+      (data) {
+        state = AsyncValue.data(
+          current.copyWith(
+            players: [...current.players, ...data.players],
+            page: data.page,
+            totalPages: data.totalPages,
+            total: data.total,
+            hasMore: data.page < data.totalPages,
+          ),
+        );
+      },
     );
   }
 
@@ -171,7 +270,10 @@ class PlayersNotifier extends AsyncNotifier<PlayersState> {
     required String parentRelationship,
     String? parentJob,
     required String parentPhone,
+    String? playerPhone,
     String? notes,
+    String? sport,
+    List<String> attendanceDays = const [],
     String? academyId,
     String? imagePath,
   }) async {
@@ -183,7 +285,10 @@ class PlayersNotifier extends AsyncNotifier<PlayersState> {
         parentRelationship: parentRelationship,
         parentJob: parentJob,
         parentPhone: parentPhone,
+        playerPhone: playerPhone,
         notes: notes,
+        sport: sport,
+        attendanceDays: attendanceDays,
         academyId: academyId,
         imagePath: imagePath,
       ),
@@ -205,7 +310,10 @@ class PlayersNotifier extends AsyncNotifier<PlayersState> {
     String? parentRelationship,
     String? parentJob,
     String? parentPhone,
+    String? playerPhone,
     String? notes,
+    String? sport,
+    List<String>? attendanceDays,
     String? imagePath,
   }) async {
     final result = await _updatePlayerUsecase(
@@ -217,7 +325,10 @@ class PlayersNotifier extends AsyncNotifier<PlayersState> {
         parentRelationship: parentRelationship,
         parentJob: parentJob,
         parentPhone: parentPhone,
+        playerPhone: playerPhone,
         notes: notes,
+        sport: sport,
+        attendanceDays: attendanceDays,
         imagePath: imagePath,
       ),
     );

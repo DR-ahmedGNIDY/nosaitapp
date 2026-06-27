@@ -18,7 +18,11 @@ class PlayerModel {
   final String parentRelationship;
   final String? parentJob;
   final String parentPhone;
+  final String? playerPhone;
   final String? notes;
+  final String? sport;
+  @JsonKey(defaultValue: <String>[])
+  final List<String> attendanceDays;
   @JsonKey(name: 'created_at')
   final DateTime createdAt;
   @JsonKey(name: 'updated_at')
@@ -35,7 +39,10 @@ class PlayerModel {
     required this.parentRelationship,
     this.parentJob,
     required this.parentPhone,
+    this.playerPhone,
     this.notes,
+    this.sport,
+    this.attendanceDays = const [],
     required this.createdAt,
     this.updatedAt,
   });
@@ -56,7 +63,10 @@ class PlayerModel {
         parentRelationship: parentRelationship,
         parentJob: parentJob,
         parentPhone: parentPhone,
+        playerPhone: playerPhone,
         notes: notes,
+        sport: sport,
+        attendanceDays: attendanceDays,
         createdAt: createdAt,
         updatedAt: updatedAt,
       );

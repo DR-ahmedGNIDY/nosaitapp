@@ -48,6 +48,8 @@ class AcademyRepositoryImpl implements AcademyRepository {
     required String name,
     required String phone,
     required String address,
+    String currency = 'EGP',
+    List<String> sports = const [],
     String? logoUrl,
   }) async {
     try {
@@ -55,6 +57,8 @@ class AcademyRepositoryImpl implements AcademyRepository {
         'name': name,
         'phone': phone,
         'address': address,
+        'currency': currency,
+        if (sports.isNotEmpty) 'sports': sports,
         if (logoUrl != null) 'logo_url': logoUrl,
       });
       return Right(model.toEntity());
@@ -73,6 +77,8 @@ class AcademyRepositoryImpl implements AcademyRepository {
     required String name,
     required String phone,
     required String address,
+    String currency = 'EGP',
+    List<String> sports = const [],
     String? logoUrl,
   }) async {
     try {
@@ -80,6 +86,8 @@ class AcademyRepositoryImpl implements AcademyRepository {
         'name': name,
         'phone': phone,
         'address': address,
+        'currency': currency,
+        if (sports.isNotEmpty) 'sports': sports,
         if (logoUrl != null) 'logo_url': logoUrl,
       });
       return Right(model.toEntity());

@@ -19,8 +19,19 @@ const playerRoutes = require('./routes/player.routes');
 const subscriptionRoutes = require('./routes/subscription.routes');
 const evaluationRoutes = require('./routes/evaluation.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
+const attendanceRoutes = require('./routes/attendance.routes');
+const staffRoutes = require('./routes/staff.routes');
+const staffAttendanceRoutes = require('./routes/staffAttendance.routes');
+const payrollRoutes = require('./routes/payroll.routes');
+const expenseRoutes = require('./routes/expense.routes');
 
 const app = express();
+
+// التطبيق يعمل خلف Nginx reverse proxy واحد. نثق بأول وكيل (hop) فقط حتى يقرأ
+// Express و express-rate-limit عنوان العميل الحقيقي من رأس X-Forwarded-For،
+// ويُحدّد المعدّل لكل IP حقيقي بدل IP الـ Proxy. القيمة 1 (وليست true) أكثر
+// أماناً لأنها تثق بوكيل واحد معروف فقط وتمنع تحذير ERR_ERL_UNEXPECTED_X_FORWARDED_FOR.
+app.set('trust proxy', 1);
 
 connectDB();
 
@@ -35,12 +46,21 @@ app.use(cors({
 
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-  max: parseInt(process.env.RATE_LIMIT_MAX) || 100,
+  max: parseInt(process.env.RATE_LIMIT_MAX) || 500,
   message: { success: false, message: 'تم تجاوز الحد المسموح به من الطلبات' },
   standardHeaders: true,
   legacyHeaders: false,
 });
 app.use('/api/', limiter);
+
+// Strict limiter for login only — 10 attempts per 15 minutes per IP
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { success: false, message: 'تم تجاوز الحد المسموح به من محاولات تسجيل الدخول' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -60,6 +80,7 @@ app.get('/health', (req, res) => {
   });
 });
 
+app.use('/api/v1/auth/login', loginLimiter);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/academies', academyRoutes);
 app.use('/api/v1/users', userRoutes);
@@ -67,6 +88,11 @@ app.use('/api/v1/players', playerRoutes);
 app.use('/api/v1/subscriptions', subscriptionRoutes);
 app.use('/api/v1/evaluations', evaluationRoutes);
 app.use('/api/v1/dashboard', dashboardRoutes);
+app.use('/api/v1/attendance', attendanceRoutes);
+app.use('/api/v1/staff', staffRoutes);
+app.use('/api/v1/staff-attendance', staffAttendanceRoutes);
+app.use('/api/v1/payroll', payrollRoutes);
+app.use('/api/v1/expenses', expenseRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

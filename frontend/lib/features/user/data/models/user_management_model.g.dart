@@ -12,7 +12,7 @@ UserManagementModel _$UserManagementModelFromJson(Map<String, dynamic> json) =>
       name: json['name'] as String,
       email: json['email'] as String,
       role: json['role'] as String,
-      academyId: json['academyId'] as String,
+      academyId: UserManagementModel._academyIdFromJson(json['academyId']),
       isActive: json['isActive'] as bool? ?? true,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: json['updated_at'] == null

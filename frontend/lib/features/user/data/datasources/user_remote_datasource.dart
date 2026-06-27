@@ -9,6 +9,7 @@ abstract class UserRemoteDatasource {
   Future<void> deleteUser(String id);
   Future<void> activateUser(String id);
   Future<void> deactivateUser(String id);
+  Future<void> resetPassword(String id, String newPassword);
 }
 
 class UserRemoteDatasourceImpl implements UserRemoteDatasource {
@@ -37,6 +38,11 @@ class UserRemoteDatasourceImpl implements UserRemoteDatasource {
 
   @override
   Future<UserManagementModel> createUser(Map<String, dynamic> data) async {
+    assert(() {
+      // ignore: avoid_print
+      print('[UserRemoteDatasource.createUser] data=$data');
+      return true;
+    }());
     final response = await _apiClient.post('/users', data: data);
     final responseData = response.data as Map<String, dynamic>;
     return UserManagementModel.fromJson(
@@ -65,5 +71,11 @@ class UserRemoteDatasourceImpl implements UserRemoteDatasource {
   @override
   Future<void> deactivateUser(String id) async {
     await _apiClient.patch('/users/$id/deactivate');
+  }
+
+  @override
+  Future<void> resetPassword(String id, String newPassword) async {
+    await _apiClient.patch('/users/$id/reset-password',
+        data: {'newPassword': newPassword});
   }
 }

@@ -2,7 +2,7 @@ class AppStrings {
   AppStrings._();
 
   // App
-  static const String appName = 'أكاديمية كرة السلة';
+  static const String appName = 'nosait academy';
   static const String loading = 'جاري التحميل...';
   static const String cancel = 'إلغاء';
   static const String confirm = 'تأكيد';
@@ -82,6 +82,8 @@ class AppStrings {
   static const String parentRelationship = 'صلة القرابة';
   static const String parentJob = 'مهنة ولي الأمر';
   static const String parentPhone = 'رقم هاتف ولي الأمر';
+  static const String playerPhone = 'رقم هاتف اللاعب';
+  static const String contactPlayer = 'تواصل مع اللاعب';
   static const String notes = 'ملاحظات';
   static const String playerImage = 'صورة اللاعب';
   static const String playerAdded = 'تم إضافة اللاعب بنجاح';
@@ -195,8 +197,19 @@ class AppStrings {
   static const String evaluationDistribution = 'توزيع التقييمات';
   static const String recentActivities = 'آخر الأنشطة';
   static const String noChartData = 'لا توجد بيانات للعرض';
-  static const String currency = 'ريال';
+  static const String currency = 'جنيه';
+  static const String currencyField = 'العملة';
   static const String outOf10 = '/ 10';
+
+  // Notifications
+  static const String notifications = 'الإشعارات';
+  static const String noNotifications = 'لا توجد إشعارات';
+  static const String markAsRead = 'تحديد كمقروء';
+  static const String markAllAsRead = 'تحديد الكل كمقروء';
+  static const String deleteNotification = 'حذف الإشعار';
+  static const String deleteAllNotifications = 'حذف جميع الإشعارات';
+  static const String recentNotifications = 'آخر الإشعارات';
+  static const String viewAll = 'عرض الكل';
 
   // Errors
   static const String networkError = 'تحقق من اتصالك بالإنترنت';

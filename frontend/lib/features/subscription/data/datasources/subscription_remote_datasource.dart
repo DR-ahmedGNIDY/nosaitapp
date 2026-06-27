@@ -58,7 +58,7 @@ class SubscriptionRemoteDatasourceImpl implements SubscriptionRemoteDatasource {
       if (status != null) 'status': status,
     };
     final response = await _apiClient.get(
-      '/players/$playerId/subscriptions',
+      '/subscriptions/player/$playerId',
       queryParameters: queryParams,
     );
     final body = response.data as Map<String, dynamic>;
@@ -91,7 +91,7 @@ class SubscriptionRemoteDatasourceImpl implements SubscriptionRemoteDatasource {
       if (playerId != null) 'playerId': playerId,
     };
     final response = await _apiClient.get(
-      '/academies/$academyId/subscriptions',
+      '/subscriptions/academy/$academyId',
       queryParameters: queryParams,
     );
     final body = response.data as Map<String, dynamic>;
@@ -159,7 +159,7 @@ class SubscriptionRemoteDatasourceImpl implements SubscriptionRemoteDatasource {
   @override
   Future<Map<String, dynamic>> getRevenueSummary(String academyId) async {
     final response =
-        await _apiClient.get('/academies/$academyId/subscriptions/revenue');
+        await _apiClient.get('/subscriptions/academy/$academyId/revenue');
     final body = response.data as Map<String, dynamic>;
     return body['data'] as Map<String, dynamic>;
   }

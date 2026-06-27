@@ -8,6 +8,8 @@ class SubscriptionEntity extends Equatable {
   final String id;
   final String academyId;
   final String playerId;
+  /// اسم اللاعب — مُستخرَج من populate الـ backend
+  final String playerName;
   final SubscriptionType type;
   final double amount;
   final DateTime startDate;
@@ -20,6 +22,7 @@ class SubscriptionEntity extends Equatable {
     required this.id,
     required this.academyId,
     required this.playerId,
+    this.playerName = '',
     required this.type,
     required this.amount,
     required this.startDate,
@@ -47,6 +50,7 @@ class SubscriptionEntity extends Equatable {
         id,
         academyId,
         playerId,
+        playerName,
         type,
         amount,
         startDate,

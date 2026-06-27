@@ -12,7 +12,10 @@ class UpdatePlayerParams {
   final String? parentRelationship;
   final String? parentJob;
   final String? parentPhone;
+  final String? playerPhone;
   final String? notes;
+  final String? sport;
+  final List<String>? attendanceDays;
   final String? imagePath;
 
   const UpdatePlayerParams({
@@ -23,7 +26,10 @@ class UpdatePlayerParams {
     this.parentRelationship,
     this.parentJob,
     this.parentPhone,
+    this.playerPhone,
     this.notes,
+    this.sport,
+    this.attendanceDays,
     this.imagePath,
   });
 }
@@ -43,7 +49,10 @@ class UpdatePlayerUsecase extends UseCase<PlayerEntity, UpdatePlayerParams> {
       parentRelationship: params.parentRelationship,
       parentJob: params.parentJob,
       parentPhone: params.parentPhone,
+      playerPhone: params.playerPhone,
       notes: params.notes,
+      sport: params.sport,
+      attendanceDays: params.attendanceDays,
       imagePath: params.imagePath,
     );
   }

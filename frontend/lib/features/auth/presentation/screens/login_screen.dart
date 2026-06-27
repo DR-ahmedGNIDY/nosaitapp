@@ -1,7 +1,10 @@
 import 'package:basketball_academy/core/constants/app_colors.dart';
+import 'package:basketball_academy/core/constants/app_constants.dart';
 import 'package:basketball_academy/core/constants/app_strings.dart';
 import 'package:basketball_academy/core/router/app_router.dart';
+import 'package:basketball_academy/core/utils/privacy_launcher.dart';
 import 'package:basketball_academy/features/auth/presentation/providers/auth_provider.dart';
+import 'package:basketball_academy/features/whatsapp/utils/whatsapp_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -90,14 +93,42 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     }
   }
 
+  /// Opens WhatsApp to the company number for account creation / inquiry.
+  /// This is a contact channel only — it does NOT create an account in-app.
+  Future<void> _contactCompany() async {
+    final ok = await WhatsAppUtils.open(
+      AppConstants.companyWhatsappNumber,
+      message: AppConstants.contactDefaultMessage,
+    );
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تعذّر فتح واتساب'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
+  void _openPrivacyPolicy() => openPrivacyPolicy(context);
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     ref.listen(authStateProvider, (_, next) {
       final st = next.valueOrNull;
-      // التوجيه يتم تلقائياً عبر GoRouter redirect عند isAuthenticated == true
-      if (!next.isLoading && st?.isAuthenticated != true) {
+      debugPrint('[LOGIN] authState changed: isLoading=${next.isLoading} isAuthenticated=${st?.isAuthenticated} error=${st?.errorMessage}');
+      if (st?.isAuthenticated == true) {
+        debugPrint('[LOGIN] NAVIGATION START → going to home/players');
+        final user = st?.user;
+        if (user?.isAdmin == true && user?.academyId != null) {
+          context.go(AppRoutes.playersList.replaceFirst(':id', user!.academyId!));
+        } else {
+          context.go(AppRoutes.home);
+        }
+        debugPrint('[LOGIN] NAVIGATION COMPLETE');
+      } else if (!next.isLoading) {
         if (_hasSubmitted) setState(() => _hasSubmitted = false);
         if (st?.errorMessage != null) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -308,6 +339,45 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               ),
                             ),
                           ],
+                        ),
+                      ),
+                    ),
+                    Gap(20.h),
+                    // Create account / inquiry — contacts the company via WhatsApp
+                    SizedBox(
+                      height: 50.h,
+                      child: OutlinedButton.icon(
+                        onPressed: _contactCompany,
+                        icon: const Icon(Icons.chat_bubble_outline,
+                            color: AppColors.white),
+                        label: Text(
+                          'إنشاء حساب أو استفسار',
+                          style: TextStyle(
+                            fontSize: 15.sp,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.white,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(
+                              color: AppColors.white.withValues(alpha: 0.7)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14.r),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Gap(12.h),
+                    // Privacy policy link
+                    TextButton(
+                      onPressed: _openPrivacyPolicy,
+                      child: Text(
+                        'سياسة الخصوصية',
+                        style: TextStyle(
+                          fontSize: 13.sp,
+                          color: AppColors.white.withValues(alpha: 0.85),
+                          decoration: TextDecoration.underline,
+                          decorationColor: AppColors.white.withValues(alpha: 0.85),
                         ),
                       ),
                     ),

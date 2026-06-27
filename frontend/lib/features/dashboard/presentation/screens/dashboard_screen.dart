@@ -2,8 +2,13 @@ import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/constants/app_strings.dart';
 import 'package:basketball_academy/core/router/app_router.dart';
 import 'package:basketball_academy/features/auth/presentation/providers/auth_provider.dart';
+import 'package:basketball_academy/features/academy/presentation/providers/academy_provider.dart';
+import 'package:basketball_academy/features/academy/presentation/providers/currency_provider.dart';
 import 'package:basketball_academy/features/dashboard/domain/entities/dashboard_entity.dart';
 import 'package:basketball_academy/features/dashboard/presentation/providers/dashboard_provider.dart';
+import 'package:basketball_academy/features/attendance/presentation/screens/attendance_hub_screen.dart';
+import 'package:basketball_academy/features/dashboard/presentation/screens/sport_detail_screen.dart';
+import 'package:basketball_academy/features/notification/presentation/screens/notifications_screen.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -28,12 +33,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authState = ref.read(authStateProvider).valueOrNull;
       final user = authState?.user;
-      if (user != null) {
-        if (user.isAcademyAdmin) {
-          ref.read(dashboardProvider.notifier).refresh(academyId: user.academyId);
-        } else {
-          ref.read(dashboardProvider.notifier).refresh();
-        }
+      if (user == null) return;
+      // admin لا يملك صلاحية الـ dashboard — أعد توجيهه
+      if (user.isAdmin && user.academyId != null) {
+        context.go(
+          AppRoutes.playersList.replaceFirst(':id', user.academyId!),
+        );
+        return;
+      }
+      if (user.isAcademyAdmin) {
+        ref.read(dashboardProvider.notifier).refresh(academyId: user.academyId);
+      } else {
+        ref.read(dashboardProvider.notifier).refresh();
       }
     });
   }
@@ -44,6 +55,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final user = authState?.user;
     final isSuperAdmin = user?.isSuperAdmin ?? false;
     final dashAsync = ref.watch(dashboardProvider);
+    final currentAcademyId = isSuperAdmin ? _selectedAcademyId : user?.academyId;
+    final currencyLabel = ref.watch(
+      academyCurrencyLabelProvider(currentAcademyId),
+    );
+
+    // Resolve the current academy to know whether to show the sports section.
+    final currentAcademy = currentAcademyId != null
+        ? ref.watch(academyByIdProvider(currentAcademyId)).valueOrNull
+        : null;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -65,6 +85,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               tooltip: AppStrings.academies,
               onPressed: () => context.go(AppRoutes.academyList),
             ),
+          NotificationBellIcon(
+            onTap: () => context.push(AppRoutes.notifications),
+          ),
+          IconButton(
+            icon: const Icon(Icons.manage_accounts_outlined),
+            tooltip: 'إعدادات الحساب',
+            onPressed: () => context.push(AppRoutes.accountSettings),
+          ),
           IconButton(
             icon: const Icon(Icons.logout_outlined),
             tooltip: AppStrings.logout,
@@ -102,16 +130,46 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 _WelcomeCard(userName: user?.name ?? ''),
                 Gap(16.h),
 
+                // Recent notifications widget
+                RecentNotificationsWidget(
+                  onViewAll: () => context.push(AppRoutes.notifications),
+                ),
+                Gap(20.h),
+
+                // Quick actions for academy_admin (not admin)
+                if (!isSuperAdmin && user?.isAcademyAdmin == true && user?.academyId != null) ...[
+                  const _SectionTitle(title: 'الإجراءات السريعة'),
+                  Gap(8.h),
+                  _QuickActionsGrid(academyId: user!.academyId!),
+                  Gap(20.h),
+                ],
+
                 // Stats cards grid
                 const _SectionTitle(title: 'الإحصائيات العامة'),
                 Gap(8.h),
-                _StatsGrid(stats: dashState.stats),
+                _StatsGrid(stats: dashState.stats, currencyLabel: currencyLabel),
                 Gap(20.h),
+
+                // Sports section — only for multi-sport academies
+                if (currentAcademy != null &&
+                    currentAcademy.isMultiSport &&
+                    currentAcademyId != null) ...[
+                  const _SectionTitle(title: 'الرياضات'),
+                  Gap(8.h),
+                  _SportsGrid(
+                    academyId: currentAcademyId,
+                    sports: currentAcademy.sports,
+                    currencyLabel: currencyLabel,
+                  ),
+                  Gap(20.h),
+                ],
 
                 // Revenue chart
                 const _SectionTitle(title: AppStrings.revenueByMonth),
                 Gap(8.h),
-                _RevenueChart(data: dashState.revenueByMonth),
+                _RevenueChart(
+                    data: dashState.revenueByMonth,
+                    currencyLabel: currencyLabel),
                 Gap(20.h),
 
                 // Subscriptions pie chart
@@ -135,13 +193,252 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 // Recent activities
                 const _SectionTitle(title: AppStrings.recentActivities),
                 Gap(8.h),
-                _RecentActivitiesList(activities: dashState.recentActivities),
+                _RecentActivitiesList(
+                    activities: dashState.recentActivities),
                 Gap(24.h),
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+// ─── Quick Actions Grid (academy_admin only) ─────────────────────────────────
+
+class _QuickActionsGrid extends StatelessWidget {
+  final String academyId;
+  const _QuickActionsGrid({required this.academyId});
+
+  @override
+  Widget build(BuildContext context) {
+    final items = [
+      _QuickActionItem(
+        icon: Icons.sports_basketball_outlined,
+        label: AppStrings.players,
+        color: AppColors.primary,
+        onTap: () => context.push(
+          AppRoutes.playersList.replaceFirst(':id', academyId),
+        ),
+      ),
+      _QuickActionItem(
+        icon: Icons.card_membership_outlined,
+        label: AppStrings.subscriptions,
+        color: AppColors.secondary,
+        onTap: () => context.push(
+          AppRoutes.playersList.replaceFirst(':id', academyId),
+        ),
+      ),
+      _QuickActionItem(
+        icon: Icons.bar_chart_outlined,
+        label: AppStrings.reports,
+        color: AppColors.success,
+        onTap: () => context.push(AppRoutes.reports),
+      ),
+      _QuickActionItem(
+        icon: Icons.qr_code_scanner,
+        label: 'الحضور والانصراف',
+        color: AppColors.primaryDark,
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => AttendanceHubScreen(academyId: academyId),
+          ),
+        ),
+      ),
+      _QuickActionItem(
+        icon: Icons.badge_outlined,
+        label: 'الإدارة والموظفين',
+        color: AppColors.secondary,
+        onTap: () => context.push(
+          AppRoutes.staffList.replaceFirst(':id', academyId),
+        ),
+      ),
+      _QuickActionItem(
+        icon: Icons.payments_outlined,
+        label: 'الرواتب',
+        color: AppColors.success,
+        onTap: () => context.push(
+          AppRoutes.payrollList.replaceFirst(':id', academyId),
+        ),
+      ),
+      _QuickActionItem(
+        icon: Icons.receipt_long_outlined,
+        label: 'المصروفات',
+        color: AppColors.error,
+        onTap: () => context.push(
+          AppRoutes.expensesList.replaceFirst(':id', academyId),
+        ),
+      ),
+    ];
+
+    return GridView.count(
+      crossAxisCount: 3,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisSpacing: 12.w,
+      mainAxisSpacing: 12.h,
+      childAspectRatio: 1.1,
+      children: items,
+    );
+  }
+}
+
+class _QuickActionItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _QuickActionItem({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12.r),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(12.r),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: EdgeInsets.all(10.r),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 24.sp),
+            ),
+            Gap(8.h),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11.sp,
+                fontWeight: FontWeight.w600,
+                color: AppColors.grey700,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Sports Grid (multi-sport academies) ─────────────────────────────────────
+
+class _SportsGrid extends StatelessWidget {
+  final String academyId;
+  final List<String> sports;
+  final String currencyLabel;
+
+  const _SportsGrid({
+    required this.academyId,
+    required this.sports,
+    required this.currencyLabel,
+  });
+
+  static const _icons = [
+    Icons.sports_soccer,
+    Icons.sports_basketball,
+    Icons.sports_volleyball,
+    Icons.sports_handball,
+    Icons.pool,
+    Icons.sports_martial_arts,
+    Icons.sports,
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 12.w,
+        mainAxisSpacing: 12.h,
+        childAspectRatio: 2.4,
+      ),
+      itemCount: sports.length,
+      itemBuilder: (_, i) {
+        final sport = sports[i];
+        return InkWell(
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => SportDetailScreen(
+                academyId: academyId,
+                sport: sport,
+                currencyLabel: currencyLabel,
+              ),
+            ),
+          ),
+          borderRadius: BorderRadius.circular(12.r),
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: 12.w),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(12.r),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(8.r),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryContainer,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    _icons[i % _icons.length],
+                    color: AppColors.primary,
+                    size: 20.r,
+                  ),
+                ),
+                Gap(10.w),
+                Expanded(
+                  child: Text(
+                    sport,
+                    style: TextStyle(
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.grey900,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Icon(Icons.chevron_left,
+                    size: 20.sp, color: AppColors.grey300),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -242,7 +539,8 @@ class _SectionTitle extends StatelessWidget {
 
 class _StatsGrid extends StatelessWidget {
   final DashboardStatsEntity? stats;
-  const _StatsGrid({required this.stats});
+  final String currencyLabel;
+  const _StatsGrid({required this.stats, required this.currencyLabel});
 
   @override
   Widget build(BuildContext context) {
@@ -329,7 +627,7 @@ class _StatsGrid extends StatelessWidget {
 
   String _formatCurrency(double amount) {
     final formatted = NumberFormat('#,##0', 'ar').format(amount.toInt());
-    return '$formatted ${AppStrings.currency}';
+    return '$formatted $currencyLabel';
   }
 }
 
@@ -414,7 +712,8 @@ class _StatCard extends StatelessWidget {
 
 class _RevenueChart extends StatelessWidget {
   final List<RevenueByMonthEntity> data;
-  const _RevenueChart({required this.data});
+  final String currencyLabel;
+  const _RevenueChart({required this.data, required this.currencyLabel});
 
   static const _arabicMonths = [
     'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
@@ -458,7 +757,7 @@ class _RevenueChart extends StatelessWidget {
                         touchTooltipData: BarTouchTooltipData(
                           getTooltipItem: (group, groupIndex, rod, rodIndex) {
                             return BarTooltipItem(
-                              '${rod.toY.toInt()} ${AppStrings.currency}',
+                              '${rod.toY.toInt()} $currencyLabel',
                               TextStyle(
                                 color: AppColors.white,
                                 fontSize: 11.sp,
@@ -892,91 +1191,43 @@ class _ActivityTile extends StatelessWidget {
   final RecentActivityEntity activity;
   const _ActivityTile({required this.activity});
 
-  IconData get _icon {
-    switch (activity.type) {
+  // (icon, color, background) حسب نوع العنصر.
+  (IconData, Color, Color) get _visual {
+    switch (activity.entityType) {
       case 'PLAYER':
-        return Icons.person_add_outlined;
-      case 'NEW_SUBSCRIPTION':
-        return Icons.add_card_outlined;
-      case 'RENEWAL':
-        return Icons.refresh_outlined;
+        return (Icons.person_outline, AppColors.secondary, AppColors.secondaryContainer);
+      case 'SUBSCRIPTION':
+        return (Icons.card_membership_outlined, AppColors.primary, AppColors.primaryContainer);
       case 'EVALUATION':
-        return Icons.assessment_outlined;
+        return (Icons.assessment_outlined, AppColors.warning, AppColors.warningLight);
+      case 'ATTENDANCE':
+        return (Icons.qr_code_scanner, const Color(0xFF2D9748), AppColors.successLight);
+      case 'USER':
+        return (Icons.manage_accounts_outlined, const Color(0xFF2563EB), const Color(0xFFEFF6FF));
+      case 'ACADEMY':
+        return (Icons.business_outlined, AppColors.secondary, AppColors.secondaryContainer);
       default:
-        return Icons.circle_outlined;
+        return (Icons.history, AppColors.grey500, AppColors.grey100);
     }
   }
 
-  Color get _iconColor {
-    switch (activity.type) {
-      case 'PLAYER':
-        return AppColors.secondary;
-      case 'NEW_SUBSCRIPTION':
-        return AppColors.primary;
-      case 'RENEWAL':
-        return const Color(0xFF2563EB);
-      case 'EVALUATION':
-        return AppColors.warning;
-      default:
-        return AppColors.grey500;
-    }
-  }
-
-  Color get _iconBg {
-    switch (activity.type) {
-      case 'PLAYER':
-        return AppColors.secondaryContainer;
-      case 'NEW_SUBSCRIPTION':
-        return AppColors.primaryContainer;
-      case 'RENEWAL':
-        return const Color(0xFFEFF6FF);
-      case 'EVALUATION':
-        return AppColors.warningLight;
-      default:
-        return AppColors.grey100;
-    }
-  }
-
-  String get _title => activity.playerName ?? '-';
-
-  String get _subtitle {
-    switch (activity.type) {
-      case 'PLAYER':
-        return 'لاعب جديد${activity.playerCode != null ? ' • ${activity.playerCode}' : ''}';
-      case 'NEW_SUBSCRIPTION':
-        return 'اشتراك جديد${activity.amount != null ? ' - ${activity.amount!.toInt()} ${AppStrings.currency}' : ''}';
-      case 'RENEWAL':
-        return 'تجديد${activity.amount != null ? ' - ${activity.amount!.toInt()} ${AppStrings.currency}' : ''}';
-      case 'EVALUATION':
-        final avg = activity.average != null ? activity.average!.toStringAsFixed(1) : '-';
-        final grade = activity.gradeLabel ?? '';
-        return 'تقييم: $avg/10${grade.isNotEmpty ? ' - $grade' : ''}';
-      default:
-        return '';
-    }
-  }
-
-  String _formatDate(DateTime dt) {
-    return DateFormat('dd/MM/yyyy', 'ar').format(dt);
-  }
+  String _formatDate(DateTime dt) => DateFormat('dd/MM/yyyy', 'ar').format(dt);
 
   @override
   Widget build(BuildContext context) {
+    final (icon, color, bg) = _visual;
     return ListTile(
       contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 6.h),
       leading: Container(
         width: 40.r,
         height: 40.r,
-        decoration: BoxDecoration(color: _iconBg, shape: BoxShape.circle),
-        child: Icon(_icon, color: _iconColor, size: 20.r),
+        decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+        child: Icon(icon, color: color, size: 20.r),
       ),
       title: Text(
-        _title,
-        style: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w600, color: AppColors.grey900),
-      ),
-      subtitle: Text(
-        _subtitle,
-        style: TextStyle(fontSize: 11.sp, color: AppColors.grey500),
+        activity.sentence,
+        style: TextStyle(
+            fontSize: 13.sp, fontWeight: FontWeight.w600, color: AppColors.grey900),
       ),
       trailing: Text(
         _formatDate(activity.createdAt),

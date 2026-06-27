@@ -1,15 +1,15 @@
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:basketball_academy/core/di/injection_container.dart';
 import 'package:basketball_academy/features/player/domain/usecases/get_players_usecase.dart';
 import 'package:basketball_academy/features/reports/domain/models/report_filter.dart';
+import 'package:basketball_academy/features/reports/services/report_sport_filter.dart';
+import 'package:basketball_academy/features/subscription/domain/entities/subscription_entity.dart';
 import 'package:basketball_academy/features/subscription/domain/usecases/get_revenue_summary_usecase.dart';
 import 'package:basketball_academy/features/subscription/domain/usecases/get_subscriptions_by_academy_usecase.dart';
 import 'package:basketball_academy/features/evaluation/domain/usecases/get_evaluations_by_academy_usecase.dart';
 import 'package:excel/excel.dart';
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 class ExcelReportService {
@@ -63,11 +63,15 @@ class ExcelReportService {
   // ── share ──────────────────────────────────────────────────────────────────
 
   static Future<void> shareExcel(Uint8List bytes, String fileName) async {
-    final dir = await getTemporaryDirectory();
-    final file = File('${dir.path}/$fileName');
-    await file.writeAsBytes(bytes, flush: true);
     await Share.shareXFiles(
-      [XFile(file.path, mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')],
+      [
+        XFile.fromData(
+          bytes,
+          name: fileName,
+          mimeType:
+              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ),
+      ],
       subject: fileName,
     );
   }
@@ -81,7 +85,8 @@ class ExcelReportService {
     final getSubs = sl<GetSubscriptionsByAcademyUsecase>();
 
     final playersResult = await getPlayers(
-      GetPlayersParams(academyId: filter.academyId, page: 1, limit: 200),
+      GetPlayersParams(
+          academyId: filter.academyId, sport: filter.sport, page: 1, limit: 500),
     );
     final players = playersResult.fold((_) => [], (v) => v.players);
 
@@ -92,14 +97,22 @@ class ExcelReportService {
         limit: 500,
       ),
     );
-    final subs = subsResult.fold((_) => [], (v) => v.subscriptions);
+    var subs = subsResult.fold((_) => [], (v) => v.subscriptions);
+    // Scope subscriptions to the same sport as the players above.
+    final sportIds = await playerIdsForSport(filter.academyId, filter.sport);
+    if (sportIds != null) {
+      subs = subs.where((s) => sportIds.contains(s.playerId)).toList();
+    }
+    // كل اللاعبين الذين لديهم أي اشتراك (نشط أو منتهي)
+    final allSubscribedPlayerIds = subs.map((s) => s.playerId).toSet();
+    // اللاعبون الذين لديهم اشتراك نشط حالياً
     final activePlayerIds = subs
         .where((s) => s.isActive)
         .map((s) => s.playerId)
         .toSet();
 
     final excel = Excel.createExcel();
-    final sheet = excel['اللاعبون'];
+    final sheet = excel['اللاعبون${filter.scopeSuffix}'];
     excel.delete('Sheet1');
 
     _setHeaders(sheet, [
@@ -116,7 +129,11 @@ class ExcelReportService {
       final p = players[i];
       final row = i + 1;
       final style = row.isOdd ? null : _altRowStyle();
-      final status = activePlayerIds.contains(p.id) ? 'نشط' : 'منتهي / لا يوجد';
+      final status = activePlayerIds.contains(p.id)
+          ? 'نشط'
+          : allSubscribedPlayerIds.contains(p.id)
+              ? 'منتهي'
+              : 'جديد';
 
       _setCell(sheet, row, 0, p.playerCode, style: style);
       _setCell(sheet, row, 1, p.fullName, style: style);
@@ -147,16 +164,20 @@ class ExcelReportService {
         limit: 500,
       ),
     );
-    final subs = result.fold((_) => [], (v) => v.subscriptions);
+    var subs = result.fold((_) => [], (v) => v.subscriptions);
+    final sportIds = await playerIdsForSport(filter.academyId, filter.sport);
+    if (sportIds != null) {
+      subs = subs.where((s) => sportIds.contains(s.playerId)).toList();
+    }
 
     final excel = Excel.createExcel();
-    final sheet = excel['الاشتراكات'];
+    final sheet = excel['الاشتراكات${filter.scopeSuffix}'];
     excel.delete('Sheet1');
 
     _setHeaders(sheet, [
       'اسم اللاعب',
       'نوع العملية',
-      'المبلغ (ريال)',
+      'المبلغ (${filter.currencyLabel})',
       'تاريخ البداية',
       'تاريخ الانتهاء',
       'الحالة',
@@ -169,7 +190,7 @@ class ExcelReportService {
       final style = row.isOdd ? null : _altRowStyle();
       total += s.amount;
 
-      _setCell(sheet, row, 0, s.playerId, style: style);
+      _setCell(sheet, row, 0, s.playerName.isNotEmpty ? s.playerName : s.playerId, style: style);
       _setCell(sheet, row, 1, s.typeLabel, style: style);
       _setCell(sheet, row, 2, s.amount, style: style);
       _setCell(sheet, row, 3, _fmtDate(s.startDate), style: style);
@@ -194,14 +215,51 @@ class ExcelReportService {
   static Future<Uint8List> generateRevenueExcel(ReportFilter filter) async {
     if (filter.academyId == null) throw Exception('academyId مطلوب');
 
-    final getRevenue = sl<GetRevenueSummaryUsecase>();
-    final result = await getRevenue(
-      GetRevenueSummaryParams(academyId: filter.academyId!),
-    );
-    final data = result.fold((_) => <String, dynamic>{}, (v) => v);
+    double totalRevenue;
+    double monthlyRevenue;
+    int newSubs;
+    int renewals;
+    int activeCount;
+    int expiredCount;
+
+    if (filter.sport != null && filter.sport!.isNotEmpty) {
+      final getSubs = sl<GetSubscriptionsByAcademyUsecase>();
+      final subsResult = await getSubs(
+        GetSubscriptionsByAcademyParams(
+            academyId: filter.academyId!, page: 1, limit: 500),
+      );
+      var subs = subsResult.fold((_) => [], (v) => v.subscriptions);
+      final sportIds = await playerIdsForSport(filter.academyId, filter.sport);
+      if (sportIds != null) {
+        subs = subs.where((s) => sportIds.contains(s.playerId)).toList();
+      }
+      final now = DateTime.now();
+      totalRevenue = subs.fold<double>(0, (sum, s) => sum + s.amount);
+      monthlyRevenue = subs
+          .where((s) =>
+              s.createdAt.year == now.year && s.createdAt.month == now.month)
+          .fold<double>(0, (sum, s) => sum + s.amount);
+      newSubs =
+          subs.where((s) => s.type == SubscriptionType.newSubscription).length;
+      renewals = subs.where((s) => s.type == SubscriptionType.renewal).length;
+      activeCount = subs.where((s) => s.isActive).length;
+      expiredCount = subs.where((s) => !s.isActive).length;
+    } else {
+      final getRevenue = sl<GetRevenueSummaryUsecase>();
+      final result = await getRevenue(
+        GetRevenueSummaryParams(academyId: filter.academyId!),
+      );
+      final data = result.fold((_) => <String, dynamic>{}, (v) => v);
+      totalRevenue = (data['totalRevenue'] as num?)?.toDouble() ?? 0;
+      monthlyRevenue = (data['monthlyRevenue'] as num?)?.toDouble() ?? 0;
+      newSubs = (data['newSubscriptionsCount'] as num?)?.toInt() ?? 0;
+      renewals = (data['renewalsCount'] as num?)?.toInt() ?? 0;
+      activeCount = (data['activeCount'] as num?)?.toInt() ?? 0;
+      expiredCount = (data['expiredCount'] as num?)?.toInt() ?? 0;
+    }
 
     final excel = Excel.createExcel();
-    final sheet = excel['الإيرادات'];
+    final sheet = excel['الإيرادات${filter.scopeSuffix}'];
     excel.delete('Sheet1');
 
     _setHeaders(sheet, ['البيان', 'القيمة']);
@@ -209,12 +267,12 @@ class ExcelReportService {
     sheet.setColumnWidth(1, 20);
 
     final rows = [
-      ['إجمالي الإيرادات (ريال)', (data['totalRevenue'] ?? 0).toDouble()],
-      ['إيرادات الشهر الحالي (ريال)', (data['monthlyRevenue'] ?? 0).toDouble()],
-      ['عدد الاشتراكات الجديدة', data['newSubscriptionsCount'] ?? 0],
-      ['عدد التجديدات', data['renewalsCount'] ?? 0],
-      ['الاشتراكات النشطة', data['activeCount'] ?? 0],
-      ['الاشتراكات المنتهية', data['expiredCount'] ?? 0],
+      ['إجمالي الإيرادات (${filter.currencyLabel})', totalRevenue],
+      ['إيرادات الشهر الحالي (${filter.currencyLabel})', monthlyRevenue],
+      ['عدد الاشتراكات الجديدة', newSubs],
+      ['عدد التجديدات', renewals],
+      ['الاشتراكات النشطة', activeCount],
+      ['الاشتراكات المنتهية', expiredCount],
     ];
 
     for (var i = 0; i < rows.length; i++) {
@@ -240,13 +298,17 @@ class ExcelReportService {
         academyId: filter.academyId!,
         startDate: filter.startDate,
         endDate: filter.endDate,
-        limit: 200,
+        limit: 500,
       ),
     );
-    final evals = result.fold((_) => [], (v) => v.evaluations);
+    var evals = result.fold((_) => [], (v) => v.evaluations);
+    final sportIds = await playerIdsForSport(filter.academyId, filter.sport);
+    if (sportIds != null) {
+      evals = evals.where((e) => sportIds.contains(e.playerId)).toList();
+    }
 
     final excel = Excel.createExcel();
-    final sheet = excel['التقييمات'];
+    final sheet = excel['التقييمات${filter.scopeSuffix}'];
     excel.delete('Sheet1');
 
     _setHeaders(sheet, [
@@ -275,6 +337,86 @@ class ExcelReportService {
       _setCell(sheet, row, 6, e.commitment, style: style);
       _setCell(sheet, row, 7, e.average, style: style);
       _setCell(sheet, row, 8, e.gradeLabel, style: style);
+    }
+
+    final bytes = excel.save();
+    if (bytes == null) throw Exception('فشل إنشاء ملف Excel');
+    return Uint8List.fromList(bytes);
+  }
+
+  // ── 5. Staff Attendance Report ─────────────────────────────────────────────
+
+  static Future<Uint8List> generateStaffAttendanceExcel(
+    List<({String fullName, String position, int presentCount, int absentCount})> rows,
+  ) async {
+    final excel = Excel.createExcel();
+    final sheet = excel['حضور الموظفين'];
+    excel.delete('Sheet1');
+
+    _setHeaders(sheet, ['اسم الموظف', 'الوظيفة', 'عدد الحضور', 'عدد الغياب']);
+
+    for (var i = 0; i < rows.length; i++) {
+      final r = rows[i];
+      final row = i + 1;
+      final style = row.isOdd ? null : _altRowStyle();
+      _setCell(sheet, row, 0, r.fullName, style: style);
+      _setCell(sheet, row, 1, r.position, style: style);
+      _setCell(sheet, row, 2, r.presentCount, style: style);
+      _setCell(sheet, row, 3, r.absentCount, style: style);
+    }
+
+    final bytes = excel.save();
+    if (bytes == null) throw Exception('فشل إنشاء ملف Excel');
+    return Uint8List.fromList(bytes);
+  }
+
+  // ── 6. Payroll Report ───────────────────────────────────────────────────────
+
+  static Future<Uint8List> generatePayrollExcel(
+    List<({String fullName, String position, double baseSalary, double deductionAmount, double netSalary, String status})> rows,
+  ) async {
+    final excel = Excel.createExcel();
+    final sheet = excel['الرواتب'];
+    excel.delete('Sheet1');
+
+    _setHeaders(sheet, ['اسم الموظف', 'الوظيفة', 'الراتب الأساسي', 'الخصومات', 'صافي الراتب', 'الحالة']);
+
+    for (var i = 0; i < rows.length; i++) {
+      final r = rows[i];
+      final row = i + 1;
+      final style = row.isOdd ? null : _altRowStyle();
+      _setCell(sheet, row, 0, r.fullName, style: style);
+      _setCell(sheet, row, 1, r.position, style: style);
+      _setCell(sheet, row, 2, r.baseSalary, style: style);
+      _setCell(sheet, row, 3, r.deductionAmount, style: style);
+      _setCell(sheet, row, 4, r.netSalary, style: style);
+      _setCell(sheet, row, 5, r.status == 'paid' ? 'مدفوع' : 'معلق', style: style);
+    }
+
+    final bytes = excel.save();
+    if (bytes == null) throw Exception('فشل إنشاء ملف Excel');
+    return Uint8List.fromList(bytes);
+  }
+
+  // ── 7. Expense Report ───────────────────────────────────────────────────────
+
+  static Future<Uint8List> generateExpenseExcel(
+    List<({String name, String category, double amount, String date})> rows,
+  ) async {
+    final excel = Excel.createExcel();
+    final sheet = excel['المصروفات'];
+    excel.delete('Sheet1');
+
+    _setHeaders(sheet, ['اسم المصروف', 'التصنيف', 'المبلغ', 'التاريخ']);
+
+    for (var i = 0; i < rows.length; i++) {
+      final r = rows[i];
+      final row = i + 1;
+      final style = row.isOdd ? null : _altRowStyle();
+      _setCell(sheet, row, 0, r.name, style: style);
+      _setCell(sheet, row, 1, r.category, style: style);
+      _setCell(sheet, row, 2, r.amount, style: style);
+      _setCell(sheet, row, 3, r.date, style: style);
     }
 
     final bytes = excel.save();

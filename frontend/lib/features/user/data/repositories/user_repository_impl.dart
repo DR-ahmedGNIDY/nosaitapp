@@ -50,6 +50,7 @@ class UserRepositoryImpl implements UserRepository {
     required String email,
     required String password,
     required String academyId,
+    String role = 'academy_admin',
   }) async {
     try {
       final model = await _remoteDatasource.createUser({
@@ -57,6 +58,7 @@ class UserRepositoryImpl implements UserRepository {
         'email': email,
         'password': password,
         'academyId': academyId,
+        'role': role,
       });
       return Right(model.toEntity());
     } on ValidationException catch (e) {
@@ -118,6 +120,21 @@ class UserRepositoryImpl implements UserRepository {
     try {
       await _remoteDatasource.deactivateUser(id);
       return const Right(null);
+    } on AppException catch (e) {
+      return Left(ServerFailure(message: e.message));
+    } catch (_) {
+      return const Left(UnknownFailure());
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> resetPassword(
+      String id, String newPassword) async {
+    try {
+      await _remoteDatasource.resetPassword(id, newPassword);
+      return const Right(null);
+    } on ValidationException catch (e) {
+      return Left(ValidationFailure(message: e.message));
     } on AppException catch (e) {
       return Left(ServerFailure(message: e.message));
     } catch (_) {

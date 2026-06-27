@@ -1,5 +1,6 @@
 import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/constants/app_strings.dart';
+import 'package:basketball_academy/features/academy/presentation/providers/currency_provider.dart';
 import 'package:basketball_academy/features/auth/presentation/providers/auth_provider.dart';
 import 'package:basketball_academy/features/subscription/domain/entities/subscription_entity.dart';
 import 'package:basketball_academy/features/subscription/presentation/providers/subscription_provider.dart';
@@ -34,11 +35,6 @@ class _PlayerSubscriptionHistoryScreenState
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref
-          .read(playerSubscriptionsProvider.notifier)
-          .setPlayer(widget.playerId);
-    });
   }
 
   Future<void> _confirmDelete(
@@ -72,7 +68,7 @@ class _PlayerSubscriptionHistoryScreenState
     if (!context.mounted) return;
 
     final error = await ref
-        .read(playerSubscriptionsProvider.notifier)
+        .read(playerSubscriptionsProvider(widget.playerId).notifier)
         .deleteSubscription(subscription.id);
 
     if (!context.mounted) return;
@@ -89,7 +85,7 @@ class _PlayerSubscriptionHistoryScreenState
   void _onFilterTap(String? status) {
     setState(() => _selectedFilter = status);
     ref
-        .read(playerSubscriptionsProvider.notifier)
+        .read(playerSubscriptionsProvider(widget.playerId).notifier)
         .filterByStatus(status);
   }
 
@@ -98,13 +94,16 @@ class _PlayerSubscriptionHistoryScreenState
     final theme = Theme.of(context);
     final authState = ref.watch(authStateProvider).valueOrNull;
     final isSuperAdmin = authState?.user?.isSuperAdmin ?? false;
-    final isAcademyAdminSame =
+    final isAcademyLevelSame =
         !isSuperAdmin && authState?.user?.academyId == widget.academyId;
-    final canEdit = isSuperAdmin || isAcademyAdminSame;
+    final canEdit = isSuperAdmin || isAcademyLevelSame;
 
-    final subscriptionsAsync = ref.watch(playerSubscriptionsProvider);
+    final subscriptionsAsync =
+        ref.watch(playerSubscriptionsProvider(widget.playerId));
 
     final dateFormat = DateFormat('dd/MM/yyyy', 'ar');
+    final currencyLabel =
+        ref.watch(academyCurrencyLabelProvider(widget.academyId));
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -139,7 +138,7 @@ class _PlayerSubscriptionHistoryScreenState
                     ),
                   ))
                   .then((_) => ref
-                      .read(playerSubscriptionsProvider.notifier)
+                      .read(playerSubscriptionsProvider(widget.playerId).notifier)
                       .refresh()),
               icon: const Icon(Icons.refresh),
               label: const Text(AppStrings.renewSubscription),
@@ -174,7 +173,7 @@ class _PlayerSubscriptionHistoryScreenState
                       Gap(16.h),
                       ElevatedButton.icon(
                         onPressed: () => ref
-                            .read(playerSubscriptionsProvider.notifier)
+                            .read(playerSubscriptionsProvider(widget.playerId).notifier)
                             .refresh(),
                         icon: const Icon(Icons.refresh),
                         label: const Text(AppStrings.retry),
@@ -189,7 +188,7 @@ class _PlayerSubscriptionHistoryScreenState
                 }
                 return RefreshIndicator(
                   onRefresh: () => ref
-                      .read(playerSubscriptionsProvider.notifier)
+                      .read(playerSubscriptionsProvider(widget.playerId).notifier)
                       .refresh(),
                   child: ListView.separated(
                     padding:
@@ -201,6 +200,7 @@ class _PlayerSubscriptionHistoryScreenState
                       return _SubscriptionCard(
                         subscription: sub,
                         dateFormat: dateFormat,
+                        currencyLabel: currencyLabel,
                         canEdit: canEdit,
                         onDelete: canEdit
                             ? () => _confirmDelete(context, sub)
@@ -281,7 +281,7 @@ class _PlayerSubscriptionHistoryScreenState
                       ),
                     ))
                     .then((_) => ref
-                        .read(playerSubscriptionsProvider.notifier)
+                        .read(playerSubscriptionsProvider(widget.playerId).notifier)
                         .refresh()),
                 icon: const Icon(Icons.add),
                 label: const Text('إضافة اشتراك جديد'),
@@ -347,12 +347,14 @@ class _FilterChip extends StatelessWidget {
 class _SubscriptionCard extends StatelessWidget {
   final SubscriptionEntity subscription;
   final DateFormat dateFormat;
+  final String currencyLabel;
   final bool canEdit;
   final VoidCallback? onDelete;
 
   const _SubscriptionCard({
     required this.subscription,
     required this.dateFormat,
+    required this.currencyLabel,
     required this.canEdit,
     this.onDelete,
   });
@@ -438,7 +440,7 @@ class _SubscriptionCard extends StatelessWidget {
                       size: 18.sp, color: AppColors.primary),
                   Gap(6.w),
                   Text(
-                    '${subscription.amount.toStringAsFixed(0)} ريال',
+                    '${subscription.amount.toStringAsFixed(0)} $currencyLabel',
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: AppColors.grey800,

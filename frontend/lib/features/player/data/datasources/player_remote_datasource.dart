@@ -1,6 +1,10 @@
+import 'dart:convert';
+
 import 'package:basketball_academy/core/network/api_client.dart';
+import 'package:basketball_academy/core/utils/multipart/image_multipart_helper.dart';
 import 'package:basketball_academy/features/player/data/models/player_model.dart';
 import 'package:dio/dio.dart';
+import 'package:intl/intl.dart';
 
 abstract class PlayerRemoteDatasource {
   Future<
@@ -13,6 +17,8 @@ abstract class PlayerRemoteDatasource {
     String? academyId,
     String? search,
     int? birthYear,
+    String? sport,
+    String? attendanceDay,
     int page = 1,
     int limit = 20,
   });
@@ -28,7 +34,10 @@ abstract class PlayerRemoteDatasource {
     required String parentRelationship,
     String? parentJob,
     required String parentPhone,
+    String? playerPhone,
     String? notes,
+    String? sport,
+    List<String> attendanceDays,
     String? academyId,
     String? imagePath,
   });
@@ -41,7 +50,10 @@ abstract class PlayerRemoteDatasource {
     String? parentRelationship,
     String? parentJob,
     String? parentPhone,
+    String? playerPhone,
     String? notes,
+    String? sport,
+    List<String>? attendanceDays,
     String? imagePath,
   });
 
@@ -66,6 +78,8 @@ class PlayerRemoteDatasourceImpl implements PlayerRemoteDatasource {
     String? academyId,
     String? search,
     int? birthYear,
+    String? sport,
+    String? attendanceDay,
     int page = 1,
     int limit = 20,
   }) async {
@@ -75,6 +89,9 @@ class PlayerRemoteDatasourceImpl implements PlayerRemoteDatasource {
       if (academyId != null) 'academyId': academyId,
       if (search != null && search.isNotEmpty) 'search': search,
       if (birthYear != null) 'birthYear': birthYear,
+      if (sport != null && sport.isNotEmpty) 'sport': sport,
+      if (attendanceDay != null && attendanceDay.isNotEmpty)
+        'attendanceDay': attendanceDay,
     };
 
     final response = await _apiClient.get('/players', queryParameters: queryParams);
@@ -120,21 +137,27 @@ class PlayerRemoteDatasourceImpl implements PlayerRemoteDatasource {
     required String parentRelationship,
     String? parentJob,
     required String parentPhone,
+    String? playerPhone,
     String? notes,
+    String? sport,
+    List<String> attendanceDays = const [],
     String? academyId,
     String? imagePath,
   }) async {
     if (imagePath != null) {
       final formData = FormData.fromMap({
         'fullName': fullName,
-        'birthDate': birthDate.toIso8601String(),
+        'birthDate': DateFormat('yyyy-MM-dd').format(birthDate),
         'parentName': parentName,
         'parentRelationship': parentRelationship,
         if (parentJob != null) 'parentJob': parentJob,
         'parentPhone': parentPhone,
+        if (playerPhone != null) 'playerPhone': playerPhone,
         if (notes != null) 'notes': notes,
+        if (sport != null && sport.isNotEmpty) 'sport': sport,
+        'attendanceDays': jsonEncode(attendanceDays),
         if (academyId != null) 'academyId': academyId,
-        'image': await MultipartFile.fromFile(imagePath, filename: 'player_image.jpg'),
+        'image': await buildImageMultipart(imagePath, filename: 'player_image.jpg'),
       });
       final response = await _apiClient.postMultipart<Map<String, dynamic>>(
         '/players',
@@ -145,12 +168,15 @@ class PlayerRemoteDatasourceImpl implements PlayerRemoteDatasource {
     } else {
       final data = <String, dynamic>{
         'fullName': fullName,
-        'birthDate': birthDate.toIso8601String(),
+        'birthDate': DateFormat('yyyy-MM-dd').format(birthDate),
         'parentName': parentName,
         'parentRelationship': parentRelationship,
         if (parentJob != null) 'parentJob': parentJob,
         'parentPhone': parentPhone,
+        if (playerPhone != null) 'playerPhone': playerPhone,
         if (notes != null) 'notes': notes,
+        if (sport != null && sport.isNotEmpty) 'sport': sport,
+        'attendanceDays': attendanceDays,
         if (academyId != null) 'academyId': academyId,
       };
       final response = await _apiClient.post('/players', data: data);
@@ -168,19 +194,25 @@ class PlayerRemoteDatasourceImpl implements PlayerRemoteDatasource {
     String? parentRelationship,
     String? parentJob,
     String? parentPhone,
+    String? playerPhone,
     String? notes,
+    String? sport,
+    List<String>? attendanceDays,
     String? imagePath,
   }) async {
     if (imagePath != null) {
       final formMap = <String, dynamic>{
         if (fullName != null) 'fullName': fullName,
-        if (birthDate != null) 'birthDate': birthDate.toIso8601String(),
+        if (birthDate != null) 'birthDate': DateFormat('yyyy-MM-dd').format(birthDate),
         if (parentName != null) 'parentName': parentName,
         if (parentRelationship != null) 'parentRelationship': parentRelationship,
         if (parentJob != null) 'parentJob': parentJob,
         if (parentPhone != null) 'parentPhone': parentPhone,
+        if (playerPhone != null) 'playerPhone': playerPhone,
         if (notes != null) 'notes': notes,
-        'image': await MultipartFile.fromFile(imagePath, filename: 'player_image.jpg'),
+        if (sport != null && sport.isNotEmpty) 'sport': sport,
+        if (attendanceDays != null) 'attendanceDays': jsonEncode(attendanceDays),
+        'image': await buildImageMultipart(imagePath, filename: 'player_image.jpg'),
       };
       final formData = FormData.fromMap(formMap);
       final response = await _apiClient.putMultipart<Map<String, dynamic>>(
@@ -192,12 +224,15 @@ class PlayerRemoteDatasourceImpl implements PlayerRemoteDatasource {
     } else {
       final data = <String, dynamic>{
         if (fullName != null) 'fullName': fullName,
-        if (birthDate != null) 'birthDate': birthDate.toIso8601String(),
+        if (birthDate != null) 'birthDate': DateFormat('yyyy-MM-dd').format(birthDate),
         if (parentName != null) 'parentName': parentName,
         if (parentRelationship != null) 'parentRelationship': parentRelationship,
         if (parentJob != null) 'parentJob': parentJob,
         if (parentPhone != null) 'parentPhone': parentPhone,
+        if (playerPhone != null) 'playerPhone': playerPhone,
         if (notes != null) 'notes': notes,
+        if (sport != null && sport.isNotEmpty) 'sport': sport,
+        if (attendanceDays != null) 'attendanceDays': attendanceDays,
       };
       final response = await _apiClient.put('/players/$id', data: data);
       final body = response.data as Map<String, dynamic>;

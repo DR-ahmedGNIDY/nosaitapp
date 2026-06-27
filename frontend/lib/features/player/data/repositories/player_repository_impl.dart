@@ -24,6 +24,8 @@ class PlayerRepositoryImpl implements PlayerRepository {
     String? academyId,
     String? search,
     int? birthYear,
+    String? sport,
+    String? attendanceDay,
     int page = 1,
     int limit = 20,
   }) async {
@@ -32,6 +34,8 @@ class PlayerRepositoryImpl implements PlayerRepository {
         academyId: academyId,
         search: search,
         birthYear: birthYear,
+        sport: sport,
+        attendanceDay: attendanceDay,
         page: page,
         limit: limit,
       );
@@ -97,7 +101,10 @@ class PlayerRepositoryImpl implements PlayerRepository {
     required String parentRelationship,
     String? parentJob,
     required String parentPhone,
+    String? playerPhone,
     String? notes,
+    String? sport,
+    List<String> attendanceDays = const [],
     String? academyId,
     String? imagePath,
   }) async {
@@ -109,7 +116,10 @@ class PlayerRepositoryImpl implements PlayerRepository {
         parentRelationship: parentRelationship,
         parentJob: parentJob,
         parentPhone: parentPhone,
+        playerPhone: playerPhone,
         notes: notes,
+        sport: sport,
+        attendanceDays: attendanceDays,
         academyId: academyId,
         imagePath: imagePath,
       );
@@ -138,7 +148,10 @@ class PlayerRepositoryImpl implements PlayerRepository {
     String? parentRelationship,
     String? parentJob,
     String? parentPhone,
+    String? playerPhone,
     String? notes,
+    String? sport,
+    List<String>? attendanceDays,
     String? imagePath,
   }) async {
     try {
@@ -150,7 +163,10 @@ class PlayerRepositoryImpl implements PlayerRepository {
         parentRelationship: parentRelationship,
         parentJob: parentJob,
         parentPhone: parentPhone,
+        playerPhone: playerPhone,
         notes: notes,
+        sport: sport,
+        attendanceDays: attendanceDays,
         imagePath: imagePath,
       );
       return Right(model.toEntity());

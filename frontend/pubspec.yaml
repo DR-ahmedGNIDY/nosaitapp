@@ -1,7 +1,7 @@
 name: basketball_academy
 description: نظام إدارة أكاديمية كرة السلة
 publish_to: "none"
-version: 1.0.0+1
+version: 1.1.0+7
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
@@ -56,6 +56,23 @@ dependencies:
   share_plus: ^10.1.4
 
   cupertino_icons: ^1.0.8
+  qr_flutter: ^4.1.0
+  # Platform-channel QR scanner (native zxing). Chosen over mobile_scanner
+  # because it has a negligible Dart footprint — no jni / objective_c / FFI
+  # bindings — so it compiles within memory on low-RAM build machines.
+  # Android only; we guard usage behind Platform.isAndroid (Windows uses manual/USB).
+  barcode_scan2: ^4.5.0
+
+# path_provider_foundation is the iOS/macOS implementation only. Versions ≥2.5
+# migrated to FFI and pull `objective_c`, which forces the experimental
+# native-assets build pipeline (a heavy concurrent compile that OOMs low-RAM
+# build machines). We only build Android + Windows, so we pin it to the last
+# Swift/plugin-channel version — zero functional impact, keeps builds light.
+dependency_overrides:
+  # path_provider_android ≥2.3.0 migrated to `jni` (huge generated bindings that
+  # OOM low-RAM build machines). 2.2.23 is the last platform-channel release.
+  path_provider_android: 2.2.23
+  path_provider_foundation: 2.4.1
 
 dev_dependencies:
   flutter_test:
@@ -69,10 +86,10 @@ dev_dependencies:
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: false
-  image_path: "assets/images/default_academy.png"
+  image_path: "assets/images/app_icon.png"
   min_sdk_android: 21
-  adaptive_icon_background: "#E85D04"
-  adaptive_icon_foreground: "assets/images/default_academy.png"
+  adaptive_icon_background: "#1A2B4A"
+  adaptive_icon_foreground: "assets/images/app_icon.png"
   web:
     generate: false
   windows:
@@ -83,6 +100,7 @@ flutter:
 
   assets:
     - assets/images/
+    - assets/fonts/
 
   fonts:
     - family: Cairo

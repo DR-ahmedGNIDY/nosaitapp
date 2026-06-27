@@ -9,12 +9,14 @@ class CreateUserParams {
   final String email;
   final String password;
   final String academyId;
+  final String role;
 
   const CreateUserParams({
     required this.name,
     required this.email,
     required this.password,
     required this.academyId,
+    this.role = 'academy_admin',
   });
 }
 
@@ -32,6 +34,7 @@ class CreateUserUsecase
       email: params.email,
       password: params.password,
       academyId: params.academyId,
+      role: params.role,
     );
   }
 }

@@ -99,7 +99,7 @@ class EvaluationRemoteDatasourceImpl implements EvaluationRemoteDatasource {
   @override
   Future<EvaluationModel?> getLatestEvaluation(String playerId) async {
     final response =
-        await _apiClient.get('/players/$playerId/evaluations/latest');
+        await _apiClient.get('/evaluations/player/$playerId/latest');
     final body = response.data as Map<String, dynamic>;
     final data = body['data'];
     if (data == null) return null;

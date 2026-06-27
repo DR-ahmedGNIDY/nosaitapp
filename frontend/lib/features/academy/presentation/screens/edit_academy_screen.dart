@@ -1,5 +1,8 @@
 import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/constants/app_strings.dart';
+import 'package:basketball_academy/core/constants/sports_constants.dart';
+import 'package:basketball_academy/core/utils/currency_utils.dart';
+import 'package:basketball_academy/core/widgets/multi_select_chips.dart';
 import 'package:basketball_academy/features/academy/domain/entities/academy_entity.dart';
 import 'package:basketball_academy/features/academy/presentation/providers/academy_provider.dart';
 import 'package:flutter/material.dart';
@@ -22,6 +25,8 @@ class _EditAcademyScreenState extends ConsumerState<EditAcademyScreen> {
   late final TextEditingController _phoneController;
   late final TextEditingController _addressController;
 
+  late String _selectedCurrency;
+  late List<String> _selectedSports;
   bool _isLoading = false;
 
   @override
@@ -30,6 +35,12 @@ class _EditAcademyScreenState extends ConsumerState<EditAcademyScreen> {
     _nameController = TextEditingController(text: widget.academy.name);
     _phoneController = TextEditingController(text: widget.academy.phone);
     _addressController = TextEditingController(text: widget.academy.address);
+    _selectedCurrency = CurrencyUtils.codes.contains(widget.academy.currency)
+        ? widget.academy.currency
+        : CurrencyUtils.defaultCode;
+    _selectedSports = widget.academy.sports.isNotEmpty
+        ? List<String>.from(widget.academy.sports)
+        : const [];
   }
 
   @override
@@ -60,6 +71,17 @@ class _EditAcademyScreenState extends ConsumerState<EditAcademyScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    if (_selectedSports.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('يجب اختيار رياضة واحدة على الأقل'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     final error = await ref.read(academiesProvider.notifier).updateAcademy(
@@ -67,6 +89,8 @@ class _EditAcademyScreenState extends ConsumerState<EditAcademyScreen> {
           name: _nameController.text.trim(),
           phone: _phoneController.text.trim(),
           address: _addressController.text.trim(),
+          currency: _selectedCurrency,
+          sports: _selectedSports,
         );
 
     if (!mounted) return;
@@ -210,6 +234,53 @@ class _EditAcademyScreenState extends ConsumerState<EditAcademyScreen> {
                       borderRadius: BorderRadius.circular(12.r),
                     ),
                   ),
+                ),
+                Gap(20.h),
+
+                // Currency field
+                Text(
+                  AppStrings.currencyField,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: AppColors.grey700,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Gap(8.h),
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedCurrency,
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.payments_outlined),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                  ),
+                  items: CurrencyUtils.codes
+                      .map((c) => DropdownMenuItem(
+                            value: c,
+                            child: Text(CurrencyUtils.labelWithCode(c)),
+                          ))
+                      .toList(),
+                  onChanged: (val) => setState(
+                      () => _selectedCurrency = val ?? CurrencyUtils.defaultCode),
+                ),
+                Gap(20.h),
+
+                // Sports multi-select
+                Text(
+                  'الرياضات الموجودة بالأكاديمية',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: AppColors.grey700,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Gap(8.h),
+                MultiSelectChips(
+                  options: SportsConstants.defaultSports,
+                  selected: _selectedSports,
+                  allowCustom: true,
+                  customHint: 'إضافة رياضة أخرى',
+                  onChanged: (sports) =>
+                      setState(() => _selectedSports = sports),
                 ),
                 Gap(32.h),
 

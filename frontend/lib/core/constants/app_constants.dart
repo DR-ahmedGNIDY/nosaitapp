@@ -3,7 +3,7 @@ class AppConstants {
 
   static const String baseUrl = String.fromEnvironment(
     'BASE_URL',
-    defaultValue: 'http://10.0.2.2:3000/api/v1',
+    defaultValue: 'https://api.nosait.com/api/v1',
   );
 
   // Storage Keys
@@ -29,4 +29,18 @@ class AppConstants {
   static const String appName = 'Basketball Academy Manager';
   static const String appVersion = '1.0.0';
   static const int appBuild = 1;
+
+  // Privacy Policy — official link opened in the device's default browser.
+  // Change this value to update the link without touching any other code.
+  static const String privacyPolicyUrl = 'https://nosait.com/privacy';
+
+  // Company contact (WhatsApp) for "create account / inquiry".
+  static const String companyWhatsappNumber = '+201554579942';
+  static const String contactDefaultMessage =
+      'مرحباً\n\n'
+      'أرغب في إنشاء حساب جديد أو الاستفسار عن نظام إدارة الأكاديميات الرياضية.\n\n'
+      'الاسم:\n'
+      '....................\n\n'
+      'رقم الهاتف:\n'
+      '....................';
 }

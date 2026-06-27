@@ -65,7 +65,9 @@ class PlayerEvaluationsNotifier
     String? notes,
     String? academyId,
     DateTime? evaluationDate,
+    String? playerId,
   }) async {
+    if (playerId != null) _playerId = playerId;
     final result = await _createEvaluationUsecase(
       CreateEvaluationParams(
         playerId: _playerId,
@@ -146,8 +148,10 @@ final latestEvaluationProvider =
     FutureProvider.family<EvaluationEntity?, String>((ref, playerId) async {
   final usecase = sl<GetLatestEvaluationUsecase>();
   final result = await usecase(GetLatestEvaluationParams(playerId: playerId));
+  // عند أي خطأ → null (لا توجد تقييمات) بدلاً من throw
+  // هذا يضمن ظهور بطاقة التقييم دائماً مع زر "إضافة تقييم"
   return result.fold(
-    (failure) => throw Exception(failure.message),
+    (failure) => null,
     (entity) => entity,
   );
 });

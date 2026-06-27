@@ -8,6 +8,11 @@ abstract class AuthRemoteDatasource {
   });
   Future<void> logout();
   Future<UserModel> getCurrentUser();
+  Future<UserModel> updateProfile({required String name});
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  });
 }
 
 class AuthRemoteDatasourceImpl implements AuthRemoteDatasource {
@@ -36,5 +41,23 @@ class AuthRemoteDatasourceImpl implements AuthRemoteDatasource {
     final response = await _apiClient.get('/auth/me');
     final data = response.data as Map<String, dynamic>;
     return UserModel.fromJson(data['data'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<UserModel> updateProfile({required String name}) async {
+    final response = await _apiClient.patch('/auth/me', data: {'name': name});
+    final data = response.data as Map<String, dynamic>;
+    return UserModel.fromJson(data['data'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    await _apiClient.patch('/auth/change-password', data: {
+      'currentPassword': currentPassword,
+      'newPassword': newPassword,
+    });
   }
 }

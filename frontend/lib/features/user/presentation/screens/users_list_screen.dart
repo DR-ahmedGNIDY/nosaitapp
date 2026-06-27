@@ -71,6 +71,8 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
                       onEdit: () => _openEdit(context, users[index]),
                       onActivate: () => _toggleActive(context, users[index]),
                       onDelete: () => _confirmDelete(context, users[index]),
+                      onResetPassword: () =>
+                          _resetPassword(context, users[index]),
                     );
                   },
                 ),
@@ -87,6 +89,98 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
               label: const Text('إضافة مستخدم'),
             )
           : null,
+    );
+  }
+
+  Future<void> _resetPassword(
+      BuildContext context, UserManagementEntity user) async {
+    final formKey = GlobalKey<FormState>();
+    final passController = TextEditingController();
+    final confirmController = TextEditingController();
+    bool obscure = true;
+
+    final newPassword = await showDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: const Text('تغيير كلمة المرور'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'تعيين كلمة مرور جديدة للمستخدم "${user.name}"',
+                  style: const TextStyle(fontSize: 13, color: AppColors.grey600),
+                ),
+                Gap(16.h),
+                TextFormField(
+                  controller: passController,
+                  obscureText: obscure,
+                  decoration: InputDecoration(
+                    labelText: 'كلمة المرور الجديدة',
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                          obscure ? Icons.visibility_off : Icons.visibility),
+                      onPressed: () => setLocal(() => obscure = !obscure),
+                    ),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.isEmpty) return 'كلمة المرور مطلوبة';
+                    if (v.length < 8) {
+                      return 'كلمة المرور يجب أن تكون 8 أحرف على الأقل';
+                    }
+                    return null;
+                  },
+                ),
+                Gap(12.h),
+                TextFormField(
+                  controller: confirmController,
+                  obscureText: obscure,
+                  decoration: const InputDecoration(
+                    labelText: 'تأكيد كلمة المرور',
+                  ),
+                  validator: (v) {
+                    if (v != passController.text) {
+                      return 'كلمتا المرور غير متطابقتين';
+                    }
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (formKey.currentState!.validate()) {
+                  Navigator.of(ctx).pop(passController.text);
+                }
+              },
+              child: const Text('حفظ'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (newPassword == null) return;
+    if (!context.mounted) return;
+
+    final error = await ref
+        .read(usersProvider.notifier)
+        .resetPassword(user.id, newPassword);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(error ?? 'تم تغيير كلمة المرور بنجاح'),
+        backgroundColor: error != null ? AppColors.error : AppColors.success,
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 
@@ -184,6 +278,7 @@ class _UserCard extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onActivate;
   final VoidCallback onDelete;
+  final VoidCallback onResetPassword;
 
   const _UserCard({
     required this.user,
@@ -191,6 +286,7 @@ class _UserCard extends StatelessWidget {
     required this.onEdit,
     required this.onActivate,
     required this.onDelete,
+    required this.onResetPassword,
   });
 
   @override
@@ -315,6 +411,15 @@ class _UserCard extends StatelessWidget {
               },
             ),
             ListTile(
+              leading: const Icon(Icons.lock_reset_outlined,
+                  color: AppColors.primary),
+              title: const Text('تغيير كلمة المرور'),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                onResetPassword();
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.delete_outline, color: AppColors.error),
               title: const Text(
                 'حذف المستخدم',
@@ -350,7 +455,11 @@ class _RoleBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(6.r),
       ),
       child: Text(
-        role == 'academy_admin' ? 'مدير أكاديمية' : 'مشرف عام',
+        role == 'academy_admin'
+            ? 'مدير أكاديمية'
+            : role == 'admin'
+                ? 'مشرف'
+                : 'مشرف عام',
         style: TextStyle(
           fontSize: 11.sp,
           color: AppColors.secondary,

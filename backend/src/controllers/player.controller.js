@@ -1,8 +1,29 @@
 const Player = require('../models/player.model');
+const Academy = require('../models/academy.model');
 const AppError = require('../utils/AppError');
 const { sendSuccess, sendPaginated } = require('../utils/apiResponse');
 const { deleteImage } = require('../config/cloudinary');
 const logger = require('../utils/logger');
+const { logActivity } = require('../utils/activityLogger');
+
+// Normalize an array field coming from multipart/form-data.
+// Accepts: a real array, a JSON-encoded array string, or a comma-separated string.
+const parseArrayField = (raw) => {
+  if (raw === undefined || raw === null) return undefined;
+  if (Array.isArray(raw)) return raw.map((s) => String(s).trim()).filter(Boolean);
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (!trimmed) return [];
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) return parsed.map((s) => String(s).trim()).filter(Boolean);
+    } catch (_) {
+      // not JSON — fall through to comma-split
+    }
+    return trimmed.split(',').map((s) => s.trim()).filter(Boolean);
+  }
+  return undefined;
+};
 
 // ─── GET /players ───────────────────────────────────────────────────────────
 const getPlayers = async (req, res, next) => {
@@ -20,11 +41,15 @@ const getPlayers = async (req, res, next) => {
     filter.isActive = true;
   }
 
-  // Academy scope
-  if (req.user.role === 'academy_admin') {
-    filter.academyId = req.user.academyId;
-  } else if (req.user.role === 'super_admin' && req.query.academyId) {
+  // Academy scope — كل مستخدم غير super_admin مُقيَّد حتمياً بأكاديميته.
+  // super_admin فقط يمرّر academyId صراحةً. (يشمل دور admin + academy_admin.)
+  if (req.user.role === 'super_admin') {
+    if (!req.query.academyId) {
+      return next(new AppError('معرّف الأكاديمية مطلوب', 400));
+    }
     filter.academyId = req.query.academyId;
+  } else {
+    filter.academyId = req.user.academyId;
   }
 
   // Birth year filter
@@ -36,6 +61,16 @@ const getPlayers = async (req, res, next) => {
         $lt: new Date(`${year + 1}-01-01`),
       };
     }
+  }
+
+  // Sport filter (multi-sport academies)
+  if (req.query.sport && req.query.sport.trim().length > 0) {
+    filter.sport = req.query.sport.trim();
+  }
+
+  // Attendance-day filter — matches players whose attendanceDays array contains the day
+  if (req.query.attendanceDay && req.query.attendanceDay.trim().length > 0) {
+    filter.attendanceDays = req.query.attendanceDay.trim();
   }
 
   // Search
@@ -86,7 +121,12 @@ const searchPlayers = async (req, res, next) => {
     ],
   };
 
-  if (req.user.role === 'academy_admin') {
+  if (req.user.role === 'super_admin') {
+    if (!req.query.academyId) {
+      return next(new AppError('معرّف الأكاديمية مطلوب للبحث', 400));
+    }
+    filter.academyId = req.query.academyId;
+  } else {
     filter.academyId = req.user.academyId;
   }
 
@@ -100,7 +140,7 @@ const getPlayerById = async (req, res, next) => {
   const player = await Player.findById(req.params.id);
   if (!player) return next(new AppError('اللاعب غير موجود', 404));
 
-  if (req.user.role === 'academy_admin' &&
+  if (req.user.role !== 'super_admin' &&
       player.academyId.toString() !== req.user.academyId?.toString()) {
     return next(new AppError('ليس لديك صلاحية للوصول إلى هذا اللاعب', 403));
   }
@@ -110,13 +150,13 @@ const getPlayerById = async (req, res, next) => {
 
 // ─── POST /players ───────────────────────────────────────────────────────────
 const createPlayer = async (req, res, next) => {
-  // Determine academyId
+  // Determine academyId — super_admin يحدّدها، غيره مُقيَّد بأكاديميته.
   let academyId;
-  if (req.user.role === 'academy_admin') {
-    academyId = req.user.academyId;
-  } else {
+  if (req.user.role === 'super_admin') {
     academyId = req.body.academyId;
     if (!academyId) return next(new AppError('معرّف الأكاديمية مطلوب', 400));
+  } else {
+    academyId = req.user.academyId;
   }
 
   const {
@@ -126,7 +166,9 @@ const createPlayer = async (req, res, next) => {
     parentRelationship,
     parentJob,
     parentPhone,
+    playerPhone,
     notes,
+    sport,
   } = req.body;
 
   const playerData = {
@@ -139,7 +181,32 @@ const createPlayer = async (req, res, next) => {
   };
 
   if (parentJob !== undefined) playerData.parentJob = parentJob;
+  if (playerPhone !== undefined) playerData.playerPhone = playerPhone;
   if (notes !== undefined) playerData.notes = notes;
+
+  // ── Sport assignment ──────────────────────────────────────────────────────
+  // Single-sport academy → assign its only sport automatically.
+  // Multi-sport academy   → `sport` is required and must be one of academy.sports.
+  const academy = await Academy.findById(academyId).select('sports');
+  if (!academy) return next(new AppError('الأكاديمية غير موجودة', 404));
+  const academySports = Array.isArray(academy.sports) && academy.sports.length > 0
+    ? academy.sports
+    : ['كرة سلة'];
+
+  if (academySports.length === 1) {
+    playerData.sport = academySports[0];
+  } else {
+    const chosen = sport ? String(sport).trim() : '';
+    if (!chosen) return next(new AppError('الرياضة مطلوبة', 422));
+    if (!academySports.includes(chosen)) {
+      return next(new AppError('الرياضة المختارة غير متاحة في هذه الأكاديمية', 422));
+    }
+    playerData.sport = chosen;
+  }
+
+  // ── Attendance days ───────────────────────────────────────────────────────
+  const attendanceDays = parseArrayField(req.body.attendanceDays);
+  if (attendanceDays !== undefined) playerData.attendanceDays = attendanceDays;
 
   if (req.file) {
     playerData.image_url = req.file.path;
@@ -149,6 +216,10 @@ const createPlayer = async (req, res, next) => {
   const player = await Player.create(playerData);
 
   logger.info(`Player created: ${player.playerCode} - ${player.fullName}`);
+  logActivity(req, {
+    actionType: 'CREATE_PLAYER', entityType: 'PLAYER',
+    entityId: player._id, entityName: player.fullName, academyId: player.academyId,
+  });
   return sendSuccess(res, { data: player, message: 'تم إضافة اللاعب بنجاح', statusCode: 201 });
 };
 
@@ -157,18 +228,35 @@ const updatePlayer = async (req, res, next) => {
   const player = await Player.findById(req.params.id).select('+image_public_id');
   if (!player) return next(new AppError('اللاعب غير موجود', 404));
 
-  if (req.user.role === 'academy_admin' &&
+  if (req.user.role !== 'super_admin' &&
       player.academyId.toString() !== req.user.academyId?.toString()) {
     return next(new AppError('ليس لديك صلاحية لتعديل هذا اللاعب', 403));
   }
 
   // Allowed updatable fields (playerCode is NOT updatable)
-  const allowedFields = ['fullName', 'birthDate', 'parentName', 'parentRelationship', 'parentJob', 'parentPhone', 'notes'];
+  const allowedFields = ['fullName', 'birthDate', 'parentName', 'parentRelationship', 'parentJob', 'parentPhone', 'playerPhone', 'notes'];
   for (const field of allowedFields) {
     if (req.body[field] !== undefined) {
       player[field] = req.body[field];
     }
   }
+
+  // Sport update — validate against the academy's sports list when provided.
+  if (req.body.sport !== undefined) {
+    const chosen = String(req.body.sport).trim();
+    const academy = await Academy.findById(player.academyId).select('sports');
+    const academySports = academy && Array.isArray(academy.sports) && academy.sports.length > 0
+      ? academy.sports
+      : ['كرة سلة'];
+    if (chosen && !academySports.includes(chosen)) {
+      return next(new AppError('الرياضة المختارة غير متاحة في هذه الأكاديمية', 422));
+    }
+    if (chosen) player.sport = chosen;
+  }
+
+  // Attendance days update
+  const attendanceDays = parseArrayField(req.body.attendanceDays);
+  if (attendanceDays !== undefined) player.attendanceDays = attendanceDays;
 
   // Handle image replacement
   if (req.file) {
@@ -182,6 +270,10 @@ const updatePlayer = async (req, res, next) => {
   await player.save();
 
   logger.info(`Player updated: ${player.playerCode} - ${player.fullName}`);
+  logActivity(req, {
+    actionType: 'UPDATE_PLAYER', entityType: 'PLAYER',
+    entityId: player._id, entityName: player.fullName, academyId: player.academyId,
+  });
   return sendSuccess(res, { data: player, message: 'تم تحديث بيانات اللاعب بنجاح' });
 };
 
@@ -190,7 +282,7 @@ const deletePlayer = async (req, res, next) => {
   const player = await Player.findById(req.params.id);
   if (!player) return next(new AppError('اللاعب غير موجود', 404));
 
-  if (req.user.role === 'academy_admin' &&
+  if (req.user.role !== 'super_admin' &&
       player.academyId.toString() !== req.user.academyId?.toString()) {
     return next(new AppError('ليس لديك صلاحية لحذف هذا اللاعب', 403));
   }
@@ -199,6 +291,10 @@ const deletePlayer = async (req, res, next) => {
   await player.save();
 
   logger.info(`Player deleted (soft): ${player.playerCode} - ${player.fullName}`);
+  logActivity(req, {
+    actionType: 'DELETE_PLAYER', entityType: 'PLAYER',
+    entityId: player._id, entityName: player.fullName, academyId: player.academyId,
+  });
   return sendSuccess(res, { message: 'تم حذف اللاعب بنجاح' });
 };
 
@@ -207,7 +303,7 @@ const deletePlayerImage = async (req, res, next) => {
   const player = await Player.findById(req.params.id).select('+image_public_id');
   if (!player) return next(new AppError('اللاعب غير موجود', 404));
 
-  if (req.user.role === 'academy_admin' &&
+  if (req.user.role !== 'super_admin' &&
       player.academyId.toString() !== req.user.academyId?.toString()) {
     return next(new AppError('ليس لديك صلاحية لحذف صورة هذا اللاعب', 403));
   }
