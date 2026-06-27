@@ -1,5 +1,13 @@
 # Flutter / Dart build outputs (single-segment patterns match at any depth)
 build/
+
+# TEMPORARY: allow frontend/build/web to be committed so the VPS can `git clone`
+# a ready-made static build. Remove this block + the build/web files once the
+# VPS pull is confirmed working (see project notes).
+!frontend/build/
+!frontend/build/web/
+!frontend/build/web/**
+
 .cxx/
 .dart_tool/
 .flutter-plugins
