@@ -1,6 +1,10 @@
 import 'package:basketball_academy/core/constants/app_colors.dart';
+import 'package:basketball_academy/core/layout/desktop_scaffold.dart';
+import 'package:basketball_academy/core/layout/responsive.dart';
+import 'package:basketball_academy/core/router/app_router.dart';
 import 'package:basketball_academy/core/utils/privacy_launcher.dart';
 import 'package:basketball_academy/features/auth/presentation/providers/auth_provider.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -87,8 +91,22 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final user = ref.watch(authStateProvider).valueOrNull?.user;
+    final tier =
+        kIsWeb ? screenTierOf(MediaQuery.sizeOf(context).width) : ScreenTier.mobile;
+
+    if (tier != ScreenTier.mobile) {
+      return DesktopScaffold(
+        location: AppRoutes.accountSettings,
+        tier: tier,
+        title: 'إعدادات الحساب',
+        // Settings forms read better at a fixed readable width than
+        // stretched edge-to-edge — this is a per-screen content choice, not
+        // an app-wide letterbox/clamp.
+        content: Center(
+          child: SizedBox(width: 560, child: _buildBody(context)),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -98,9 +116,18 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(20.r),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+        child: _buildBody(context),
+      ),
+    );
+  }
+
+  Widget _buildBody(BuildContext context) {
+    final theme = Theme.of(context);
+    final user = ref.watch(authStateProvider).valueOrNull?.user;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
             // Current account summary
             Center(
               child: CircleAvatar(
@@ -271,9 +298,7 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
               ),
             ),
             Gap(40.h),
-          ],
-        ),
-      ),
+      ],
     );
   }
 }

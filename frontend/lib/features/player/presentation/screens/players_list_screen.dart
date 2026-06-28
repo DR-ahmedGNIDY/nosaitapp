@@ -3,7 +3,12 @@ import 'dart:async';
 import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/constants/app_strings.dart';
 import 'package:basketball_academy/core/constants/sports_constants.dart';
+import 'package:basketball_academy/core/layout/desktop_page_header.dart';
+import 'package:basketball_academy/core/layout/desktop_shell.dart';
+import 'package:basketball_academy/core/layout/responsive.dart';
+import 'package:basketball_academy/core/layout/tablet_shell.dart';
 import 'package:basketball_academy/core/router/app_router.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:basketball_academy/features/academy/presentation/providers/academy_provider.dart';
 import 'package:basketball_academy/features/attendance/presentation/screens/attendance_hub_screen.dart';
 import 'package:basketball_academy/features/auth/presentation/providers/auth_provider.dart';
@@ -113,6 +118,153 @@ class _PlayersListScreenState extends ConsumerState<PlayersListScreen> {
     final canAdd = isSuperAdmin ||
         (isAcademyLevel &&
             authState?.user?.academyId == widget.academyId);
+
+    final tier =
+        kIsWeb ? screenTierOf(MediaQuery.sizeOf(context).width) : ScreenTier.mobile;
+
+    if (tier != ScreenTier.mobile) {
+      // Players is an infinite-scroll list (pagination via _scrollController),
+      // so — unlike DesktopScaffold's other usages — the list keeps its own
+      // Expanded+scroll instead of being wrapped a second time by
+      // DesktopContentContainer's SingleChildScrollView.
+      final body = Column(
+        children: [
+          DesktopPageHeader(
+            title: AppStrings.players,
+            actions: [
+              if (canAdd)
+                DesktopPrimaryButton(
+                  label: AppStrings.addPlayer,
+                  icon: Icons.person_add_outlined,
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => AddPlayerScreen(academyId: widget.academyId),
+                    ),
+                  ),
+                ),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        AttendanceHubScreen(academyId: widget.academyId),
+                  ),
+                ),
+                icon: const Icon(Icons.qr_code_scanner, size: 16),
+                label: const Text('الحضور والانصراف'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.grey700,
+                  side: const BorderSide(color: AppColors.grey300),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  textStyle: const TextStyle(fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+            child: SizedBox(
+              width: 360,
+              child: TextField(
+                controller: _searchController,
+                onChanged: _onSearchChanged,
+                decoration: InputDecoration(
+                  hintText: AppStrings.searchPlayers,
+                  prefixIcon: const Icon(Icons.search, size: 20),
+                  filled: true,
+                  fillColor: AppColors.surface,
+                  contentPadding:
+                      const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: AppColors.grey200),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (isMultiSport)
+            playersAsync.whenOrNull(
+                  data: (state) => Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+                    child: _ChipFilterRow(
+                      allLabel: 'الكل',
+                      options: academySports,
+                      selected: state.sportFilter,
+                      onSelected: (sport) => ref
+                          .read(playersProvider.notifier)
+                          .filterBySport(sport),
+                    ),
+                  ),
+                ) ??
+                const SizedBox.shrink(),
+          playersAsync.whenOrNull(
+                data: (state) => Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+                  child: _ChipFilterRow(
+                    allLabel: 'كل الأيام',
+                    options: SportsConstants.weekDays,
+                    selected: state.attendanceDayFilter,
+                    onSelected: (day) => ref
+                        .read(playersProvider.notifier)
+                        .filterByAttendanceDay(day),
+                  ),
+                ),
+              ) ??
+              const SizedBox.shrink(),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+              child: playersAsync.when(
+                loading: () => const _LoadingState(),
+                error: (err, _) => _ErrorState(
+                  message: err.toString(),
+                  onRetry: () => ref.read(playersProvider.notifier).refresh(),
+                ),
+                data: (state) {
+                  if (state.players.isEmpty) {
+                    return _EmptyState(
+                      hasSearch:
+                          state.search != null && state.search!.isNotEmpty,
+                    );
+                  }
+                  return ListView.separated(
+                    controller: _scrollController,
+                    itemCount: state.players.length + (state.hasMore ? 1 : 0),
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      if (index == state.players.length) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Center(child: CircularProgressIndicator()),
+                        );
+                      }
+                      final player = state.players[index];
+                      return _PlayerCard(
+                        player: player,
+                        subscriptionStatus: statusMap[player.id] ?? 'جديد',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => PlayerDetailScreen(
+                              playerId: player.id,
+                              academyId: widget.academyId,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
+      );
+
+      final location = AppRoutes.playersList.replaceFirst(':id', widget.academyId);
+      return tier == ScreenTier.desktop
+          ? DesktopShell(location: location, child: body)
+          : TabletShell(location: location, child: body);
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,

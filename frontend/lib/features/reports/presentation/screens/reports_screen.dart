@@ -2,7 +2,11 @@ import 'dart:typed_data';
 
 import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/constants/app_strings.dart';
+import 'package:basketball_academy/core/layout/desktop_grid.dart';
+import 'package:basketball_academy/core/layout/desktop_scaffold.dart';
+import 'package:basketball_academy/core/layout/responsive.dart';
 import 'package:basketball_academy/core/router/app_router.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:basketball_academy/features/academy/presentation/providers/academy_provider.dart';
 import 'package:basketball_academy/features/academy/presentation/providers/currency_provider.dart';
 import 'package:basketball_academy/features/auth/presentation/providers/auth_provider.dart';
@@ -310,6 +314,104 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         ? ref.watch(academyByIdProvider(_selectedAcademyId!)).valueOrNull
         : null;
     final sportsForFilter = academyForSport?.sports ?? const <String>[];
+
+    final tier =
+        kIsWeb ? screenTierOf(MediaQuery.sizeOf(context).width) : ScreenTier.mobile;
+
+    final reportDefs = [
+      (
+        index: 0,
+        icon: Icons.people_alt_outlined,
+        iconColor: AppColors.secondary,
+        title: AppStrings.playersReport,
+        description:
+            'قائمة اللاعبين المسجلين مع حالة اشتراكاتهم ومعلومات أولياء الأمور',
+        loading: _loading[0],
+        loadingExcel: _loadingExcel[0],
+        onGenerate: () => _generateReport(0),
+        onExport: () => _generateExcel(0),
+      ),
+      (
+        index: 1,
+        icon: Icons.card_membership_outlined,
+        iconColor: AppColors.primary,
+        title: AppStrings.subscriptionsReport,
+        description: 'سجل الاشتراكات والتجديدات مع تفاصيل المبالغ والتواريخ',
+        loading: _loading[1],
+        loadingExcel: _loadingExcel[1],
+        onGenerate: () => _generateReport(1),
+        onExport: () => _generateExcel(1),
+      ),
+      (
+        index: 2,
+        icon: Icons.payments_outlined,
+        iconColor: AppColors.success,
+        title: AppStrings.revenueReport,
+        description: 'ملخص الإيرادات الكلية والشهرية وإحصائيات الاشتراكات',
+        loading: _loading[2],
+        loadingExcel: _loadingExcel[2],
+        onGenerate: () => _generateReport(2),
+        onExport: () => _generateExcel(2),
+      ),
+      (
+        index: 3,
+        icon: Icons.assessment_outlined,
+        iconColor: Colors.deepPurple,
+        title: AppStrings.evaluationsReport,
+        description: 'سجل تقييمات اللاعبين بجميع المعايير والتقديرات',
+        loading: _loading[3],
+        loadingExcel: _loadingExcel[3],
+        onGenerate: () => _generateReport(3),
+        onExport: () => _generateExcel(3),
+      ),
+    ];
+
+    if (tier != ScreenTier.mobile) {
+      return DesktopScaffold(
+        location: AppRoutes.reports,
+        tier: tier,
+        title: AppStrings.reports,
+        content: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _DesktopFilterBar(
+              isSuperAdmin: isSuperAdmin,
+              selectedAcademyId: _selectedAcademyId,
+              sportsForFilter: sportsForFilter,
+              selectedSport: _selectedSport,
+              period: _period,
+              subscriptionStatusFilter: _subscriptionStatusFilter,
+              onAcademyChanged: (id, name) => setState(() {
+                _selectedAcademyId = id;
+                _selectedAcademyName = name;
+                _selectedSport = null;
+              }),
+              onSportChanged: (s) => setState(() => _selectedSport = s),
+              onPeriodChanged: (p) => setState(() => _period = p),
+              onStatusChanged: (s) =>
+                  setState(() => _subscriptionStatusFilter = s),
+            ),
+            const SizedBox(height: 20),
+            DesktopGrid(
+              isDesktop: tier == ScreenTier.desktop,
+              childAspectRatio: 1.3,
+              children: reportDefs
+                  .map((r) => _DesktopReportCard(
+                        icon: r.icon,
+                        iconColor: r.iconColor,
+                        title: r.title,
+                        description: r.description,
+                        loading: r.loading,
+                        loadingExcel: r.loadingExcel,
+                        onGenerate: r.onGenerate,
+                        onExport: r.onExport,
+                      ))
+                  .toList(),
+            ),
+          ],
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -799,6 +901,236 @@ class _ReportCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Desktop/Tablet filter bar — same chips/dropdown, horizontal full-width
+// layout instead of the mobile vertical stack.
+// ---------------------------------------------------------------------------
+
+class _DesktopFilterBar extends StatelessWidget {
+  final bool isSuperAdmin;
+  final String? selectedAcademyId;
+  final List<String> sportsForFilter;
+  final String? selectedSport;
+  final _ReportPeriod period;
+  final String subscriptionStatusFilter;
+  final void Function(String? id, String? name) onAcademyChanged;
+  final void Function(String?) onSportChanged;
+  final void Function(_ReportPeriod) onPeriodChanged;
+  final void Function(String) onStatusChanged;
+
+  const _DesktopFilterBar({
+    required this.isSuperAdmin,
+    required this.selectedAcademyId,
+    required this.sportsForFilter,
+    required this.selectedSport,
+    required this.period,
+    required this.subscriptionStatusFilter,
+    required this.onAcademyChanged,
+    required this.onSportChanged,
+    required this.onPeriodChanged,
+    required this.onStatusChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.grey200),
+      ),
+      child: Wrap(
+        spacing: 24,
+        runSpacing: 16,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          if (isSuperAdmin)
+            SizedBox(
+              width: 240,
+              child: _AcademyDropdown(
+                selectedAcademyId: selectedAcademyId,
+                onChanged: onAcademyChanged,
+              ),
+            ),
+          if (sportsForFilter.length > 1)
+            Wrap(
+              spacing: 8,
+              children: [
+                _StatusChip(
+                  label: 'الكل',
+                  selected: selectedSport == null,
+                  onTap: () => onSportChanged(null),
+                ),
+                ...sportsForFilter.map((s) => _StatusChip(
+                      label: s,
+                      selected: selectedSport == s,
+                      onTap: () => onSportChanged(s),
+                    )),
+              ],
+            ),
+          Wrap(
+            spacing: 8,
+            children: _ReportPeriod.values
+                .map((p) => _PeriodChip(
+                      label: p.label,
+                      selected: period == p,
+                      onTap: () => onPeriodChanged(p),
+                    ))
+                .toList(),
+          ),
+          Wrap(
+            spacing: 8,
+            children: [
+              _StatusChip(
+                label: AppStrings.allSubscriptions,
+                selected: subscriptionStatusFilter == 'all',
+                onTap: () => onStatusChanged('all'),
+              ),
+              _StatusChip(
+                label: 'نشط',
+                selected: subscriptionStatusFilter == 'active',
+                onTap: () => onStatusChanged('active'),
+                color: AppColors.success,
+              ),
+              _StatusChip(
+                label: 'منتهي',
+                selected: subscriptionStatusFilter == 'expired',
+                onTap: () => onStatusChanged('expired'),
+                color: AppColors.error,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Desktop/Tablet report card — vertical layout, smaller than the mobile row
+// card, fits inside DesktopGrid.
+// ---------------------------------------------------------------------------
+
+class _DesktopReportCard extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String description;
+  final bool loading;
+  final bool loadingExcel;
+  final VoidCallback onGenerate;
+  final VoidCallback onExport;
+
+  const _DesktopReportCard({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.description,
+    required this.loading,
+    required this.loadingExcel,
+    required this.onGenerate,
+    required this.onExport,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.grey200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: iconColor, size: 20),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            style: const TextStyle(
+                fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.grey900),
+          ),
+          const SizedBox(height: 4),
+          Expanded(
+            child: Text(
+              description,
+              style: const TextStyle(fontSize: 11, color: AppColors.grey500),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: loading ? null : onGenerate,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: loading
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                              color: AppColors.white, strokeWidth: 2),
+                        )
+                      : Text(AppStrings.generatePdf,
+                          style: const TextStyle(fontSize: 11)),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: loadingExcel ? null : onExport,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF217346),
+                    foregroundColor: AppColors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: loadingExcel
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                              color: AppColors.white, strokeWidth: 2),
+                        )
+                      : Text(AppStrings.generateExcel,
+                          style: const TextStyle(fontSize: 11)),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

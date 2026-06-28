@@ -1,5 +1,8 @@
 import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/constants/app_strings.dart';
+import 'package:basketball_academy/core/layout/desktop_shell.dart';
+import 'package:basketball_academy/core/layout/responsive.dart';
+import 'package:basketball_academy/core/layout/tablet_shell.dart';
 import 'package:basketball_academy/core/router/app_router.dart';
 import 'package:basketball_academy/features/auth/presentation/providers/auth_provider.dart';
 import 'package:basketball_academy/features/academy/presentation/providers/academy_provider.dart';
@@ -10,6 +13,7 @@ import 'package:basketball_academy/features/attendance/presentation/screens/atte
 import 'package:basketball_academy/features/dashboard/presentation/screens/sport_detail_screen.dart';
 import 'package:basketball_academy/features/notification/presentation/screens/notifications_screen.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -64,6 +68,40 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final currentAcademy = currentAcademyId != null
         ? ref.watch(academyByIdProvider(currentAcademyId)).valueOrNull
         : null;
+
+    void onRefresh() {
+      final u = ref.read(authStateProvider).valueOrNull?.user;
+      ref.read(dashboardProvider.notifier).refresh(
+            academyId: isSuperAdmin ? _selectedAcademyId : u?.academyId,
+          );
+    }
+
+    final tier =
+        kIsWeb ? screenTierOf(MediaQuery.sizeOf(context).width) : ScreenTier.mobile;
+
+    if (tier != ScreenTier.mobile) {
+      return dashAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, _) => _ErrorWidget(onRetry: onRefresh),
+        data: (dashState) {
+          final content = _DesktopDashboardContent(
+            dashState: dashState,
+            user: user,
+            isSuperAdmin: isSuperAdmin,
+            currencyLabel: currencyLabel,
+            onRefresh: onRefresh,
+            academyId: currentAcademyId,
+            sports: (currentAcademy?.isMultiSport ?? false)
+                ? currentAcademy!.sports
+                : const <String>[],
+            columns: tier == ScreenTier.desktop ? 3 : 2,
+          );
+          return tier == ScreenTier.desktop
+              ? DesktopShell(location: AppRoutes.home, child: content)
+              : TabletShell(location: AppRoutes.home, child: content);
+        },
+      );
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -350,11 +388,13 @@ class _SportsGrid extends StatelessWidget {
   final String academyId;
   final List<String> sports;
   final String currencyLabel;
+  final int crossAxisCount;
 
   const _SportsGrid({
     required this.academyId,
     required this.sports,
     required this.currencyLabel,
+    this.crossAxisCount = 2,
   });
 
   static const _icons = [
@@ -373,7 +413,7 @@ class _SportsGrid extends StatelessWidget {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
+        crossAxisCount: crossAxisCount,
         crossAxisSpacing: 12.w,
         mainAxisSpacing: 12.h,
         childAspectRatio: 2.4,
@@ -439,6 +479,1035 @@ class _SportsGrid extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+// ─── Desktop / Tablet Dashboard Content ──────────────────────────────────────
+// Ported from the Windows desktop project's _DesktopDashboard so Desktop Web
+// matches the Windows app (sidebar handled separately by DesktopShell /
+// TabletShell — this widget is only the scrollable content area).
+
+class _DesktopDashboardContent extends StatelessWidget {
+  final dynamic dashState;
+  final dynamic user;
+  final bool isSuperAdmin;
+  final String currencyLabel;
+  final VoidCallback onRefresh;
+  final String? academyId;
+  final List<String> sports;
+  final int columns;
+
+  const _DesktopDashboardContent({
+    required this.dashState,
+    required this.user,
+    required this.isSuperAdmin,
+    required this.currencyLabel,
+    required this.onRefresh,
+    required this.academyId,
+    required this.sports,
+    required this.columns,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _DesktopPageHeader(userName: user?.name ?? '', onRefresh: onRefresh),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _DesktopStatsGrid(
+                    stats: dashState.stats,
+                    currencyLabel: currencyLabel,
+                    columns: columns),
+                const SizedBox(height: 24),
+
+                if (sports.length > 1 && academyId != null) ...[
+                  const _DesktopSectionTitle(title: 'الرياضات'),
+                  const SizedBox(height: 12),
+                  _SportsGrid(
+                    academyId: academyId!,
+                    sports: sports,
+                    currencyLabel: currencyLabel,
+                    crossAxisCount: columns,
+                  ),
+                  const SizedBox(height: 24),
+                ],
+
+                if (!isSuperAdmin &&
+                    user?.isAcademyAdmin == true &&
+                    user?.academyId != null) ...[
+                  const _DesktopSectionTitle(title: 'الإجراءات السريعة'),
+                  const SizedBox(height: 12),
+                  _DesktopQuickActions(academyId: user!.academyId!),
+                  const SizedBox(height: 24),
+                ],
+
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const _DesktopSectionTitle(
+                              title: AppStrings.revenueByMonth),
+                          const SizedBox(height: 12),
+                          _DesktopChartCard(
+                            child: dashState.revenueByMonth.isEmpty
+                                ? const _DesktopNoDataWidget()
+                                : _DesktopRevenueChart(
+                                    data: dashState.revenueByMonth,
+                                    currencyLabel: currencyLabel),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    Expanded(
+                      flex: 2,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const _DesktopSectionTitle(
+                              title: AppStrings.subscriptionDistribution),
+                          const SizedBox(height: 12),
+                          _DesktopChartCard(
+                            child: _DesktopSubscriptionsPieChart(
+                                data: dashState.subscriptionsByType),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const _DesktopSectionTitle(
+                              title: AppStrings.playersByBirthYear),
+                          const SizedBox(height: 12),
+                          _DesktopChartCard(
+                            child: dashState.playersByBirthYear.isEmpty
+                                ? const _DesktopNoDataWidget()
+                                : _DesktopPlayersByBirthYearChart(
+                                    data: dashState.playersByBirthYear),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const _DesktopSectionTitle(
+                              title: AppStrings.evaluationDistribution),
+                          const SizedBox(height: 12),
+                          _DesktopChartCard(
+                            child: _DesktopEvaluationDistributionChart(
+                                data: dashState.evaluationDistribution),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                const _DesktopSectionTitle(title: AppStrings.recentActivities),
+                const SizedBox(height: 12),
+                _DesktopRecentActivitiesList(
+                    activities: dashState.recentActivities),
+                const SizedBox(height: 24),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DesktopPageHeader extends StatelessWidget {
+  final String userName;
+  final VoidCallback onRefresh;
+
+  const _DesktopPageHeader({required this.userName, required this.onRefresh});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        border: Border(bottom: BorderSide(color: AppColors.grey200)),
+      ),
+      child: Row(
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                AppStrings.dashboard,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.grey900,
+                ),
+              ),
+              Text(
+                'مرحباً، $userName',
+                style: const TextStyle(fontSize: 13, color: AppColors.grey500),
+              ),
+            ],
+          ),
+          const Spacer(),
+          OutlinedButton.icon(
+            onPressed: onRefresh,
+            icon: const Icon(Icons.refresh_outlined, size: 16),
+            label: const Text('تحديث'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.grey700,
+              side: const BorderSide(color: AppColors.grey300),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              textStyle: const TextStyle(fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DesktopSectionTitle extends StatelessWidget {
+  final String title;
+  const _DesktopSectionTitle({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 3,
+          height: 18,
+          decoration: BoxDecoration(
+            color: AppColors.primary,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: AppColors.grey900,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DesktopStatsGrid extends StatelessWidget {
+  final DashboardStatsEntity? stats;
+  final String currencyLabel;
+  final int columns;
+  const _DesktopStatsGrid(
+      {required this.stats, required this.currencyLabel, required this.columns});
+
+  @override
+  Widget build(BuildContext context) {
+    final s = stats;
+    final cards = [
+      _StatCardData(
+        label: AppStrings.totalPlayers,
+        value: '${s?.totalPlayers ?? 0}',
+        icon: Icons.group_outlined,
+        color: AppColors.secondary,
+        bg: AppColors.secondaryContainer,
+      ),
+      _StatCardData(
+        label: AppStrings.activePlayers,
+        value: '${s?.activePlayers ?? 0}',
+        icon: Icons.sports_basketball_outlined,
+        color: AppColors.success,
+        bg: AppColors.successLight,
+      ),
+      _StatCardData(
+        label: AppStrings.activeSubscriptions,
+        value: '${s?.activeSubscriptions ?? 0}',
+        icon: Icons.card_membership_outlined,
+        color: AppColors.primary,
+        bg: AppColors.primaryContainer,
+      ),
+      _StatCardData(
+        label: AppStrings.expiredSubscriptions,
+        value: '${s?.expiredSubscriptions ?? 0}',
+        icon: Icons.event_busy_outlined,
+        color: AppColors.error,
+        bg: AppColors.errorLight,
+      ),
+      _StatCardData(
+        label: AppStrings.totalRevenue,
+        value: _fmt(s?.totalRevenue ?? 0),
+        icon: Icons.payments_outlined,
+        color: AppColors.success,
+        bg: AppColors.successLight,
+      ),
+      _StatCardData(
+        label: AppStrings.monthlyRevenue,
+        value: _fmt(s?.currentMonthRevenue ?? 0),
+        icon: Icons.trending_up_outlined,
+        color: const Color(0xFF2563EB),
+        bg: const Color(0xFFEFF6FF),
+      ),
+      _StatCardData(
+        label: 'اشتراكات جديدة',
+        value: '${s?.newSubscriptionsCount ?? 0}',
+        icon: Icons.add_card_outlined,
+        color: AppColors.primary,
+        bg: AppColors.primaryContainer,
+      ),
+      _StatCardData(
+        label: 'تجديدات',
+        value: '${s?.renewalsCount ?? 0}',
+        icon: Icons.autorenew_outlined,
+        color: const Color(0xFF2563EB),
+        bg: const Color(0xFFEFF6FF),
+      ),
+      _StatCardData(
+        label: 'متوسط التقييم',
+        value: '${(s?.averageEvaluationScore ?? 0).toStringAsFixed(1)} / 10',
+        icon: Icons.star_outline_rounded,
+        color: AppColors.warning,
+        bg: AppColors.warningLight,
+      ),
+    ];
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: columns,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: 1.7,
+      ),
+      itemCount: cards.length,
+      itemBuilder: (_, i) => _DesktopStatCard(data: cards[i]),
+    );
+  }
+
+  String _fmt(double amount) {
+    return '${NumberFormat('#,##0', 'ar').format(amount.toInt())} $currencyLabel';
+  }
+}
+
+class _DesktopStatCard extends StatelessWidget {
+  final _StatCardData data;
+  const _DesktopStatCard({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.grey200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: data.bg,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(data.icon, color: data.color, size: 18),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                data.value,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.grey900,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                data.label,
+                style: const TextStyle(fontSize: 11, color: AppColors.grey500),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DesktopQuickActions extends StatelessWidget {
+  final String academyId;
+  const _DesktopQuickActions({required this.academyId});
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: [
+        _DesktopQuickBtn(
+          icon: Icons.sports_basketball_outlined,
+          label: AppStrings.players,
+          color: AppColors.primary,
+          onTap: () => context.push(
+            AppRoutes.playersList.replaceFirst(':id', academyId),
+          ),
+        ),
+        _DesktopQuickBtn(
+          icon: Icons.bar_chart_outlined,
+          label: AppStrings.reports,
+          color: AppColors.success,
+          onTap: () => context.push(AppRoutes.reports),
+        ),
+        _DesktopQuickBtn(
+          icon: Icons.qr_code_scanner,
+          label: 'الحضور والانصراف',
+          color: AppColors.primaryDark,
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => AttendanceHubScreen(academyId: academyId),
+            ),
+          ),
+        ),
+        _DesktopQuickBtn(
+          icon: Icons.badge_outlined,
+          label: 'الإدارة والموظفين',
+          color: AppColors.secondary,
+          onTap: () => context.push(
+            AppRoutes.staffList.replaceFirst(':id', academyId),
+          ),
+        ),
+        _DesktopQuickBtn(
+          icon: Icons.payments_outlined,
+          label: 'الرواتب',
+          color: AppColors.success,
+          onTap: () => context.push(
+            AppRoutes.payrollList.replaceFirst(':id', academyId),
+          ),
+        ),
+        _DesktopQuickBtn(
+          icon: Icons.receipt_long_outlined,
+          label: 'المصروفات',
+          color: AppColors.error,
+          onTap: () => context.push(
+            AppRoutes.expensesList.replaceFirst(':id', academyId),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DesktopQuickBtn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _DesktopQuickBtn({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                  color: color, fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DesktopChartCard extends StatelessWidget {
+  final Widget child;
+  const _DesktopChartCard({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.grey200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+}
+
+class _DesktopNoDataWidget extends StatelessWidget {
+  const _DesktopNoDataWidget();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 80,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.bar_chart_outlined,
+                color: AppColors.grey300, size: 32),
+            const SizedBox(height: 8),
+            Text(
+              AppStrings.noChartData,
+              style: const TextStyle(fontSize: 13, color: AppColors.grey400),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DesktopRevenueChart extends StatelessWidget {
+  final List<RevenueByMonthEntity> data;
+  final String currencyLabel;
+  const _DesktopRevenueChart(
+      {required this.data, required this.currencyLabel});
+
+  static const _arabicMonths = [
+    'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+    'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
+  ];
+
+  String _monthLabel(String monthStr) {
+    final parts = monthStr.split('-');
+    if (parts.length >= 2) {
+      final m = int.tryParse(parts[1]) ?? 1;
+      return _arabicMonths[(m - 1).clamp(0, 11)];
+    }
+    return monthStr;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 220,
+      child: BarChart(
+        BarChartData(
+          alignment: BarChartAlignment.spaceAround,
+          barTouchData: BarTouchData(
+            touchTooltipData: BarTouchTooltipData(
+              getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                return BarTooltipItem(
+                  '${rod.toY.toInt()} $currencyLabel',
+                  const TextStyle(color: AppColors.white, fontSize: 11),
+                );
+              },
+            ),
+          ),
+          titlesData: FlTitlesData(
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 44,
+                getTitlesWidget: (value, meta) => Text(
+                  '${value.toInt()}',
+                  style:
+                      const TextStyle(fontSize: 10, color: AppColors.grey500),
+                ),
+              ),
+            ),
+            rightTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 28,
+                getTitlesWidget: (value, meta) {
+                  final idx = value.toInt();
+                  if (idx < 0 || idx >= data.length) {
+                    return const SizedBox.shrink();
+                  }
+                  return Transform.rotate(
+                    angle: -0.5,
+                    child: Text(
+                      _monthLabel(data[idx].month),
+                      style: const TextStyle(
+                          fontSize: 9, color: AppColors.grey500),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            getDrawingHorizontalLine: (value) =>
+                const FlLine(color: AppColors.grey200, strokeWidth: 1),
+          ),
+          borderData: FlBorderData(show: false),
+          barGroups: data.asMap().entries.map((entry) {
+            return BarChartGroupData(
+              x: entry.key,
+              barRods: [
+                BarChartRodData(
+                  toY: entry.value.revenue,
+                  gradient: const LinearGradient(
+                    colors: [AppColors.primary, AppColors.primaryLight],
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                  ),
+                  width: 18,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(4),
+                    topRight: Radius.circular(4),
+                  ),
+                ),
+              ],
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+}
+
+class _DesktopSubscriptionsPieChart extends StatelessWidget {
+  final SubscriptionsByTypeEntity? data;
+  const _DesktopSubscriptionsPieChart({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    final d = data;
+    if (d == null || d.total == 0) return const _DesktopNoDataWidget();
+
+    return Row(
+      children: [
+        SizedBox(
+          width: 170,
+          height: 170,
+          child: PieChart(
+            PieChartData(
+              sectionsSpace: 2,
+              centerSpaceRadius: 38,
+              sections: [
+                PieChartSectionData(
+                  value: d.newSubscription.toDouble(),
+                  color: AppColors.primary,
+                  title: '${d.newSubscription}',
+                  radius: 58,
+                  titleStyle: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.white),
+                ),
+                PieChartSectionData(
+                  value: d.renewal.toDouble(),
+                  color: AppColors.secondary,
+                  title: '${d.renewal}',
+                  radius: 58,
+                  titleStyle: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.white),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'الإجمالي: ${d.total}',
+                style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.grey900),
+              ),
+              const SizedBox(height: 12),
+              _DesktopLegendItem(
+                  color: AppColors.primary,
+                  label: 'اشتراك جديد',
+                  count: d.newSubscription),
+              const SizedBox(height: 8),
+              _DesktopLegendItem(
+                  color: AppColors.secondary,
+                  label: 'تجديد',
+                  count: d.renewal),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DesktopLegendItem extends StatelessWidget {
+  final Color color;
+  final String label;
+  final int count;
+
+  const _DesktopLegendItem(
+      {required this.color, required this.label, required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          '$label ($count)',
+          style: const TextStyle(fontSize: 12, color: AppColors.grey700),
+        ),
+      ],
+    );
+  }
+}
+
+class _DesktopPlayersByBirthYearChart extends StatelessWidget {
+  final List<PlayersByBirthYearEntity> data;
+  const _DesktopPlayersByBirthYearChart({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 220,
+      child: BarChart(
+        BarChartData(
+          alignment: BarChartAlignment.spaceAround,
+          barTouchData: BarTouchData(
+            touchTooltipData: BarTouchTooltipData(
+              getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                return BarTooltipItem(
+                  '${data[groupIndex].year}: ${rod.toY.toInt()} لاعب',
+                  const TextStyle(color: AppColors.white, fontSize: 11),
+                );
+              },
+            ),
+          ),
+          titlesData: FlTitlesData(
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 32,
+                getTitlesWidget: (value, meta) => Text(
+                  '${value.toInt()}',
+                  style:
+                      const TextStyle(fontSize: 10, color: AppColors.grey500),
+                ),
+              ),
+            ),
+            rightTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 24,
+                getTitlesWidget: (value, meta) {
+                  final idx = value.toInt();
+                  if (idx < 0 || idx >= data.length) {
+                    return const SizedBox.shrink();
+                  }
+                  return Text(
+                    '${data[idx].year}',
+                    style:
+                        const TextStyle(fontSize: 9, color: AppColors.grey500),
+                  );
+                },
+              ),
+            ),
+          ),
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            getDrawingHorizontalLine: (v) =>
+                const FlLine(color: AppColors.grey200, strokeWidth: 1),
+          ),
+          borderData: FlBorderData(show: false),
+          barGroups: data.asMap().entries.map((entry) {
+            return BarChartGroupData(
+              x: entry.key,
+              barRods: [
+                BarChartRodData(
+                  toY: entry.value.count.toDouble(),
+                  color: AppColors.secondary,
+                  width: 20,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(4),
+                    topRight: Radius.circular(4),
+                  ),
+                ),
+              ],
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+}
+
+class _DesktopEvaluationDistributionChart extends StatelessWidget {
+  final EvaluationDistributionEntity? data;
+  const _DesktopEvaluationDistributionChart({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    final d = data;
+    if (d == null || d.total == 0) return const _DesktopNoDataWidget();
+
+    return Row(
+      children: [
+        SizedBox(
+          width: 170,
+          height: 170,
+          child: PieChart(
+            PieChartData(
+              sectionsSpace: 2,
+              centerSpaceRadius: 32,
+              sections: [
+                if (d.excellent > 0)
+                  PieChartSectionData(
+                    value: d.excellent.toDouble(),
+                    color: AppColors.success,
+                    title: '${d.excellent}',
+                    radius: 58,
+                    titleStyle: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.white),
+                  ),
+                if (d.good > 0)
+                  PieChartSectionData(
+                    value: d.good.toDouble(),
+                    color: AppColors.warning,
+                    title: '${d.good}',
+                    radius: 58,
+                    titleStyle: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.white),
+                  ),
+                if (d.needsImprovement > 0)
+                  PieChartSectionData(
+                    value: d.needsImprovement.toDouble(),
+                    color: AppColors.error,
+                    title: '${d.needsImprovement}',
+                    radius: 58,
+                    titleStyle: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.white),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'الإجمالي: ${d.total}',
+                style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.grey900),
+              ),
+              const SizedBox(height: 12),
+              _DesktopLegendItem(
+                  color: AppColors.success,
+                  label: 'ممتاز (≥8)',
+                  count: d.excellent),
+              const SizedBox(height: 6),
+              _DesktopLegendItem(
+                  color: AppColors.warning, label: 'جيد (6-8)', count: d.good),
+              const SizedBox(height: 6),
+              _DesktopLegendItem(
+                  color: AppColors.error,
+                  label: 'يحتاج تحسين (<6)',
+                  count: d.needsImprovement),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DesktopRecentActivitiesList extends StatelessWidget {
+  final RecentActivitiesEntity? activities;
+  const _DesktopRecentActivitiesList({required this.activities});
+
+  @override
+  Widget build(BuildContext context) {
+    final all = activities?.all.take(15).toList() ?? [];
+
+    if (all.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.grey200),
+        ),
+        child: const Center(child: _DesktopNoDataWidget()),
+      );
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.grey200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ListView.separated(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: all.length,
+        separatorBuilder: (_, __) =>
+            const Divider(height: 1, color: AppColors.grey100),
+        itemBuilder: (_, i) => _DesktopActivityTile(activity: all[i]),
+      ),
+    );
+  }
+}
+
+class _DesktopActivityTile extends StatelessWidget {
+  final RecentActivityEntity activity;
+  const _DesktopActivityTile({required this.activity});
+
+  (IconData, Color, Color) get _visual {
+    switch (activity.entityType) {
+      case 'PLAYER':
+        return (Icons.person_outline, AppColors.secondary,
+            AppColors.secondaryContainer);
+      case 'SUBSCRIPTION':
+        return (Icons.card_membership_outlined, AppColors.primary,
+            AppColors.primaryContainer);
+      case 'EVALUATION':
+        return (Icons.assessment_outlined, AppColors.warning,
+            AppColors.warningLight);
+      case 'ATTENDANCE':
+        return (Icons.qr_code_scanner, const Color(0xFF2D9748),
+            AppColors.successLight);
+      case 'USER':
+        return (Icons.manage_accounts_outlined, const Color(0xFF2563EB),
+            const Color(0xFFEFF6FF));
+      case 'ACADEMY':
+        return (Icons.business_outlined, AppColors.secondary,
+            AppColors.secondaryContainer);
+      default:
+        return (Icons.history, AppColors.grey500, AppColors.grey100);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, color, bg) = _visual;
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      leading: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+        child: Icon(icon, color: color, size: 18),
+      ),
+      title: Text(
+        activity.sentence,
+        style: const TextStyle(
+            fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.grey900),
+      ),
+      trailing: Text(
+        DateFormat('dd/MM/yyyy', 'ar').format(activity.createdAt),
+        style: const TextStyle(fontSize: 11, color: AppColors.grey400),
+      ),
     );
   }
 }

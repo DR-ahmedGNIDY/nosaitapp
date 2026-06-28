@@ -1,5 +1,5 @@
-import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/di/injection_container.dart';
+import 'package:basketball_academy/core/layout/responsive.dart';
 import 'package:basketball_academy/core/router/app_router.dart';
 import 'package:basketball_academy/core/theme/app_theme.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -42,68 +42,42 @@ class BasketballAcademyApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
 
-    final app = ScreenUtilInit(
-      designSize: const Size(390, 844),
-      minTextAdapt: true,
-      splitScreenMode: true,
-      builder: (context, child) {
-        return MaterialApp.router(
-          title: 'nosait academy',
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.lightTheme,
-          darkTheme: AppTheme.darkTheme,
-          themeMode: ThemeMode.light,
-          routerConfig: router,
-          builder: (context, widget) {
-            return Directionality(
-              textDirection: TextDirection.rtl,
-              child: widget ?? const SizedBox.shrink(),
+    // الويب فقط: على نوافذ تابلت/ديسكتوب نستخدم designSize كبير (نفس فكرة
+    // نسخة Windows: 1366x768) بدل 390x844 الخاص بالموبايل، حتى تبقى وحدات
+    // ScreenUtil (.w/.h/.r/.sp) قريبة من 1:1 بدون أي تكبير أو Letterbox أو
+    // Center(maxWidth) — العرض الكامل يُستخدم كما هو في نسخة Windows.
+    // على Android تبقى designSize 390x844 كما كانت دائماً، بدون أي تغيير.
+    Widget app = LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final isWideWeb = kIsWeb && width >= kTabletBreakpoint;
+        final designSize =
+            isWideWeb ? const Size(1366, 768) : const Size(390, 844);
+
+        return ScreenUtilInit(
+          designSize: designSize,
+          minTextAdapt: true,
+          splitScreenMode: true,
+          builder: (context, child) {
+            return MaterialApp.router(
+              title: 'nosait academy',
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.lightTheme,
+              darkTheme: AppTheme.darkTheme,
+              themeMode: ThemeMode.light,
+              routerConfig: router,
+              builder: (context, widget) {
+                return Directionality(
+                  textDirection: TextDirection.rtl,
+                  child: widget ?? const SizedBox.shrink(),
+                );
+              },
             );
           },
         );
       },
     );
 
-    // الويب فقط: الشاشات مصمَّمة لعرض موبايل (390px)؛ على نوافذ أوسع
-    // (تابلت/لابتوب/ديسكتوب) نُحاصر المحتوى بعرض ثابت ونمركزه بدل تمديد
-    // كل القياسات (ScreenUtil .w/.h/.sp) بنسبة عرض النافذة الحقيقي، وهو ما
-    // كان يُكسِّر كل الشاشات (نصوص وأيقونات وحشو ضخمة بشكل غير متناسب).
-    // لا يؤثر هذا على Android أو Windows لأنه محصور بـ kIsWeb.
-    return kIsWeb ? _WebResponsiveClamp(child: app) : app;
-  }
-}
-
-class _WebResponsiveClamp extends StatelessWidget {
-  final Widget child;
-  const _WebResponsiveClamp({required this.child});
-
-  static const double _maxContentWidth = 480;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        if (width <= _maxContentWidth || !constraints.hasBoundedWidth) {
-          return child;
-        }
-        final mq = MediaQuery.of(context);
-        return ColoredBox(
-          color: AppColors.grey200,
-          child: Center(
-            child: SizedBox(
-              width: _maxContentWidth,
-              height: constraints.maxHeight,
-              child: MediaQuery(
-                data: mq.copyWith(
-                  size: Size(_maxContentWidth, constraints.maxHeight),
-                ),
-                child: ClipRect(child: child),
-              ),
-            ),
-          ),
-        );
-      },
-    );
+    return app;
   }
 }

@@ -1,10 +1,16 @@
 import 'package:basketball_academy/core/constants/app_colors.dart';
+import 'package:basketball_academy/core/layout/desktop_grid.dart';
+import 'package:basketball_academy/core/layout/desktop_page_header.dart';
+import 'package:basketball_academy/core/layout/desktop_scaffold.dart';
+import 'package:basketball_academy/core/layout/responsive.dart';
+import 'package:basketball_academy/core/router/app_router.dart';
 import 'package:basketball_academy/features/staff/domain/entities/staff_entity.dart';
 import 'package:basketball_academy/features/staff/presentation/providers/staff_provider.dart';
 import 'package:basketball_academy/features/staff/presentation/screens/add_edit_staff_screen.dart';
 import 'package:basketball_academy/features/staff/presentation/screens/staff_attendance_screen.dart';
 import 'package:basketball_academy/features/staff/presentation/screens/staff_attendance_report_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -55,6 +61,70 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
   @override
   Widget build(BuildContext context) {
     final staffAsync = ref.watch(staffProvider);
+
+    final tier =
+        kIsWeb ? screenTierOf(MediaQuery.sizeOf(context).width) : ScreenTier.mobile;
+
+    if (tier != ScreenTier.mobile) {
+      return DesktopScaffold(
+        location: AppRoutes.staffList.replaceFirst(':id', widget.academyId),
+        tier: tier,
+        title: 'الإدارة والموظفين',
+        actions: [
+          OutlinedButton.icon(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                  builder: (_) =>
+                      StaffAttendanceReportScreen(academyId: widget.academyId)),
+            ),
+            icon: const Icon(Icons.bar_chart_outlined, size: 16),
+            label: const Text('تقرير الحضور'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.grey700,
+              side: const BorderSide(color: AppColors.grey300),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              textStyle: const TextStyle(fontSize: 13),
+            ),
+          ),
+          const SizedBox(width: 12),
+          DesktopPrimaryButton(
+            label: 'إضافة موظف',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                  builder: (_) => AddEditStaffScreen(academyId: widget.academyId)),
+            ),
+          ),
+        ],
+        content: staffAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (err, _) => Center(child: Text('حدث خطأ: $err')),
+          data: (state) {
+            if (state.staff.isEmpty) {
+              return const Center(child: Text('لا يوجد موظفون حتى الآن'));
+            }
+            return DesktopGrid(
+              isDesktop: tier == ScreenTier.desktop,
+              childAspectRatio: 2.6,
+              children: state.staff
+                  .map((s) => _DesktopStaffCard(
+                        staff: s,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => AddEditStaffScreen(
+                                  academyId: widget.academyId, staff: s)),
+                        ),
+                        onAttendance: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => StaffAttendanceScreen(staff: s)),
+                        ),
+                        onDelete: () => _confirmDelete(s),
+                      ))
+                  .toList(),
+            );
+          },
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -157,6 +227,86 @@ class _StaffCard extends StatelessWidget {
             ),
             IconButton(
               icon: Icon(Icons.delete_outline, color: AppColors.error, size: 20.r),
+              tooltip: 'حذف',
+              onPressed: onDelete,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Desktop/Tablet card — smaller, used inside DesktopGrid ─────────────────
+
+class _DesktopStaffCard extends StatelessWidget {
+  final StaffEntity staff;
+  final VoidCallback onTap;
+  final VoidCallback onAttendance;
+  final VoidCallback onDelete;
+
+  const _DesktopStaffCard({
+    required this.staff,
+    required this.onTap,
+    required this.onAttendance,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.grey200),
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: AppColors.primaryContainer,
+              backgroundImage: staff.photoUrl != null
+                  ? CachedNetworkImageProvider(staff.photoUrl!)
+                  : null,
+              child: staff.photoUrl == null
+                  ? const Icon(Icons.person, color: AppColors.primary, size: 18)
+                  : null,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    staff.fullName,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: 13),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    '${staff.position} • ${staff.phone}',
+                    style:
+                        const TextStyle(fontSize: 11, color: AppColors.grey500),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.event_available_outlined,
+                  color: AppColors.primary, size: 18),
+              tooltip: 'الحضور',
+              onPressed: onAttendance,
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline,
+                  color: AppColors.error, size: 18),
               tooltip: 'حذف',
               onPressed: onDelete,
             ),
