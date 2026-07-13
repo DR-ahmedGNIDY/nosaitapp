@@ -8,15 +8,28 @@ const {
   updatePlayer,
   deletePlayer,
   deletePlayerImage,
+  changeGroup,
 } = require('../controllers/player.controller');
+const {
+  getPlayerAccount,
+  createPlayerAccount,
+  changePlayerPassword,
+  resetPlayerPassword,
+  togglePlayerAccount,
+  getAccountStats,
+} = require('../controllers/playerAccountAdmin.controller');
 const { protect } = require('../middleware/auth.middleware');
 const validate = require('../middleware/validate');
 const { uploadPlayerImage } = require('../config/cloudinary');
+const { blockIfNotWritable, enforcePlayerLimit } = require('../middleware/subscriptionGuard');
 
 const router = express.Router();
 
 // All routes require authentication
 router.use(protect);
+
+// حارس اشتراك المنصة: يمنع الكتابة عند انتهاء/تعليق الاشتراك (لا يمسّ GET).
+router.use(blockIfNotWritable);
 
 // ─── Validators ──────────────────────────────────────────────────────────────
 
@@ -43,6 +56,9 @@ const createValidators = [
   body('sport')
     .optional({ checkFalsy: true })
     .isLength({ max: 60 }).withMessage('اسم الرياضة غير صحيح'),
+  body('groupId')
+    .notEmpty().withMessage('المجموعة مطلوبة')
+    .isMongoId().withMessage('معرّف المجموعة غير صحيح'),
 ];
 
 const updateValidators = [
@@ -68,6 +84,15 @@ const updateValidators = [
   body('sport')
     .optional({ checkFalsy: true })
     .isLength({ max: 60 }).withMessage('اسم الرياضة غير صحيح'),
+  body('groupId')
+    .optional({ checkFalsy: true })
+    .isMongoId().withMessage('معرّف المجموعة غير صحيح'),
+];
+
+const changeGroupValidators = [
+  body('groupId')
+    .notEmpty().withMessage('المجموعة مطلوبة')
+    .isMongoId().withMessage('معرّف المجموعة غير صحيح'),
 ];
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
@@ -78,12 +103,50 @@ router.get('/', getPlayers);
 // GET  /players/search?q=...   ← MUST be before /:id to avoid conflict
 router.get('/search', searchPlayers);
 
+// GET  /players/account-stats   ← MUST be before /:id to avoid conflict
+router.get('/account-stats', getAccountStats);
+
 // GET  /players/:id
 router.get('/:id', getPlayerById);
+
+// ─── Player account management (Player Portal) — إضافي بالكامل ──────────────
+
+// GET  /players/:id/account — حالة حساب اللاعب (بدون كلمة مرور)
+router.get('/:id/account', getPlayerAccount);
+
+// POST /players/:id/create-account — إنشاء حساب للاعب قائم
+router.post('/:id/create-account', createPlayerAccount);
+
+// PATCH /players/:id/password — تغيير كلمة المرور يدوياً
+router.patch(
+  '/:id/password',
+  [
+    body('password')
+      .isLength({ min: 6, max: 64 }).withMessage('كلمة المرور يجب أن تكون 6 أحرف على الأقل'),
+    body('confirmPassword')
+      .optional()
+      .custom((value, { req }) => value === req.body.password)
+      .withMessage('كلمتا المرور غير متطابقتين'),
+  ],
+  validate,
+  changePlayerPassword
+);
+
+// PATCH /players/:id/reset-password — توليد كلمة مرور عشوائية جديدة
+router.patch('/:id/reset-password', resetPlayerPassword);
+
+// PATCH /players/:id/toggle-account — تفعيل/تعطيل الحساب
+router.patch(
+  '/:id/toggle-account',
+  [body('isActive').isBoolean().withMessage('قيمة التفعيل غير صحيحة')],
+  validate,
+  togglePlayerAccount
+);
 
 // POST /players
 router.post(
   '/',
+  enforcePlayerLimit, // يمنع تجاوز الحد الأقصى للاعبين (7 أثناء التجربة)
   uploadPlayerImage.single('image'),
   createValidators,
   validate,
@@ -104,5 +167,8 @@ router.delete('/:id', deletePlayer);
 
 // DELETE /players/:id/image
 router.delete('/:id/image', deletePlayerImage);
+
+// PATCH /players/:id/change-group
+router.patch('/:id/change-group', changeGroupValidators, validate, changeGroup);
 
 module.exports = router;

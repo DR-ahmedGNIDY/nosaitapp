@@ -32,6 +32,11 @@ const activitySchema = new mongoose.Schema(
         'MARK_STAFF_ATTENDANCE',
         'GENERATE_PAYROLL', 'MARK_PAYROLL_PAID',
         'ADD_EXPENSE', 'UPDATE_EXPENSE', 'DELETE_EXPENSE',
+        // منصة SaaS (Nosait)
+        'REGISTER_ACADEMY', 'ACTIVATE_SUBSCRIPTION', 'UPDATE_SUBSCRIPTION',
+        // حسابات اللاعبين (Player Portal) — Audit Log
+        'CREATE_PLAYER_ACCOUNT', 'CHANGE_PLAYER_PASSWORD', 'RESET_PLAYER_PASSWORD',
+        'ENABLE_PLAYER_ACCOUNT', 'DISABLE_PLAYER_ACCOUNT',
       ],
     },
     entityType: {
@@ -40,6 +45,7 @@ const activitySchema = new mongoose.Schema(
       enum: [
         'PLAYER', 'SUBSCRIPTION', 'EVALUATION', 'ATTENDANCE', 'USER', 'ACADEMY',
         'STAFF', 'STAFF_ATTENDANCE', 'PAYROLL', 'EXPENSE',
+        'PLATFORM_SUBSCRIPTION', 'PLAYER_ACCOUNT',
       ],
     },
     entityId: {
