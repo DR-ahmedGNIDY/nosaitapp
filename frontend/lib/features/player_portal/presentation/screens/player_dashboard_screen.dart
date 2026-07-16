@@ -34,6 +34,11 @@ class PlayerDashboardScreen extends ConsumerWidget {
             onPressed: () => context.push(AppRoutes.playerChat),
           ),
           IconButton(
+            tooltip: 'ألبوم الأكاديمية',
+            icon: const Icon(Icons.photo_library_outlined),
+            onPressed: () => context.push(AppRoutes.playerAlbum),
+          ),
+          IconButton(
             tooltip: 'تسجيل الخروج',
             icon: const Icon(Icons.logout),
             onPressed: () async {
