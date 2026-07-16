@@ -86,7 +86,11 @@ class ExcelReportService {
 
     final playersResult = await getPlayers(
       GetPlayersParams(
-          academyId: filter.academyId, sport: filter.sport, page: 1, limit: 500),
+          academyId: filter.academyId,
+          sport: filter.sport,
+          groupId: filter.groupId,
+          page: 1,
+          limit: 500),
     );
     final players = playersResult.fold((_) => [], (v) => v.players);
 
@@ -99,7 +103,7 @@ class ExcelReportService {
     );
     var subs = subsResult.fold((_) => [], (v) => v.subscriptions);
     // Scope subscriptions to the same sport as the players above.
-    final sportIds = await playerIdsForSport(filter.academyId, filter.sport);
+    final sportIds = await playerIdsForSport(filter.academyId, filter.sport, filter.groupId);
     if (sportIds != null) {
       subs = subs.where((s) => sportIds.contains(s.playerId)).toList();
     }
@@ -165,7 +169,7 @@ class ExcelReportService {
       ),
     );
     var subs = result.fold((_) => [], (v) => v.subscriptions);
-    final sportIds = await playerIdsForSport(filter.academyId, filter.sport);
+    final sportIds = await playerIdsForSport(filter.academyId, filter.sport, filter.groupId);
     if (sportIds != null) {
       subs = subs.where((s) => sportIds.contains(s.playerId)).toList();
     }
@@ -229,7 +233,7 @@ class ExcelReportService {
             academyId: filter.academyId!, page: 1, limit: 500),
       );
       var subs = subsResult.fold((_) => [], (v) => v.subscriptions);
-      final sportIds = await playerIdsForSport(filter.academyId, filter.sport);
+      final sportIds = await playerIdsForSport(filter.academyId, filter.sport, filter.groupId);
       if (sportIds != null) {
         subs = subs.where((s) => sportIds.contains(s.playerId)).toList();
       }
@@ -302,7 +306,7 @@ class ExcelReportService {
       ),
     );
     var evals = result.fold((_) => [], (v) => v.evaluations);
-    final sportIds = await playerIdsForSport(filter.academyId, filter.sport);
+    final sportIds = await playerIdsForSport(filter.academyId, filter.sport, filter.groupId);
     if (sportIds != null) {
       evals = evals.where((e) => sportIds.contains(e.playerId)).toList();
     }

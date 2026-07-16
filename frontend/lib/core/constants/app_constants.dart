@@ -10,6 +10,11 @@ class AppConstants {
   static const String tokenKey = 'auth_token';
   static const String refreshTokenKey = 'refresh_token';
   static const String userKey = 'user_data';
+  // نوع الجلسة: 'admin' أو 'player' (منصة Nosait SaaS).
+  static const String sessionTypeKey = 'session_type';
+
+  // اسم المنصة (Nosait SaaS).
+  static const String platformName = 'Nosait';
 
   // Timeouts (ms)
   static const int connectTimeout = 30000;
@@ -27,8 +32,8 @@ class AppConstants {
 
   // App Info
   static const String appName = 'Basketball Academy Manager';
-  static const String appVersion = '1.0.0';
-  static const int appBuild = 1;
+  static const String appVersion = '1.1.2';
+  static const int appBuild = 9;
 
   // Privacy Policy — official link opened in the device's default browser.
   // Change this value to update the link without touching any other code.

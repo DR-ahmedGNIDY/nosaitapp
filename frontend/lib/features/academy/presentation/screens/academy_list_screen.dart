@@ -22,6 +22,13 @@ class AcademyListScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leading: isSuperAdmin
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                tooltip: 'الرجوع للوحة التحكم',
+                onPressed: () => context.go(AppRoutes.dashboard),
+              )
+            : null,
         title: Text(
           isSuperAdmin
               ? AppStrings.academies

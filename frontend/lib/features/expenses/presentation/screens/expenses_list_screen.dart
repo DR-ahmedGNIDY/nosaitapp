@@ -100,12 +100,12 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> {
                         decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12.r)),
                         child: ListTile(
                           onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => AddEditExpenseScreen(expense: e))),
-                          title: Text(e.name, style: TextStyle(fontWeight: FontWeight.w700)),
+                          title: Text(e.name, style: const TextStyle(fontWeight: FontWeight.w700)),
                           subtitle: Text('${e.categoryLabel} • ${e.date}'),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text('${e.amount.toStringAsFixed(0)}', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.error)),
+                              Text(e.amount.toStringAsFixed(0), style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.error)),
                               IconButton(
                                 icon: const Icon(Icons.delete_outline, size: 20),
                                 color: AppColors.grey400,

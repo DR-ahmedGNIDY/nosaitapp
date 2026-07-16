@@ -26,6 +26,8 @@ class PlayerRepositoryImpl implements PlayerRepository {
     int? birthYear,
     String? sport,
     String? attendanceDay,
+    bool? hasAccount,
+    String? groupId,
     int page = 1,
     int limit = 20,
   }) async {
@@ -36,6 +38,8 @@ class PlayerRepositoryImpl implements PlayerRepository {
         birthYear: birthYear,
         sport: sport,
         attendanceDay: attendanceDay,
+        hasAccount: hasAccount,
+        groupId: groupId,
         page: page,
         limit: limit,
       );
@@ -107,6 +111,7 @@ class PlayerRepositoryImpl implements PlayerRepository {
     List<String> attendanceDays = const [],
     String? academyId,
     String? imagePath,
+    String? groupId,
   }) async {
     try {
       final model = await _remoteDatasource.createPlayer(
@@ -122,6 +127,7 @@ class PlayerRepositoryImpl implements PlayerRepository {
         attendanceDays: attendanceDays,
         academyId: academyId,
         imagePath: imagePath,
+        groupId: groupId,
       );
       return Right(model.toEntity());
     } on ValidationException catch (e) {
@@ -153,6 +159,7 @@ class PlayerRepositoryImpl implements PlayerRepository {
     String? sport,
     List<String>? attendanceDays,
     String? imagePath,
+    String? groupId,
   }) async {
     try {
       final model = await _remoteDatasource.updatePlayer(
@@ -168,6 +175,7 @@ class PlayerRepositoryImpl implements PlayerRepository {
         sport: sport,
         attendanceDays: attendanceDays,
         imagePath: imagePath,
+        groupId: groupId,
       );
       return Right(model.toEntity());
     } on ValidationException catch (e) {

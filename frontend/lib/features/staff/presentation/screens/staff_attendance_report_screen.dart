@@ -130,9 +130,9 @@ class _StaffAttendanceReportScreenState extends ConsumerState<StaffAttendanceRep
                               ],
                             ),
                           ),
-                          Text('حضور: ${r.presentCount}', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.w600)),
+                          Text('حضور: ${r.presentCount}', style: const TextStyle(color: AppColors.success, fontWeight: FontWeight.w600)),
                           Gap(12.w),
-                          Text('غياب: ${r.absentCount}', style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w600)),
+                          Text('غياب: ${r.absentCount}', style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.w600)),
                         ],
                       ),
                     );

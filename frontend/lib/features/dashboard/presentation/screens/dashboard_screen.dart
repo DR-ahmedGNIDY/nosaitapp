@@ -9,8 +9,10 @@ import 'package:basketball_academy/features/academy/presentation/providers/acade
 import 'package:basketball_academy/features/academy/presentation/providers/currency_provider.dart';
 import 'package:basketball_academy/features/dashboard/domain/entities/dashboard_entity.dart';
 import 'package:basketball_academy/features/dashboard/presentation/providers/dashboard_provider.dart';
+import 'package:basketball_academy/features/dashboard/presentation/widgets/player_accounts_stats_card.dart';
 import 'package:basketball_academy/features/attendance/presentation/screens/attendance_hub_screen.dart';
 import 'package:basketball_academy/features/dashboard/presentation/screens/sport_detail_screen.dart';
+import 'package:basketball_academy/features/chat/presentation/widgets/messages_chat_icon.dart';
 import 'package:basketball_academy/features/notification/presentation/screens/notifications_screen.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -119,9 +121,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         actions: [
           if (isSuperAdmin)
             IconButton(
+              icon: const Icon(Icons.workspace_premium_outlined),
+              tooltip: 'إدارة الاشتراكات',
+              onPressed: () => context.push(AppRoutes.platformSubscriptions),
+            ),
+          if (isSuperAdmin)
+            IconButton(
               icon: const Icon(Icons.list_alt_outlined),
               tooltip: AppStrings.academies,
               onPressed: () => context.go(AppRoutes.academyList),
+            ),
+          // 💬 الرسائل — Badge مستقل، لمدير الأكاديمية فقط.
+          if (user?.isAcademyAdmin == true)
+            MessagesChatIcon(
+              onTap: () => context.push(AppRoutes.academyChat),
+            ),
+          if (user?.isAcademyAdmin == true)
+            IconButton(
+              tooltip: 'ألبوم الأكاديمية',
+              icon: const Icon(Icons.photo_library_outlined),
+              onPressed: () => context.push(AppRoutes.academyAlbum),
             ),
           NotificationBellIcon(
             onTap: () => context.push(AppRoutes.notifications),
@@ -186,6 +205,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 const _SectionTitle(title: 'الإحصائيات العامة'),
                 Gap(8.h),
                 _StatsGrid(stats: dashState.stats, currencyLabel: currencyLabel),
+                Gap(12.h),
+
+                // Player accounts card (Player Portal) — تختفي إن كانت الميزة معطّلة
+                PlayerAccountsStatsCard(academyId: currentAcademyId),
                 Gap(20.h),
 
                 // Sports section — only for multi-sport academies
@@ -265,7 +288,7 @@ class _QuickActionsGrid extends StatelessWidget {
         label: AppStrings.subscriptions,
         color: AppColors.secondary,
         onTap: () => context.push(
-          AppRoutes.playersList.replaceFirst(':id', academyId),
+          AppRoutes.subscriptionsList.replaceFirst(':id', academyId),
         ),
       ),
       _QuickActionItem(
@@ -307,6 +330,18 @@ class _QuickActionsGrid extends StatelessWidget {
         onTap: () => context.push(
           AppRoutes.expensesList.replaceFirst(':id', academyId),
         ),
+      ),
+      _QuickActionItem(
+        icon: Icons.chat_outlined,
+        label: 'المحادثات',
+        color: AppColors.primary,
+        onTap: () => context.push(AppRoutes.academyChat),
+      ),
+      _QuickActionItem(
+        icon: Icons.workspace_premium_outlined,
+        label: 'اشتراك النظام',
+        color: AppColors.primaryDark,
+        onTap: () => context.push(AppRoutes.systemSubscription),
       ),
     ];
 
@@ -449,7 +484,7 @@ class _SportsGrid extends StatelessWidget {
               children: [
                 Container(
                   padding: EdgeInsets.all(8.r),
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: AppColors.primaryContainer,
                     shape: BoxShape.circle,
                   ),
@@ -524,6 +559,10 @@ class _DesktopDashboardContent extends StatelessWidget {
                     stats: dashState.stats,
                     currencyLabel: currencyLabel,
                     columns: columns),
+                const SizedBox(height: 16),
+
+                // Player accounts card (Player Portal) — تختفي إن كانت الميزة معطّلة
+                PlayerAccountsStatsCard(academyId: academyId),
                 const SizedBox(height: 24),
 
                 if (sports.length > 1 && academyId != null) ...[
@@ -795,6 +834,7 @@ class _DesktopStatsGrid extends StatelessWidget {
         color: AppColors.warning,
         bg: AppColors.warningLight,
       ),
+      ..._groupStatCards(s),
     ];
 
     return GridView.builder(
@@ -895,6 +935,14 @@ class _DesktopQuickActions extends StatelessWidget {
           ),
         ),
         _DesktopQuickBtn(
+          icon: Icons.card_membership_outlined,
+          label: AppStrings.subscriptions,
+          color: AppColors.secondary,
+          onTap: () => context.push(
+            AppRoutes.subscriptionsList.replaceFirst(':id', academyId),
+          ),
+        ),
+        _DesktopQuickBtn(
           icon: Icons.bar_chart_outlined,
           label: AppStrings.reports,
           color: AppColors.success,
@@ -933,6 +981,12 @@ class _DesktopQuickActions extends StatelessWidget {
           onTap: () => context.push(
             AppRoutes.expensesList.replaceFirst(':id', academyId),
           ),
+        ),
+        _DesktopQuickBtn(
+          icon: Icons.chat_outlined,
+          label: 'المحادثات',
+          color: AppColors.primary,
+          onTap: () => context.push(AppRoutes.academyChat),
         ),
       ],
     );
@@ -1012,18 +1066,18 @@ class _DesktopNoDataWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
+    return const SizedBox(
       height: 80,
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.bar_chart_outlined,
+            Icon(Icons.bar_chart_outlined,
                 color: AppColors.grey300, size: 32),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Text(
               AppStrings.noChartData,
-              style: const TextStyle(fontSize: 13, color: AppColors.grey400),
+              style: TextStyle(fontSize: 13, color: AppColors.grey400),
             ),
           ],
         ),
@@ -1678,6 +1732,7 @@ class _StatsGrid extends StatelessWidget {
         color: AppColors.warning,
         bg: AppColors.warningLight,
       ),
+      ..._groupStatCards(s),
     ];
 
     return GridView.builder(
@@ -1698,6 +1753,47 @@ class _StatsGrid extends StatelessWidget {
     final formatted = NumberFormat('#,##0', 'ar').format(amount.toInt());
     return '$formatted $currencyLabel';
   }
+}
+
+// بطاقات إحصاءات المجموعات — مشتركة بين شبكتي سطح المكتب والجوال (req 8).
+List<_StatCardData> _groupStatCards(DashboardStatsEntity? s) {
+  return [
+    _StatCardData(
+      label: 'المجموعات',
+      value: '${s?.activeGroups ?? 0} / ${s?.totalGroups ?? 0}',
+      icon: Icons.groups_outlined,
+      color: AppColors.secondary,
+      bg: AppColors.secondaryContainer,
+    ),
+    _StatCardData(
+      label: 'لاعبون بلا مجموعة',
+      value: '${s?.playersWithoutGroup ?? 0}',
+      icon: Icons.person_off_outlined,
+      color: AppColors.error,
+      bg: AppColors.errorLight,
+    ),
+    _StatCardData(
+      label: 'أكبر مجموعة',
+      value: '${s?.largestGroupSize ?? 0}',
+      icon: Icons.emoji_events_outlined,
+      color: AppColors.warning,
+      bg: AppColors.warningLight,
+    ),
+    _StatCardData(
+      label: 'نسبة إشغال المجموعات',
+      value: '${s?.groupOccupancyRate ?? 0}%',
+      icon: Icons.donut_small_outlined,
+      color: AppColors.primary,
+      bg: AppColors.primaryContainer,
+    ),
+    _StatCardData(
+      label: 'متوسط اللاعبين/مجموعة',
+      value: (s?.avgPlayersPerGroup ?? 0).toStringAsFixed(1),
+      icon: Icons.query_stats_outlined,
+      color: AppColors.success,
+      bg: AppColors.successLight,
+    ),
+  ];
 }
 
 class _StatCardData {

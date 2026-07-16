@@ -173,6 +173,54 @@ final academyPlayerStatusMapProvider =
 });
 
 // ---------------------------------------------------------------------------
+// Academy Subscriptions List — full list for the "Subscriptions" screen
+// ---------------------------------------------------------------------------
+
+/// Fetches ALL subscriptions for the academy (single request, limit=500) for
+/// use in the academy-wide subscriptions list screen. Search/status filters
+/// are applied client-side in the screen against this cached list.
+class AcademySubscriptionsNotifier
+    extends FamilyAsyncNotifier<List<SubscriptionEntity>, String> {
+  @override
+  Future<List<SubscriptionEntity>> build(String academyId) async {
+    return _fetch(academyId);
+  }
+
+  Future<List<SubscriptionEntity>> _fetch(String academyId) async {
+    final usecase = sl<GetSubscriptionsByAcademyUsecase>();
+    final result = await usecase(
+      GetSubscriptionsByAcademyParams(academyId: academyId, limit: 500, page: 1),
+    );
+    return result.fold(
+      (failure) => throw Exception(failure.message),
+      (data) => data.subscriptions,
+    );
+  }
+
+  Future<void> refresh() async {
+    ref.invalidateSelf();
+    await future;
+  }
+
+  Future<String?> deleteSubscription(String id) async {
+    final usecase = sl<DeleteSubscriptionUsecase>();
+    final result = await usecase(DeleteSubscriptionParams(id: id));
+    return result.fold(
+      (failure) => failure.message,
+      (_) {
+        ref.invalidateSelf();
+        return null;
+      },
+    );
+  }
+}
+
+final academySubscriptionsProvider = AsyncNotifierProvider.family<
+    AcademySubscriptionsNotifier, List<SubscriptionEntity>, String>(
+  AcademySubscriptionsNotifier.new,
+);
+
+// ---------------------------------------------------------------------------
 // Revenue Summary Provider
 // ---------------------------------------------------------------------------
 

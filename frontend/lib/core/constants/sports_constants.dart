@@ -15,6 +15,26 @@ class SportsConstants {
     'كاراتيه',
   ];
 
+  /// Emoji shown next to a sport name (e.g. in the grouped Groups screen).
+  /// Sports are free strings, so unknown values fall back to a neutral medal.
+  static const Map<String, String> _sportEmojis = {
+    'كرة قدم': '⚽',
+    'كرة سلة': '🏀',
+    'كرة طائرة': '🏐',
+    'كرة يد': '🤾',
+    'سباحة': '🏊',
+    'كاراتيه': '🥋',
+    'تنس': '🎾',
+    'جمباز': '🤸',
+    'ملاكمة': '🥊',
+    'جري': '🏃',
+  };
+
+  static String sportEmoji(String? sport) {
+    if (sport == null) return '🏅';
+    return _sportEmojis[sport.trim()] ?? '🏅';
+  }
+
   /// Weekly attendance days (Saturday-first, matching the local week).
   static const List<String> weekDays = [
     'السبت',

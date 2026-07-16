@@ -166,7 +166,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                 padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 40.h),
                 child: Column(
                   children: [
-                    Gap(40.h),
+                    // زر الرجوع لواجهة البرنامج (شاشة الترحيب)
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: TextButton.icon(
+                        onPressed: () => context.go(AppRoutes.welcome),
+                        icon: const Icon(Icons.arrow_back,
+                            color: AppColors.white),
+                        label: Text(
+                          'رجوع',
+                          style: TextStyle(
+                            fontSize: 15.sp,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Gap(8.h),
                     // Logo
                     Container(
                       width: 96.w,
@@ -343,7 +360,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                       ),
                     ),
                     Gap(20.h),
-                    // Create account / inquiry — contacts the company via WhatsApp
+                    // إنشاء حساب أكاديمية — يفتح شاشة تسجيل أكاديمية جديدة
+                    SizedBox(
+                      height: 50.h,
+                      child: ElevatedButton.icon(
+                        onPressed: () => context.go(AppRoutes.registerAcademy),
+                        icon: const Icon(Icons.add_business_outlined),
+                        label: Text(
+                          'إنشاء حساب أكاديمية',
+                          style: TextStyle(
+                            fontSize: 15.sp,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: AppColors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14.r),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Gap(12.h),
+                    // تواصل مع الدعم — يفتح واتساب الشركة
                     SizedBox(
                       height: 50.h,
                       child: OutlinedButton.icon(
@@ -351,7 +391,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         icon: const Icon(Icons.chat_bubble_outline,
                             color: AppColors.white),
                         label: Text(
-                          'إنشاء حساب أو استفسار',
+                          'تواصل مع الدعم',
                           style: TextStyle(
                             fontSize: 15.sp,
                             fontWeight: FontWeight.w700,

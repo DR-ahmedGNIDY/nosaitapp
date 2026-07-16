@@ -1,21 +1,36 @@
+import 'package:basketball_academy/core/navigation/app_navigator.dart';
 import 'package:basketball_academy/features/academy/presentation/screens/academy_detail_screen.dart';
 import 'package:basketball_academy/features/reports/presentation/screens/reports_screen.dart';
 import 'package:basketball_academy/features/academy/presentation/screens/academy_list_screen.dart';
+import 'package:basketball_academy/features/auth/domain/entities/user_entity.dart';
 import 'package:basketball_academy/features/auth/presentation/providers/auth_provider.dart';
 import 'package:basketball_academy/features/auth/presentation/screens/account_settings_screen.dart';
 import 'package:basketball_academy/features/auth/presentation/screens/login_screen.dart';
+import 'package:basketball_academy/features/welcome/presentation/screens/welcome_screen.dart';
+import 'package:basketball_academy/features/academy_registration/presentation/screens/academy_registration_wizard_screen.dart';
+import 'package:basketball_academy/features/chat/presentation/screens/academy_conversations_screen.dart';
+import 'package:basketball_academy/features/academy_album/presentation/screens/academy_album_screen.dart';
+import 'package:basketball_academy/features/academy_album/presentation/screens/player_album_screen.dart';
+import 'package:basketball_academy/features/platform_subscription/presentation/screens/platform_subscriptions_screen.dart';
+import 'package:basketball_academy/features/player_portal/presentation/providers/player_session_provider.dart';
+import 'package:basketball_academy/features/player_portal/presentation/screens/player_login_screen.dart';
+import 'package:basketball_academy/features/player_portal/presentation/screens/player_dashboard_screen.dart';
+import 'package:basketball_academy/features/player_portal/presentation/screens/player_chat_screen.dart';
+import 'package:basketball_academy/features/player_portal/presentation/screens/player_notifications_screen.dart';
 import 'package:basketball_academy/features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'package:basketball_academy/features/evaluation/presentation/screens/evaluation_history_screen.dart';
 import 'package:basketball_academy/features/notification/presentation/screens/notifications_screen.dart';
 import 'package:basketball_academy/features/player/presentation/screens/player_detail_screen.dart';
 import 'package:basketball_academy/features/player/presentation/screens/players_list_screen.dart';
+import 'package:basketball_academy/features/groups/presentation/screens/groups_list_screen.dart';
 import 'package:basketball_academy/features/splash/presentation/screens/splash_screen.dart';
+import 'package:basketball_academy/features/system_subscription/presentation/screens/system_subscription_screen.dart';
 import 'package:basketball_academy/features/subscription/presentation/screens/player_subscription_history_screen.dart';
+import 'package:basketball_academy/features/subscription/presentation/screens/subscriptions_list_screen.dart';
 import 'package:basketball_academy/features/user/presentation/screens/users_list_screen.dart';
 import 'package:basketball_academy/features/staff/presentation/screens/staff_list_screen.dart';
 import 'package:basketball_academy/features/payroll/presentation/screens/payroll_list_screen.dart';
 import 'package:basketball_academy/features/expenses/presentation/screens/expenses_list_screen.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -24,12 +39,24 @@ class AppRoutes {
   AppRoutes._();
 
   static const String splash = '/';
+  static const String welcome = '/welcome';
   static const String login = '/login';
+  static const String registerAcademy = '/register-academy';
+  static const String playerLogin = '/player-login';
+  static const String playerDashboard = '/player';
+  static const String playerChat = '/player/chat';
+  static const String playerNotifications = '/player/notifications';
+  static const String playerAlbum = '/player/album';
+  static const String academyAlbum = '/academy-album';
+  static const String platformSubscriptions = '/platform/subscriptions';
+  static const String academyChat = '/chat';
   static const String home = '/home';
   static const String academyList = '/academies';
   static const String academyDetail = '/academies/:id';
   static const String academyUsers = '/academies/:id/users';
   static const String playersList = '/academies/:id/players';
+  static const String groupsList = '/academies/:id/groups';
+  static const String subscriptionsList = '/academies/:id/subscriptions';
   static const String playerDetail = '/academies/:id/players/:playerId';
   static const String playerSubscriptions =
       '/academies/:id/players/:playerId/subscriptions';
@@ -42,6 +69,7 @@ class AppRoutes {
   static const String expensesList = '/academies/:id/expenses';
   static const String notifications = '/notifications';
   static const String accountSettings = '/account-settings';
+  static const String systemSubscription = '/system-subscription';
 }
 
 // RouterNotifier يُبلِّغ GoRouter عند تغيّر حالة المصادقة
@@ -55,37 +83,78 @@ class _RouterNotifier extends ChangeNotifier {
       debugPrint('[ROUTER] authState changed: ${prev.runtimeType} → ${next.runtimeType} | isLoading=${next.isLoading} | isAuthenticated=${next.valueOrNull?.isAuthenticated}');
       notifyListeners();
     });
+    // نستمع أيضاً لجلسة اللاعب (Nosait) حتى يُعيد GoRouter تقييم التوجيه
+    // عند دخول/خروج اللاعب — دون إعادة إنشاء الراوتر إطلاقاً.
+    _ref.listen<AsyncValue<PlayerSessionState>>(playerSessionProvider, (prev, next) {
+      notifyListeners();
+    });
+  }
+
+  // مسارات عامة لا تتطلب مصادقة (منصة Nosait).
+  static const _publicRoutes = {
+    AppRoutes.welcome,
+    AppRoutes.login,
+    AppRoutes.registerAcademy,
+    AppRoutes.playerLogin,
+  };
+
+  String? _adminHome(UserEntity? user) {
+    if (user?.isAdmin == true && user?.academyId != null) {
+      return AppRoutes.playersList.replaceFirst(':id', user!.academyId!);
+    }
+    return AppRoutes.home;
   }
 
   String? redirect(BuildContext context, GoRouterState state) {
     final authAsync = _ref.read(authStateProvider);
     final isLoggedIn = authAsync.valueOrNull?.isAuthenticated ?? false;
     final user = authAsync.valueOrNull?.user;
+
+    final playerAsync = _ref.read(playerSessionProvider);
+    final playerLoggedIn = playerAsync.valueOrNull?.isAuthenticated ?? false;
+
     final loc = state.matchedLocation;
+    debugPrint('[ROUTER] redirect() loc=$loc admin=$isLoggedIn player=$playerLoggedIn');
 
-    debugPrint('[ROUTER] redirect() loc=$loc isLoggedIn=$isLoggedIn isLoading=${authAsync.isLoading}');
-
+    // الـ Splash يدير انتقاله بنفسه.
     if (loc == AppRoutes.splash) return null;
-    if (!isLoggedIn && loc != AppRoutes.login) return AppRoutes.login;
-    if (isLoggedIn && loc == AppRoutes.login) {
-      if (user?.isAdmin == true && user?.academyId != null) {
-        return AppRoutes.playersList.replaceFirst(':id', user!.academyId!);
-      }
-      return AppRoutes.home;
+
+    // ── جلسة اللاعب لها الأولوية ──
+    if (playerLoggedIn) {
+      if (!loc.startsWith('/player')) return AppRoutes.playerDashboard;
+      return null;
     }
-    if (user?.isAdmin == true) {
-      final academyId = user?.academyId;
-      final allowedPrefixes = [
-        '/academies/${academyId ?? ''}/players',
-        AppRoutes.notifications,
-        AppRoutes.accountSettings,
-      ];
-      final isAllowed = academyId != null &&
-          allowedPrefixes.any((prefix) => loc.startsWith(prefix));
-      if (!isAllowed && academyId != null) {
-        return AppRoutes.playersList.replaceFirst(':id', academyId);
+
+    // ── جلسة المدير/السوبر أدمن ──
+    if (isLoggedIn) {
+      // على مسار عام → توجيه لواجهة المدير المناسبة.
+      if (_publicRoutes.contains(loc)) return _adminHome(user);
+
+      // دور admin الفرعي مُقيَّد (كما كان) باللاعبين + الإشعارات + الإعدادات.
+      if (user?.isAdmin == true) {
+        final academyId = user?.academyId;
+        final allowedPrefixes = [
+          '/academies/${academyId ?? ''}/players',
+          '/academies/${academyId ?? ''}/groups',
+          AppRoutes.notifications,
+          AppRoutes.accountSettings,
+        ];
+        final isAllowed = academyId != null &&
+            allowedPrefixes.any((prefix) => loc.startsWith(prefix));
+        if (!isAllowed && academyId != null) {
+          return AppRoutes.playersList.replaceFirst(':id', academyId);
+        }
       }
+
+      // لوحة اشتراكات المنصة لـ super_admin فقط.
+      if (loc.startsWith('/platform') && user?.isSuperAdmin != true) {
+        return _adminHome(user);
+      }
+      return null;
     }
+
+    // ── غير مسجّل إطلاقاً → شاشة الترحيب ما لم يكن على مسار عام ──
+    if (!_publicRoutes.contains(loc)) return AppRoutes.welcome;
     return null;
   }
 }
@@ -96,6 +165,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   ref.onDispose(notifier.dispose);
 
   final router = GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: AppRoutes.splash,
     refreshListenable: notifier,
     redirect: notifier.redirect,
@@ -105,8 +175,49 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const SplashScreen(),
       ),
       GoRoute(
+        path: AppRoutes.welcome,
+        builder: (context, state) => const WelcomeScreen(),
+      ),
+      GoRoute(
         path: AppRoutes.login,
         builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.registerAcademy,
+        builder: (context, state) => const AcademyRegistrationWizardScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.playerLogin,
+        builder: (context, state) => const PlayerLoginScreen(),
+      ),
+      // ملاحظة: مسارات /player/chat و /player/notifications قبل /player
+      GoRoute(
+        path: AppRoutes.playerChat,
+        builder: (context, state) => const PlayerChatScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.playerNotifications,
+        builder: (context, state) => const PlayerNotificationsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.playerAlbum,
+        builder: (context, state) => const PlayerAlbumScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.playerDashboard,
+        builder: (context, state) => const PlayerDashboardScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.platformSubscriptions,
+        builder: (context, state) => const PlatformSubscriptionsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.academyChat,
+        builder: (context, state) => const AcademyConversationsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.academyAlbum,
+        builder: (context, state) => const AcademyAlbumScreen(),
       ),
       GoRoute(
         path: AppRoutes.home,
@@ -139,6 +250,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final academyId = state.pathParameters['id']!;
           return PlayersListScreen(academyId: academyId);
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.groupsList,
+        builder: (context, state) {
+          final academyId = state.pathParameters['id']!;
+          return GroupsListScreen(academyId: academyId);
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.subscriptionsList,
+        builder: (context, state) {
+          final academyId = state.pathParameters['id']!;
+          return SubscriptionsListScreen(academyId: academyId);
         },
       ),
       GoRoute(
@@ -209,6 +334,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.accountSettings,
         builder: (context, state) => const AccountSettingsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.systemSubscription,
+        builder: (context, state) => const SystemSubscriptionScreen(),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

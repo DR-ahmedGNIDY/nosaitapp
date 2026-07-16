@@ -1,7 +1,7 @@
 import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/router/app_router.dart';
 import 'package:basketball_academy/features/auth/presentation/providers/auth_provider.dart';
-import 'package:flutter/foundation.dart';
+import 'package:basketball_academy/features/player_portal/presentation/providers/player_session_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -43,21 +43,26 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     debugPrint('[SPLASH] _navigate() → waiting 2 seconds...');
     Future.delayed(const Duration(seconds: 2), () {
       if (!mounted) return;
+      // جلسة اللاعب لها الأولوية إن كانت فعّالة.
+      final player = ref.read(playerSessionProvider).valueOrNull;
+      if (player?.isAuthenticated == true) {
+        context.go(AppRoutes.playerDashboard);
+        return;
+      }
+
       final authAsync = ref.read(authStateProvider);
       debugPrint('[SPLASH] _navigate() → authAsync: isLoading=${authAsync.isLoading} isAuthenticated=${authAsync.valueOrNull?.isAuthenticated}');
       final auth = authAsync.valueOrNull;
       if (auth?.isAuthenticated == true) {
         final user = auth?.user;
         if (user?.isAdmin == true && user?.academyId != null) {
-          debugPrint('[SPLASH] → admin detected, going to playersList academyId=${user?.academyId}');
           context.go(AppRoutes.playersList.replaceFirst(':id', user!.academyId!));
         } else {
-          debugPrint('[SPLASH] → regular user, going to home');
           context.go(AppRoutes.home);
         }
       } else {
-        debugPrint('[SPLASH] → not authenticated, going to login');
-        context.go(AppRoutes.login);
+        // غير مسجّل → شاشة الترحيب (Nosait).
+        context.go(AppRoutes.welcome);
       }
     });
   }
@@ -85,29 +90,21 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        Icons.sports_basketball,
-                        size: 80.sp,
-                        color: AppColors.white,
+                      Image.asset(
+                        'assets/images/logo1.png',
+                        width: 180.w,
+                        height: 180.w,
+                        fit: BoxFit.contain,
                       ),
-                      Gap(20.h),
+                      Gap(16.h),
                       Text(
-                        'Basketball Academy Manager',
+                        'نظام إدارة الأكاديميات الرياضية',
                         style: TextStyle(
                           fontFamily: 'Cairo',
-                          fontSize: 22.sp,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 30.sp,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
                           color: AppColors.white,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      Gap(8.h),
-                      Text(
-                        'نظام إدارة الأكاديمية',
-                        style: TextStyle(
-                          fontFamily: 'Cairo',
-                          fontSize: 14.sp,
-                          color: AppColors.white.withValues(alpha: 0.70),
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -123,7 +120,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
               child: FadeTransition(
                 opacity: _fadeAnimation,
                 child: Text(
-                  'v1.0.0',
+                  'v1.1.3',
                   style: TextStyle(
                     fontFamily: 'Cairo',
                     fontSize: 12.sp,

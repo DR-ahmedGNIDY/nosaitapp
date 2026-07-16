@@ -5,7 +5,10 @@ import 'package:basketball_academy/core/constants/app_strings.dart';
 import 'package:basketball_academy/core/constants/sports_constants.dart';
 import 'package:basketball_academy/core/widgets/multi_select_chips.dart';
 import 'package:basketball_academy/features/academy/presentation/providers/academy_provider.dart';
+import 'package:basketball_academy/features/groups/presentation/providers/groups_provider.dart';
+import 'package:basketball_academy/features/player/data/created_account_buffer.dart';
 import 'package:basketball_academy/features/player/presentation/providers/player_provider.dart';
+import 'package:basketball_academy/features/player/presentation/widgets/player_account_dialog.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -35,6 +38,7 @@ class _AddPlayerScreenState extends ConsumerState<AddPlayerScreen> {
   DateTime? _birthDate;
   String? _selectedRelationship;
   String? _selectedSport;
+  String? _selectedGroupId;
   List<String> _selectedAttendanceDays = const [];
   XFile? _pickedImage;
   bool _isLoading = false;
@@ -188,6 +192,9 @@ class _AddPlayerScreenState extends ConsumerState<AddPlayerScreen> {
       return;
     }
 
+    // المجموعة اختيارية دائماً — قسم تنظيمي مستقل عن الرياضة. قد يترك المدير
+    // اللاعب بلا مجموعة (groupId=null) حتى لو كانت هناك مجموعات في الأكاديمية.
+
     setState(() => _isLoading = true);
 
     final error = await ref.read(playersProvider.notifier).createPlayer(
@@ -210,6 +217,7 @@ class _AddPlayerScreenState extends ConsumerState<AddPlayerScreen> {
           attendanceDays: _selectedAttendanceDays,
           academyId: widget.academyId,
           imagePath: _pickedImage?.path,
+          groupId: _selectedGroupId,
         );
 
     if (!mounted) return;
@@ -231,6 +239,17 @@ class _AddPlayerScreenState extends ConsumerState<AddPlayerScreen> {
           behavior: SnackBarBehavior.floating,
         ),
       );
+      // إن أعاد الخادم بيانات حساب دخول اللاعب، نعرضها مرة واحدة قبل الرجوع.
+      final account = CreatedAccountBuffer.take();
+      if (account != null) {
+        await PlayerAccountDialog.show(
+          context,
+          username: account['username'] as String? ?? '',
+          password: account['password'] as String? ?? '',
+          playerName: _fullNameController.text.trim(),
+        );
+      }
+      if (!mounted) return;
       Navigator.of(context).pop();
     }
   }
@@ -406,6 +425,60 @@ class _AddPlayerScreenState extends ConsumerState<AddPlayerScreen> {
                 ),
                 Gap(16.h),
               ],
+
+              // Group (optional) — كل مجموعات الأكاديمية، مستقلة عن الرياضة.
+              _buildLabel('المجموعة (اختياري)'),
+              Gap(6.h),
+              Consumer(
+                builder: (context, ref, _) {
+                  final groupsAsync = ref.watch(groupsByAcademyProvider(
+                    (
+                      academyId: widget.academyId,
+                      sportId: null,
+                    ),
+                  ));
+                  return groupsAsync.when(
+                    loading: () => const LinearProgressIndicator(),
+                    error: (err, _) => Text(
+                      'تعذر تحميل المجموعات',
+                      style: TextStyle(color: AppColors.error, fontSize: 12.sp),
+                    ),
+                    data: (groups) {
+                      if (groups.isEmpty) {
+                        // لا مجموعات في الأكاديمية → نُخفي المُنتقي ونعرض ملاحظة
+                        // محايدة. المجموعة اختيارية دائماً (لا حظر للإضافة).
+                        return Container(
+                          padding: EdgeInsets.all(12.r),
+                          decoration: BoxDecoration(
+                            color: AppColors.grey100,
+                            borderRadius: BorderRadius.circular(10.r),
+                          ),
+                          child: Text(
+                            'لا توجد مجموعات بعد — سيُضاف اللاعب بدون مجموعة. يمكنك إنشاء مجموعات لاحقاً ثم نقله إليها.',
+                            style: TextStyle(fontSize: 12.sp, color: AppColors.grey600),
+                          ),
+                        );
+                      }
+                      return DropdownButtonFormField<String>(
+                        initialValue: _selectedGroupId,
+                        decoration: _inputDecoration(hint: 'اختر المجموعة (اختياري)'),
+                        items: [
+                          const DropdownMenuItem<String>(
+                            value: null,
+                            child: Text('بدون مجموعة'),
+                          ),
+                          ...groups.map((g) => DropdownMenuItem(
+                              value: g.id, child: Text(g.name))),
+                        ],
+                        onChanged: (val) =>
+                            setState(() => _selectedGroupId = val),
+                        // اختيارية — لا مُتحقّق.
+                      );
+                    },
+                  );
+                },
+              ),
+              Gap(16.h),
 
               // Attendance days (optional)
               _buildLabel('أيام الحضور (اختياري)'),

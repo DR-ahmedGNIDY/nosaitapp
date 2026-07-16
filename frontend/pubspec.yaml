@@ -1,7 +1,7 @@
 name: basketball_academy
 description: نظام إدارة أكاديمية كرة السلة
 publish_to: "none"
-version: 1.1.0+7
+version: 1.1.6+13
 
 environment:
   sdk: ">=3.3.0 <4.0.0"

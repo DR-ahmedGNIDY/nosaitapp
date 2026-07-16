@@ -170,7 +170,7 @@ class _ExpenseReportScreenState extends ConsumerState<ExpenseReportScreen> {
                         children: [
                           Text('إجمالي المصروفات', style: TextStyle(fontSize: 13.sp, color: AppColors.grey700)),
                           Gap(4.h),
-                          Text('${data.totalAmount.toStringAsFixed(0)}', style: TextStyle(fontSize: 28.sp, fontWeight: FontWeight.w800, color: AppColors.error)),
+                          Text(data.totalAmount.toStringAsFixed(0), style: TextStyle(fontSize: 28.sp, fontWeight: FontWeight.w800, color: AppColors.error)),
                           Gap(4.h),
                           Text('${data.totalCount} عملية', style: TextStyle(fontSize: 12.sp, color: AppColors.grey500)),
                         ],

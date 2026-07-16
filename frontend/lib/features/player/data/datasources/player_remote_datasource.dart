@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:basketball_academy/core/network/api_client.dart';
 import 'package:basketball_academy/core/utils/multipart/image_multipart_helper.dart';
+import 'package:basketball_academy/features/player/data/created_account_buffer.dart';
 import 'package:basketball_academy/features/player/data/models/player_model.dart';
 import 'package:dio/dio.dart';
 import 'package:intl/intl.dart';
@@ -19,6 +20,8 @@ abstract class PlayerRemoteDatasource {
     int? birthYear,
     String? sport,
     String? attendanceDay,
+    bool? hasAccount,
+    String? groupId,
     int page = 1,
     int limit = 20,
   });
@@ -40,6 +43,7 @@ abstract class PlayerRemoteDatasource {
     List<String> attendanceDays,
     String? academyId,
     String? imagePath,
+    String? groupId,
   });
 
   Future<PlayerModel> updatePlayer({
@@ -55,6 +59,7 @@ abstract class PlayerRemoteDatasource {
     String? sport,
     List<String>? attendanceDays,
     String? imagePath,
+    String? groupId,
   });
 
   Future<void> deletePlayer(String id);
@@ -80,6 +85,8 @@ class PlayerRemoteDatasourceImpl implements PlayerRemoteDatasource {
     int? birthYear,
     String? sport,
     String? attendanceDay,
+    bool? hasAccount,
+    String? groupId,
     int page = 1,
     int limit = 20,
   }) async {
@@ -92,6 +99,8 @@ class PlayerRemoteDatasourceImpl implements PlayerRemoteDatasource {
       if (sport != null && sport.isNotEmpty) 'sport': sport,
       if (attendanceDay != null && attendanceDay.isNotEmpty)
         'attendanceDay': attendanceDay,
+      if (hasAccount != null) 'hasAccount': hasAccount.toString(),
+      if (groupId != null && groupId.isNotEmpty) 'groupId': groupId,
     };
 
     final response = await _apiClient.get('/players', queryParameters: queryParams);
@@ -143,6 +152,7 @@ class PlayerRemoteDatasourceImpl implements PlayerRemoteDatasource {
     List<String> attendanceDays = const [],
     String? academyId,
     String? imagePath,
+    String? groupId,
   }) async {
     if (imagePath != null) {
       final formData = FormData.fromMap({
@@ -157,6 +167,7 @@ class PlayerRemoteDatasourceImpl implements PlayerRemoteDatasource {
         if (sport != null && sport.isNotEmpty) 'sport': sport,
         'attendanceDays': jsonEncode(attendanceDays),
         if (academyId != null) 'academyId': academyId,
+        if (groupId != null) 'groupId': groupId,
         'image': await buildImageMultipart(imagePath, filename: 'player_image.jpg'),
       });
       final response = await _apiClient.postMultipart<Map<String, dynamic>>(
@@ -164,6 +175,7 @@ class PlayerRemoteDatasourceImpl implements PlayerRemoteDatasource {
         data: formData,
       );
       final body = response.data as Map<String, dynamic>;
+      CreatedAccountBuffer.set(body['account'] as Map<String, dynamic>?);
       return PlayerModel.fromJson(body['data'] as Map<String, dynamic>);
     } else {
       final data = <String, dynamic>{
@@ -178,9 +190,11 @@ class PlayerRemoteDatasourceImpl implements PlayerRemoteDatasource {
         if (sport != null && sport.isNotEmpty) 'sport': sport,
         'attendanceDays': attendanceDays,
         if (academyId != null) 'academyId': academyId,
+        if (groupId != null) 'groupId': groupId,
       };
       final response = await _apiClient.post('/players', data: data);
       final body = response.data as Map<String, dynamic>;
+      CreatedAccountBuffer.set(body['account'] as Map<String, dynamic>?);
       return PlayerModel.fromJson(body['data'] as Map<String, dynamic>);
     }
   }
@@ -199,6 +213,7 @@ class PlayerRemoteDatasourceImpl implements PlayerRemoteDatasource {
     String? sport,
     List<String>? attendanceDays,
     String? imagePath,
+    String? groupId,
   }) async {
     if (imagePath != null) {
       final formMap = <String, dynamic>{
@@ -212,6 +227,7 @@ class PlayerRemoteDatasourceImpl implements PlayerRemoteDatasource {
         if (notes != null) 'notes': notes,
         if (sport != null && sport.isNotEmpty) 'sport': sport,
         if (attendanceDays != null) 'attendanceDays': jsonEncode(attendanceDays),
+        if (groupId != null) 'groupId': groupId,
         'image': await buildImageMultipart(imagePath, filename: 'player_image.jpg'),
       };
       final formData = FormData.fromMap(formMap);
@@ -233,6 +249,7 @@ class PlayerRemoteDatasourceImpl implements PlayerRemoteDatasource {
         if (notes != null) 'notes': notes,
         if (sport != null && sport.isNotEmpty) 'sport': sport,
         if (attendanceDays != null) 'attendanceDays': attendanceDays,
+        if (groupId != null) 'groupId': groupId,
       };
       final response = await _apiClient.put('/players/$id', data: data);
       final body = response.data as Map<String, dynamic>;

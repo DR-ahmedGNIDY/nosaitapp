@@ -44,6 +44,8 @@ import 'package:basketball_academy/features/auth/domain/usecases/get_current_use
 import 'package:basketball_academy/features/auth/domain/usecases/login_usecase.dart';
 import 'package:basketball_academy/features/auth/domain/usecases/logout_usecase.dart';
 import 'package:basketball_academy/features/player/data/datasources/player_remote_datasource.dart';
+import 'package:basketball_academy/features/player/data/player_account_service.dart';
+import 'package:basketball_academy/features/groups/data/group_move_service.dart';
 import 'package:basketball_academy/features/player/data/repositories/player_repository_impl.dart';
 import 'package:basketball_academy/features/player/domain/repositories/player_repository.dart';
 import 'package:basketball_academy/features/player/domain/usecases/create_player_usecase.dart';
@@ -52,6 +54,16 @@ import 'package:basketball_academy/features/player/domain/usecases/get_player_us
 import 'package:basketball_academy/features/player/domain/usecases/get_players_usecase.dart';
 import 'package:basketball_academy/features/player/domain/usecases/search_players_usecase.dart';
 import 'package:basketball_academy/features/player/domain/usecases/update_player_usecase.dart';
+import 'package:basketball_academy/features/groups/data/datasources/groups_remote_datasource.dart';
+import 'package:basketball_academy/features/groups/data/repositories/groups_repository_impl.dart';
+import 'package:basketball_academy/features/groups/domain/repositories/groups_repository.dart';
+import 'package:basketball_academy/features/groups/domain/usecases/create_group_usecase.dart';
+import 'package:basketball_academy/features/groups/domain/usecases/delete_group_usecase.dart';
+import 'package:basketball_academy/features/groups/domain/usecases/get_group_usecase.dart';
+import 'package:basketball_academy/features/groups/domain/usecases/get_groups_by_academy_usecase.dart';
+import 'package:basketball_academy/features/groups/domain/usecases/get_groups_by_sport_usecase.dart';
+import 'package:basketball_academy/features/groups/domain/usecases/get_groups_usecase.dart';
+import 'package:basketball_academy/features/groups/domain/usecases/update_group_usecase.dart';
 import 'package:basketball_academy/features/user/data/datasources/user_remote_datasource.dart';
 import 'package:basketball_academy/features/user/data/repositories/user_repository_impl.dart';
 import 'package:basketball_academy/features/user/domain/repositories/user_repository.dart';
@@ -77,6 +89,11 @@ import 'package:basketball_academy/features/payroll/domain/repositories/payroll_
 import 'package:basketball_academy/features/expenses/data/datasources/expense_remote_datasource.dart';
 import 'package:basketball_academy/features/expenses/data/repositories/expense_repository_impl.dart';
 import 'package:basketball_academy/features/expenses/domain/repositories/expense_repository.dart';
+import 'package:basketball_academy/features/academy_registration/data/academy_registration_service.dart';
+import 'package:basketball_academy/features/player_portal/data/player_api_service.dart';
+import 'package:basketball_academy/features/chat/data/chat_api_service.dart';
+import 'package:basketball_academy/features/academy_album/data/academy_album_service.dart';
+import 'package:basketball_academy/features/platform_subscription/data/platform_subscription_service.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
 
@@ -199,6 +216,35 @@ Future<void> initDependencies() async {
   );
   sl.registerLazySingleton<DeletePlayerUsecase>(
     () => DeletePlayerUsecase(sl<PlayerRepository>()),
+  );
+
+  // Groups
+  sl.registerLazySingleton<GroupsRemoteDatasource>(
+    () => GroupsRemoteDatasourceImpl(sl<ApiClient>()),
+  );
+  sl.registerLazySingleton<GroupsRepository>(
+    () => GroupsRepositoryImpl(remoteDatasource: sl<GroupsRemoteDatasource>()),
+  );
+  sl.registerLazySingleton<GetGroupsUsecase>(
+    () => GetGroupsUsecase(sl<GroupsRepository>()),
+  );
+  sl.registerLazySingleton<GetGroupsByAcademyUsecase>(
+    () => GetGroupsByAcademyUsecase(sl<GroupsRepository>()),
+  );
+  sl.registerLazySingleton<GetGroupsBySportUsecase>(
+    () => GetGroupsBySportUsecase(sl<GroupsRepository>()),
+  );
+  sl.registerLazySingleton<GetGroupUsecase>(
+    () => GetGroupUsecase(sl<GroupsRepository>()),
+  );
+  sl.registerLazySingleton<CreateGroupUsecase>(
+    () => CreateGroupUsecase(sl<GroupsRepository>()),
+  );
+  sl.registerLazySingleton<UpdateGroupUsecase>(
+    () => UpdateGroupUsecase(sl<GroupsRepository>()),
+  );
+  sl.registerLazySingleton<DeleteGroupUsecase>(
+    () => DeleteGroupUsecase(sl<GroupsRepository>()),
   );
 
   // Subscription
@@ -327,5 +373,28 @@ Future<void> initDependencies() async {
   );
   sl.registerLazySingleton<ExpenseRepository>(
     () => ExpenseRepositoryImpl(remoteDatasource: sl<ExpenseRemoteDatasource>()),
+  );
+
+  // ── منصة Nosait SaaS ──
+  sl.registerLazySingleton<AcademyRegistrationService>(
+    () => AcademyRegistrationService(sl<ApiClient>(), sl<TokenManager>()),
+  );
+  sl.registerLazySingleton<PlayerApiService>(
+    () => PlayerApiService(sl<ApiClient>(), sl<TokenManager>()),
+  );
+  sl.registerLazySingleton<ChatApiService>(
+    () => ChatApiService(sl<ApiClient>()),
+  );
+  sl.registerLazySingleton<AcademyAlbumService>(
+    () => AcademyAlbumService(sl<ApiClient>()),
+  );
+  sl.registerLazySingleton<PlatformSubscriptionService>(
+    () => PlatformSubscriptionService(sl<ApiClient>()),
+  );
+  sl.registerLazySingleton<PlayerAccountService>(
+    () => PlayerAccountService(sl<ApiClient>()),
+  );
+  sl.registerLazySingleton<GroupMoveService>(
+    () => GroupMoveService(sl<ApiClient>()),
   );
 }

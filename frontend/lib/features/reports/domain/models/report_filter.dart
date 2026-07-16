@@ -7,6 +7,8 @@ class ReportFilter {
   final String currencyLabel; // Arabic currency label for the academy
   final String? sport; // null = all sports
   final bool isMultiSport; // whether the academy has more than one sport
+  final String? groupId; // null = all groups (independent of sport)
+  final String? groupName; // display name for the selected group
 
   const ReportFilter({
     this.academyId,
@@ -17,15 +19,24 @@ class ReportFilter {
     this.currencyLabel = 'جنيه',
     this.sport,
     this.isMultiSport = false,
+    this.groupId,
+    this.groupName,
   });
 
   /// Title scope suffix: ' - كرة القدم' for a specific sport, ' - جميع
   /// الرياضات' for a multi-sport academy with no sport selected, or '' for
   /// single-sport academies (keeps the original titles unchanged).
   String get scopeSuffix {
-    if (sport != null && sport!.isNotEmpty) return ' - $sport';
-    if (isMultiSport) return ' - جميع الرياضات';
-    return '';
+    final parts = <String>[];
+    if (sport != null && sport!.isNotEmpty) {
+      parts.add(sport!);
+    } else if (isMultiSport) {
+      parts.add('جميع الرياضات');
+    }
+    if (groupName != null && groupName!.isNotEmpty) {
+      parts.add('مجموعة ${groupName!}');
+    }
+    return parts.isEmpty ? '' : ' - ${parts.join(' / ')}';
   }
 
   ReportFilter copyWith({
@@ -37,6 +48,8 @@ class ReportFilter {
     String? currencyLabel,
     Object? sport = _sentinel,
     bool? isMultiSport,
+    Object? groupId = _sentinel,
+    Object? groupName = _sentinel,
   }) {
     return ReportFilter(
       academyId:
@@ -52,6 +65,9 @@ class ReportFilter {
       currencyLabel: currencyLabel ?? this.currencyLabel,
       sport: sport == _sentinel ? this.sport : sport as String?,
       isMultiSport: isMultiSport ?? this.isMultiSport,
+      groupId: groupId == _sentinel ? this.groupId : groupId as String?,
+      groupName:
+          groupName == _sentinel ? this.groupName : groupName as String?,
     );
   }
 }

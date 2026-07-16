@@ -10,6 +10,9 @@ class SubscriptionEntity extends Equatable {
   final String playerId;
   /// اسم اللاعب — مُستخرَج من populate الـ backend
   final String playerName;
+  final String playerCode;
+  final String? playerPhone;
+  final String? playerImageUrl;
   final SubscriptionType type;
   final double amount;
   final DateTime startDate;
@@ -23,6 +26,9 @@ class SubscriptionEntity extends Equatable {
     required this.academyId,
     required this.playerId,
     this.playerName = '',
+    this.playerCode = '',
+    this.playerPhone,
+    this.playerImageUrl,
     required this.type,
     required this.amount,
     required this.startDate,
@@ -45,12 +51,27 @@ class SubscriptionEntity extends Equatable {
 
   String get statusLabel => isActive ? 'نشط' : 'منتهي';
 
+  /// أيام متبقية حتى انتهاء الاشتراك (سالب إذا كان منتهياً)
+  int get daysRemaining => endDate.difference(DateTime.now()).inDays;
+
+  bool get isExpiringSoon => isActive && daysRemaining <= 7;
+
+  /// نشط | ينتهي قريباً | منتهي — لا يوجد مفهوم "مجمد" في الـ backend حالياً
+  String get displayStatus {
+    if (!isActive) return 'منتهي';
+    if (isExpiringSoon) return 'ينتهي قريباً';
+    return 'نشط';
+  }
+
   @override
   List<Object?> get props => [
         id,
         academyId,
         playerId,
         playerName,
+        playerCode,
+        playerPhone,
+        playerImageUrl,
         type,
         amount,
         startDate,

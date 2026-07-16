@@ -17,6 +17,8 @@ abstract class PlayerRepository {
     int? birthYear,
     String? sport,
     String? attendanceDay,
+    bool? hasAccount,
+    String? groupId,
     int page = 1,
     int limit = 20,
   });
@@ -38,6 +40,7 @@ abstract class PlayerRepository {
     List<String> attendanceDays,
     String? academyId,
     String? imagePath,
+    String? groupId,
   });
 
   Future<Either<Failure, PlayerEntity>> updatePlayer({
@@ -53,6 +56,7 @@ abstract class PlayerRepository {
     String? sport,
     List<String>? attendanceDays,
     String? imagePath,
+    String? groupId,
   });
 
   Future<Either<Failure, void>> deletePlayer(String id);

@@ -1,4 +1,5 @@
 import 'package:basketball_academy/core/di/injection_container.dart';
+import 'package:basketball_academy/core/network/token_manager.dart';
 import 'package:basketball_academy/features/auth/domain/entities/user_entity.dart';
 import 'package:basketball_academy/features/auth/domain/repositories/auth_repository.dart';
 import 'package:basketball_academy/features/auth/domain/usecases/get_current_user_usecase.dart';
@@ -52,11 +53,24 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
   }
 
   Future<AuthState> _checkAuthState() async {
+    // إذا كانت الجلسة الحالية للاعب فلا نحاول مصادقة المدير (توكن لاعب لا يصلح
+    // لنقاط المدير). هذا يمنع تداخل جلستي المدير واللاعب على نفس الجهاز.
+    final sessionType = await sl<TokenManager>().getSessionType();
+    if (sessionType == 'player') {
+      return const AuthState(isAuthenticated: false);
+    }
     final result = await _getCurrentUserUsecase();
     return result.fold(
       (_) => const AuthState(isAuthenticated: false),
       (user) => AuthState(isAuthenticated: true, user: user),
     );
+  }
+
+  /// إعادة تحميل حالة المصادقة من التوكن المحفوظ (تُستدعى بعد التسجيل الذاتي
+  /// الذي يسجّل الدخول تلقائياً ويحفظ التوكن مباشرة).
+  Future<void> reload() async {
+    state = const AsyncValue.loading();
+    state = AsyncValue.data(await _checkAuthState());
   }
 
   Future<void> login({required String email, required String password}) async {
@@ -72,6 +86,8 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       },
       (user) {
         debugPrint('[AUTH] login() SUCCESS: ${user.email} role=${user.role}');
+        // وسم الجلسة كـ admin (منصة Nosait) لتمييزها عن جلسة اللاعب.
+        sl<TokenManager>().saveSessionType('admin');
         return AsyncValue.data(
           AuthState(isAuthenticated: true, user: user),
         );

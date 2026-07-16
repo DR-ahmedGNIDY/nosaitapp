@@ -5,6 +5,7 @@ import 'package:basketball_academy/core/constants/app_strings.dart';
 import 'package:basketball_academy/core/constants/sports_constants.dart';
 import 'package:basketball_academy/core/widgets/multi_select_chips.dart';
 import 'package:basketball_academy/features/academy/presentation/providers/academy_provider.dart';
+import 'package:basketball_academy/features/groups/presentation/providers/groups_provider.dart';
 import 'package:basketball_academy/features/player/domain/entities/player_entity.dart';
 import 'package:basketball_academy/features/player/presentation/providers/player_provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -42,6 +43,7 @@ class _EditPlayerScreenState extends ConsumerState<EditPlayerScreen> {
   DateTime? _birthDate;
   String? _selectedRelationship;
   String? _selectedSport;
+  String? _selectedGroupId;
   late List<String> _selectedAttendanceDays;
   XFile? _pickedImage;
   bool _isLoading = false;
@@ -80,6 +82,7 @@ class _EditPlayerScreenState extends ConsumerState<EditPlayerScreen> {
     _birthDate = widget.player.birthDate;
     _selectedRelationship = widget.player.parentRelationship;
     _selectedSport = widget.player.sport;
+    _selectedGroupId = widget.player.groupId;
     _selectedAttendanceDays = List<String>.from(widget.player.attendanceDays);
   }
 
@@ -235,6 +238,7 @@ class _EditPlayerScreenState extends ConsumerState<EditPlayerScreen> {
           sport: isMultiSport ? _selectedSport : null,
           attendanceDays: _selectedAttendanceDays,
           imagePath: _pickedImage?.path,
+          groupId: _selectedGroupId ?? '',
         );
 
     if (!mounted) return;
@@ -452,6 +456,44 @@ class _EditPlayerScreenState extends ConsumerState<EditPlayerScreen> {
                 ),
                 Gap(16.h),
               ],
+
+              // Group (optional — clearing means "no group")
+              _buildLabel('المجموعة (اختياري)'),
+              Gap(6.h),
+              Consumer(
+                builder: (context, ref, _) {
+                  // كل مجموعات الأكاديمية — مستقلة تماماً عن الرياضة.
+                  final groupsAsync = ref.watch(groupsByAcademyProvider(
+                    (
+                      academyId: widget.academyId,
+                      sportId: null,
+                    ),
+                  ));
+                  return groupsAsync.when(
+                    loading: () => const LinearProgressIndicator(),
+                    error: (err, _) => Text(
+                      'تعذر تحميل المجموعات',
+                      style: TextStyle(color: AppColors.error, fontSize: 12.sp),
+                    ),
+                    data: (groups) {
+                      final currentGroupValid =
+                          groups.any((g) => g.id == _selectedGroupId);
+                      return DropdownButtonFormField<String>(
+                        initialValue: currentGroupValid ? _selectedGroupId : null,
+                        decoration: _inputDecoration(hint: 'اختر المجموعة'),
+                        items: [
+                          const DropdownMenuItem(value: null, child: Text('بدون مجموعة')),
+                          ...groups.map((g) => DropdownMenuItem(
+                              value: g.id, child: Text(g.name))),
+                        ],
+                        onChanged: (val) =>
+                            setState(() => _selectedGroupId = val),
+                      );
+                    },
+                  );
+                },
+              ),
+              Gap(16.h),
 
               // Attendance days (optional)
               _buildLabel('أيام الحضور (اختياري)'),

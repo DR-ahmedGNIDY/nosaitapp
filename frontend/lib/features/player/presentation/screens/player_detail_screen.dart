@@ -9,6 +9,7 @@ import 'package:basketball_academy/features/player/domain/entities/player_entity
 import 'package:basketball_academy/features/player/presentation/providers/player_provider.dart';
 import 'package:basketball_academy/features/player/presentation/screens/edit_player_screen.dart';
 import 'package:basketball_academy/features/player/presentation/screens/player_card_screen.dart';
+import 'package:basketball_academy/features/player/presentation/widgets/player_account_section.dart';
 import 'package:basketball_academy/features/subscription/domain/entities/subscription_entity.dart';
 import 'package:basketball_academy/features/subscription/presentation/providers/subscription_provider.dart';
 import 'package:basketball_academy/features/subscription/presentation/screens/add_subscription_screen.dart';
@@ -511,6 +512,14 @@ class _PlayerDetailContent extends ConsumerWidget {
                       icon: const Icon(Icons.badge_outlined),
                       label: const Text('بطاقة اللاعب'),
                     ),
+                  ),
+
+                  Gap(16.h),
+                  // Player Account Card (Player Portal)
+                  PlayerAccountSection(
+                    playerId: player.id,
+                    playerName: player.fullName,
+                    canEdit: canEdit,
                   ),
 
                   Gap(16.h),

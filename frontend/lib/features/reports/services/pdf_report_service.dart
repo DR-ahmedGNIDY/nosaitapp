@@ -140,7 +140,11 @@ class PdfReportService {
 
     final playersResult = await playersUC(
       GetPlayersParams(
-          academyId: academyId, sport: filter.sport, page: 1, limit: 500),
+          academyId: academyId,
+          sport: filter.sport,
+          groupId: filter.groupId,
+          page: 1,
+          limit: 500),
     );
 
     final players = playersResult.fold((_) => [], (r) => r.players);
@@ -267,7 +271,7 @@ class PdfReportService {
 
     var subs = subsResult.fold((_) => [], (r) => r.subscriptions);
     // Scope to a single sport by player id (single extra query, filtered locally)
-    final sportIds = await playerIdsForSport(filter.academyId, filter.sport);
+    final sportIds = await playerIdsForSport(filter.academyId, filter.sport, filter.groupId);
     if (sportIds != null) {
       subs = subs.where((s) => sportIds.contains(s.playerId)).toList();
     }
@@ -397,7 +401,7 @@ class PdfReportService {
             academyId: academyId, page: 1, limit: 500),
       );
       var subs = subsResult.fold((_) => [], (r) => r.subscriptions);
-      final sportIds = await playerIdsForSport(filter.academyId, filter.sport);
+      final sportIds = await playerIdsForSport(filter.academyId, filter.sport, filter.groupId);
       if (sportIds != null) {
         subs = subs.where((s) => sportIds.contains(s.playerId)).toList();
       }
@@ -551,7 +555,7 @@ class PdfReportService {
     );
 
     var evals = result.fold((_) => [], (r) => r.evaluations);
-    final sportIds = await playerIdsForSport(filter.academyId, filter.sport);
+    final sportIds = await playerIdsForSport(filter.academyId, filter.sport, filter.groupId);
     if (sportIds != null) {
       evals = evals.where((e) => sportIds.contains(e.playerId)).toList();
     }

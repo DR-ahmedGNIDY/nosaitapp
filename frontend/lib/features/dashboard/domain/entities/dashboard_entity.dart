@@ -10,6 +10,13 @@ class DashboardStatsEntity extends Equatable {
   final int newSubscriptionsCount;
   final int renewalsCount;
   final double averageEvaluationScore;
+  // إحصاءات المجموعات
+  final int totalGroups;
+  final int activeGroups;
+  final int playersWithoutGroup;
+  final int largestGroupSize;
+  final int groupOccupancyRate;
+  final double avgPlayersPerGroup;
 
   const DashboardStatsEntity({
     required this.totalPlayers,
@@ -21,6 +28,12 @@ class DashboardStatsEntity extends Equatable {
     required this.newSubscriptionsCount,
     required this.renewalsCount,
     required this.averageEvaluationScore,
+    this.totalGroups = 0,
+    this.activeGroups = 0,
+    this.playersWithoutGroup = 0,
+    this.largestGroupSize = 0,
+    this.groupOccupancyRate = 0,
+    this.avgPlayersPerGroup = 0,
   });
 
   @override
@@ -34,6 +47,12 @@ class DashboardStatsEntity extends Equatable {
         newSubscriptionsCount,
         renewalsCount,
         averageEvaluationScore,
+        totalGroups,
+        activeGroups,
+        playersWithoutGroup,
+        largestGroupSize,
+        groupOccupancyRate,
+        avgPlayersPerGroup,
       ];
 }
 
@@ -131,6 +150,14 @@ class RecentActivityEntity extends Equatable {
       'UPDATE_USER' => 'قام بتعديل المستخدم',
       'DELETE_USER' => 'قام بحذف المستخدم',
       'UPDATE_ACADEMY' => 'قام بتعديل بيانات الأكاديمية',
+      'CREATE_PLAYER_ACCOUNT' => 'قام بإنشاء حساب دخول للاعب',
+      'CHANGE_PLAYER_PASSWORD' => 'قام بتغيير كلمة مرور حساب اللاعب',
+      'RESET_PLAYER_PASSWORD' => 'قام بإعادة إنشاء كلمة مرور حساب اللاعب',
+      'ENABLE_PLAYER_ACCOUNT' => 'قام بتفعيل حساب اللاعب',
+      'DISABLE_PLAYER_ACCOUNT' => 'قام بتعطيل حساب اللاعب',
+      'CREATE_GROUP' => 'قام بإنشاء المجموعة',
+      'UPDATE_GROUP' => 'قام بتعديل المجموعة',
+      'DELETE_GROUP' => 'قام بحذف المجموعة',
       _ => 'قام بإجراء',
     };
     return entityName.trim().isNotEmpty ? '$who $verb $entityName' : '$who $verb';

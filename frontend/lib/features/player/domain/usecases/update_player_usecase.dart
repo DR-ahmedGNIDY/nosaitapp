@@ -17,6 +17,7 @@ class UpdatePlayerParams {
   final String? sport;
   final List<String>? attendanceDays;
   final String? imagePath;
+  final String? groupId;
 
   const UpdatePlayerParams({
     required this.id,
@@ -31,6 +32,7 @@ class UpdatePlayerParams {
     this.sport,
     this.attendanceDays,
     this.imagePath,
+    this.groupId,
   });
 }
 
@@ -54,6 +56,7 @@ class UpdatePlayerUsecase extends UseCase<PlayerEntity, UpdatePlayerParams> {
       sport: params.sport,
       attendanceDays: params.attendanceDays,
       imagePath: params.imagePath,
+      groupId: params.groupId,
     );
   }
 }

@@ -12,6 +12,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:basketball_academy/features/academy/presentation/providers/academy_provider.dart';
 import 'package:basketball_academy/features/attendance/presentation/screens/attendance_hub_screen.dart';
 import 'package:basketball_academy/features/auth/presentation/providers/auth_provider.dart';
+import 'package:basketball_academy/features/groups/presentation/providers/groups_provider.dart';
 import 'package:basketball_academy/features/notification/presentation/screens/notifications_screen.dart';
 import 'package:basketball_academy/features/player/domain/entities/player_entity.dart';
 import 'package:basketball_academy/features/player/presentation/providers/player_provider.dart';
@@ -197,6 +198,10 @@ class _PlayersListScreenState extends ConsumerState<PlayersListScreen> {
                   ),
                 ) ??
                 const SizedBox.shrink(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+            child: _GroupFilterRow(academyId: widget.academyId),
+          ),
           playersAsync.whenOrNull(
                 data: (state) => Padding(
                   padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
@@ -207,6 +212,18 @@ class _PlayersListScreenState extends ConsumerState<PlayersListScreen> {
                     onSelected: (day) => ref
                         .read(playersProvider.notifier)
                         .filterByAttendanceDay(day),
+                  ),
+                ),
+              ) ??
+              const SizedBox.shrink(),
+          playersAsync.whenOrNull(
+                data: (state) => Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+                  child: _AccountFilterRow(
+                    selected: state.hasAccountFilter,
+                    onSelected: (v) => ref
+                        .read(playersProvider.notifier)
+                        .filterByAccount(v),
                   ),
                 ),
               ) ??
@@ -383,6 +400,8 @@ class _PlayersListScreenState extends ConsumerState<PlayersListScreen> {
                 ) ??
                 const SizedBox.shrink(),
 
+          _GroupFilterRow(academyId: widget.academyId),
+
           // Filter row - attendance day chips
           playersAsync.whenOrNull(
                 data: (state) => _ChipFilterRow(
@@ -392,6 +411,16 @@ class _PlayersListScreenState extends ConsumerState<PlayersListScreen> {
                   onSelected: (day) => ref
                       .read(playersProvider.notifier)
                       .filterByAttendanceDay(day),
+                ),
+              ) ??
+              const SizedBox.shrink(),
+
+          // Filter row - player account chips (Player Portal)
+          playersAsync.whenOrNull(
+                data: (state) => _AccountFilterRow(
+                  selected: state.hasAccountFilter,
+                  onSelected: (v) =>
+                      ref.read(playersProvider.notifier).filterByAccount(v),
                 ),
               ) ??
               const SizedBox.shrink(),
@@ -569,6 +598,113 @@ class _ChipFilterRow extends StatelessWidget {
             ),
             selected: isSelected,
             onSelected: (_) => onSelected(isSelected ? null : option),
+            selectedColor: AppColors.primary,
+            backgroundColor: AppColors.white,
+            side: BorderSide(
+              color: isSelected ? AppColors.primary : AppColors.grey200,
+            ),
+            checkmarkColor: AppColors.white,
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Group filter row — populated from groupsByAcademyProvider
+// ---------------------------------------------------------------------------
+
+class _GroupFilterRow extends ConsumerWidget {
+  final String academyId;
+
+  const _GroupFilterRow({required this.academyId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final groupsAsync = ref.watch(
+      groupsByAcademyProvider((academyId: academyId, sportId: null)),
+    );
+    final playersState = ref.watch(playersProvider).valueOrNull;
+
+    return groupsAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (groups) {
+        if (groups.isEmpty) return const SizedBox.shrink();
+        return _ChipFilterRow(
+          allLabel: 'كل المجموعات',
+          options: groups.map((g) => g.name).toList(),
+          selected: groups
+              .where((g) => g.id == playersState?.groupFilter)
+              .map((g) => g.name)
+              .firstOrNullOrEmpty(),
+          onSelected: (name) {
+            final match = name == null
+                ? null
+                : groups.where((g) => g.name == name).toList();
+            final groupId = (match != null && match.isNotEmpty) ? match.first.id : null;
+            ref.read(playersProvider.notifier).filterByGroup(groupId);
+          },
+        );
+      },
+    );
+  }
+}
+
+extension _FirstOrNull<T> on Iterable<T> {
+  T? firstOrNullOrEmpty() => isEmpty ? null : first;
+}
+
+// ---------------------------------------------------------------------------
+// Player account filter row (Player Portal): الكل / لديهم حساب / بدون حساب
+// ---------------------------------------------------------------------------
+
+class _AccountFilterRow extends StatelessWidget {
+  final bool? selected;
+  final ValueChanged<bool?> onSelected;
+
+  const _AccountFilterRow({required this.selected, required this.onSelected});
+
+  @override
+  Widget build(BuildContext context) {
+    final options = <(String, bool?)>[
+      ('كل اللاعبين', null),
+      ('لديهم حساب', true),
+      ('بدون حساب', false),
+    ];
+    return SizedBox(
+      height: 48.h,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+        itemCount: options.length,
+        separatorBuilder: (_, __) => Gap(8.w),
+        itemBuilder: (context, index) {
+          final (label, value) = options[index];
+          final isSelected = selected == value;
+          return FilterChip(
+            label: Text(
+              label,
+              style: TextStyle(
+                fontSize: 12.sp,
+                color: isSelected ? AppColors.white : AppColors.grey700,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+            avatar: isSelected
+                ? null
+                : Icon(
+                    value == null
+                        ? Icons.groups_outlined
+                        : (value
+                            ? Icons.account_circle_outlined
+                            : Icons.no_accounts_outlined),
+                    size: 16.sp,
+                    color: AppColors.grey500,
+                  ),
+            selected: isSelected,
+            onSelected: (_) => onSelected(value),
             selectedColor: AppColors.primary,
             backgroundColor: AppColors.white,
             side: BorderSide(

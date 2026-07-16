@@ -10,6 +10,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:basketball_academy/features/academy/presentation/providers/academy_provider.dart';
 import 'package:basketball_academy/features/academy/presentation/providers/currency_provider.dart';
 import 'package:basketball_academy/features/auth/presentation/providers/auth_provider.dart';
+import 'package:basketball_academy/features/groups/presentation/providers/groups_provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:basketball_academy/features/reports/domain/models/report_filter.dart';
 import 'package:basketball_academy/features/reports/services/excel_report_service.dart';
@@ -76,6 +77,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   String? _selectedAcademyId;
   String? _selectedAcademyName;
   String? _selectedSport; // null = all sports
+  String? _selectedGroupId; // null = all groups (independent of sport)
+  String? _selectedGroupName;
   String _subscriptionStatusFilter = 'all'; // 'all' | 'active' | 'expired'
 
   // Loading states per report index (PDF)
@@ -94,6 +97,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       currencyLabel:
           ref.read(academyCurrencyLabelProvider(_selectedAcademyId)),
       sport: _selectedSport,
+      groupId: _selectedGroupId,
+      groupName: _selectedGroupName,
       isMultiSport: _selectedAcademyId == null
           ? false
           : (ref
@@ -385,6 +390,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 _selectedAcademyId = id;
                 _selectedAcademyName = name;
                 _selectedSport = null;
+                _selectedGroupId = null;
+                _selectedGroupName = null;
               }),
               onSportChanged: (s) => setState(() => _selectedSport = s),
               onPeriodChanged: (p) => setState(() => _period = p),
@@ -437,6 +444,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                       _selectedAcademyId = id;
                       _selectedAcademyName = name;
                       _selectedSport = null; // reset sport on academy change
+                      _selectedGroupId = null;
+                      _selectedGroupName = null;
                     }),
                   ),
                   Gap(12.h),
@@ -478,6 +487,69 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   ),
                   Gap(12.h),
                 ],
+                // Group filter — بُعد فلترة مستقل عن الرياضة (كل مجموعات الأكاديمية).
+                if (_selectedAcademyId != null)
+                  Consumer(
+                    builder: (context, ref, _) {
+                      final groupsAsync = ref.watch(groupsByAcademyProvider(
+                        (academyId: _selectedAcademyId!, sportId: null),
+                      ));
+                      return groupsAsync.maybeWhen(
+                        data: (groups) {
+                          if (groups.isEmpty) return const SizedBox.shrink();
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'المجموعة',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelMedium
+                                    ?.copyWith(
+                                      color: AppColors.grey600,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                              ),
+                              Gap(8.h),
+                              SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: Row(
+                                  children: [
+                                    Padding(
+                                      padding: EdgeInsets.only(left: 8.w),
+                                      child: _StatusChip(
+                                        label: 'الكل',
+                                        selected: _selectedGroupId == null,
+                                        onTap: () => setState(() {
+                                          _selectedGroupId = null;
+                                          _selectedGroupName = null;
+                                        }),
+                                      ),
+                                    ),
+                                    ...groups.map(
+                                      (g) => Padding(
+                                        padding: EdgeInsets.only(left: 8.w),
+                                        child: _StatusChip(
+                                          label: g.name,
+                                          selected: _selectedGroupId == g.id,
+                                          onTap: () => setState(() {
+                                            _selectedGroupId = g.id;
+                                            _selectedGroupName = g.name;
+                                          }),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Gap(12.h),
+                            ],
+                          );
+                        },
+                        orElse: () => const SizedBox.shrink(),
+                      );
+                    },
+                  ),
                 // Period filter
                 Text(
                   AppStrings.reportPeriod,
@@ -1102,8 +1174,8 @@ class _DesktopReportCard extends StatelessWidget {
                           child: CircularProgressIndicator(
                               color: AppColors.white, strokeWidth: 2),
                         )
-                      : Text(AppStrings.generatePdf,
-                          style: const TextStyle(fontSize: 11)),
+                      : const Text(AppStrings.generatePdf,
+                          style: TextStyle(fontSize: 11)),
                 ),
               ),
               const SizedBox(width: 8),
@@ -1124,8 +1196,8 @@ class _DesktopReportCard extends StatelessWidget {
                           child: CircularProgressIndicator(
                               color: AppColors.white, strokeWidth: 2),
                         )
-                      : Text(AppStrings.generateExcel,
-                          style: const TextStyle(fontSize: 11)),
+                      : const Text(AppStrings.generateExcel,
+                          style: TextStyle(fontSize: 11)),
                 ),
               ),
             ],

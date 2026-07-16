@@ -23,6 +23,7 @@ class PlayerModel {
   final String? sport;
   @JsonKey(defaultValue: <String>[])
   final List<String> attendanceDays;
+  final String? groupId;
   @JsonKey(name: 'created_at')
   final DateTime createdAt;
   @JsonKey(name: 'updated_at')
@@ -43,6 +44,7 @@ class PlayerModel {
     this.notes,
     this.sport,
     this.attendanceDays = const [],
+    this.groupId,
     required this.createdAt,
     this.updatedAt,
   });
@@ -67,6 +69,7 @@ class PlayerModel {
         notes: notes,
         sport: sport,
         attendanceDays: attendanceDays,
+        groupId: groupId,
         createdAt: createdAt,
         updatedAt: updatedAt,
       );

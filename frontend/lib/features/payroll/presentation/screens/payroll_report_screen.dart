@@ -103,9 +103,9 @@ class _PayrollReportScreenState extends ConsumerState<PayrollReportScreen> {
                           return ListTile(
                             tileColor: AppColors.surface,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
-                            title: Text(r.fullName, style: TextStyle(fontWeight: FontWeight.w700)),
+                            title: Text(r.fullName, style: const TextStyle(fontWeight: FontWeight.w700)),
                             subtitle: Text(r.position),
-                            trailing: Text('${r.netSalary.toStringAsFixed(0)}', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.success)),
+                            trailing: Text(r.netSalary.toStringAsFixed(0), style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.success)),
                           );
                         },
                       ),

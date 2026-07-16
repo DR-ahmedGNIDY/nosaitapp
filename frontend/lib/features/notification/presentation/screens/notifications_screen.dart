@@ -81,7 +81,7 @@ class NotificationsScreen extends ConsumerWidget {
             children: [
               Icon(Icons.error_outline, size: 48.sp, color: AppColors.error),
               Gap(12.h),
-              Text('تعذر تحميل الإشعارات'),
+              const Text('تعذر تحميل الإشعارات'),
               Gap(12.h),
               TextButton(
                 onPressed: () => notifier.refresh(),

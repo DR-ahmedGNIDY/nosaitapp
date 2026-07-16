@@ -8,6 +8,7 @@ import 'package:basketball_academy/core/utils/privacy_launcher.dart';
 import 'package:basketball_academy/features/academy/presentation/providers/academy_provider.dart';
 import 'package:basketball_academy/features/auth/domain/entities/user_entity.dart';
 import 'package:basketball_academy/features/auth/presentation/providers/auth_provider.dart';
+import 'package:basketball_academy/features/chat/presentation/providers/chat_providers.dart';
 import 'package:basketball_academy/features/notification/presentation/providers/notification_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -69,6 +70,10 @@ class AppSidebar extends ConsumerWidget {
     final isSuperAdmin = user?.isSuperAdmin ?? false;
     final isAcademyAdmin = user?.isAcademyAdmin ?? false;
     final academyId = user?.academyId;
+    // عدّاد الرسائل مستقل عن الإشعارات، ولا يظهر إلا لمدير الأكاديمية
+    // (المحادثات بين الأكاديمية ولاعبيها).
+    final messagesUnread =
+        isAcademyAdmin ? ref.watch(academyMessagesUnreadProvider) : 0;
 
     final academyName = academyId != null
         ? (ref.watch(academyByIdProvider(academyId)).valueOrNull?.name ??
@@ -86,7 +91,10 @@ class AppSidebar extends ConsumerWidget {
           _SidebarLogoWithBell(
             academyName: academyName,
             unreadCount: unreadCount,
+            messagesUnread: messagesUnread,
+            showMessages: isAcademyAdmin,
             onBellTap: () => context.go(AppRoutes.notifications),
+            onMessagesTap: () => context.go(AppRoutes.academyChat),
           ),
           const SizedBox(height: 8),
           Expanded(
@@ -143,13 +151,20 @@ class AppSidebar extends ConsumerWidget {
   ) {
     if (user?.isAdmin == true) {
       return [
-        if (academyId != null)
+        if (academyId != null) ...[
           _NavItem(
             icon: Icons.sports_basketball_outlined,
             activeIcon: Icons.sports_basketball,
             label: AppStrings.players,
             route: AppRoutes.playersList.replaceFirst(':id', academyId),
           ),
+          _NavItem(
+            icon: Icons.groups_outlined,
+            activeIcon: Icons.groups,
+            label: 'المجموعات',
+            route: AppRoutes.groupsList.replaceFirst(':id', academyId),
+          ),
+        ],
         _NavItem(
           icon: Icons.manage_accounts_outlined,
           activeIcon: Icons.manage_accounts,
@@ -188,6 +203,24 @@ class AppSidebar extends ConsumerWidget {
           route: AppRoutes.academyUsers.replaceFirst(':id', academyId),
         ),
         _NavItem(
+          icon: Icons.groups_outlined,
+          activeIcon: Icons.groups,
+          label: 'المجموعات',
+          route: AppRoutes.groupsList.replaceFirst(':id', academyId),
+        ),
+        _NavItem(
+          icon: Icons.chat_bubble_outline,
+          activeIcon: Icons.chat_bubble,
+          label: 'المحادثات',
+          route: AppRoutes.academyChat,
+        ),
+        _NavItem(
+          icon: Icons.photo_library_outlined,
+          activeIcon: Icons.photo_library,
+          label: 'ألبوم الأكاديمية',
+          route: AppRoutes.academyAlbum,
+        ),
+        _NavItem(
           icon: Icons.badge_outlined,
           activeIcon: Icons.badge,
           label: 'الإدارة والموظفين',
@@ -204,6 +237,12 @@ class AppSidebar extends ConsumerWidget {
           activeIcon: Icons.receipt_long,
           label: 'المصروفات',
           route: AppRoutes.expensesList.replaceFirst(':id', academyId),
+        ),
+        _NavItem(
+          icon: Icons.workspace_premium_outlined,
+          activeIcon: Icons.workspace_premium,
+          label: 'اشتراك النظام',
+          route: AppRoutes.systemSubscription,
         ),
       ],
       _NavDivider(),
@@ -228,12 +267,18 @@ class AppSidebar extends ConsumerWidget {
 class _SidebarLogoWithBell extends StatelessWidget {
   final String academyName;
   final int unreadCount;
+  final int messagesUnread;
+  final bool showMessages;
   final VoidCallback onBellTap;
+  final VoidCallback onMessagesTap;
 
   const _SidebarLogoWithBell({
     required this.academyName,
     required this.unreadCount,
+    required this.messagesUnread,
+    required this.showMessages,
     required this.onBellTap,
+    required this.onMessagesTap,
   });
 
   @override
@@ -267,26 +312,60 @@ class _SidebarLogoWithBell extends StatelessWidget {
               ),
             ),
           ),
-          IconButton(
-            onPressed: onBellTap,
-            tooltip: 'الإشعارات',
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-            icon: Badge(
-              isLabelVisible: unreadCount > 0,
-              label: Text(
-                unreadCount > 9 ? '9+' : '$unreadCount',
-                style: const TextStyle(fontSize: 9, color: Colors.white),
-              ),
-              backgroundColor: AppColors.error,
-              child: Icon(
-                Icons.notifications_outlined,
-                color: AppColors.white.withValues(alpha: 0.8),
-                size: 20,
-              ),
+          // 💬 الرسائل — Badge مستقل، لمدير الأكاديمية فقط.
+          if (showMessages)
+            _BadgedIconButton(
+              icon: Icons.chat_bubble_outline,
+              count: messagesUnread,
+              tooltip: 'الرسائل',
+              onTap: onMessagesTap,
             ),
+          // 🔔 الإشعارات — Badge مستقل.
+          _BadgedIconButton(
+            icon: Icons.notifications_outlined,
+            count: unreadCount,
+            tooltip: 'الإشعارات',
+            onTap: onBellTap,
           ),
         ],
+      ),
+    );
+  }
+}
+
+// زر أيقونة مع Badge عدّاد مستقل — يُعاد استخدامه للرسائل والإشعارات.
+class _BadgedIconButton extends StatelessWidget {
+  final IconData icon;
+  final int count;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  const _BadgedIconButton({
+    required this.icon,
+    required this.count,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: onTap,
+      tooltip: tooltip,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+      icon: Badge(
+        isLabelVisible: count > 0,
+        label: Text(
+          count > 9 ? '9+' : '$count',
+          style: const TextStyle(fontSize: 9, color: Colors.white),
+        ),
+        backgroundColor: AppColors.error,
+        child: Icon(
+          icon,
+          color: AppColors.white.withValues(alpha: 0.8),
+          size: 20,
+        ),
       ),
     );
   }

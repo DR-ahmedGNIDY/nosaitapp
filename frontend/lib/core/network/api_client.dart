@@ -1,6 +1,8 @@
 import 'package:basketball_academy/core/constants/app_constants.dart';
 import 'package:basketball_academy/core/errors/exceptions.dart';
+import 'package:basketball_academy/core/navigation/app_navigator.dart';
 import 'package:basketball_academy/core/network/token_manager.dart';
+import 'package:basketball_academy/core/widgets/platform_blocked_dialog.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
@@ -23,6 +25,7 @@ class ApiClient {
     );
 
     _dio.interceptors.add(_AuthInterceptor(_tokenManager));
+    _dio.interceptors.add(_SaasBlockInterceptor());
 
     if (kDebugMode) {
       _dio.interceptors.add(
@@ -177,6 +180,40 @@ class _AuthInterceptor extends Interceptor {
   void onError(DioException err, ErrorInterceptorHandler handler) {
     if (err.response?.statusCode == 401) {
       _tokenManager.clearToken();
+    }
+    handler.next(err);
+  }
+}
+
+/// يلتقط ردود حظر منصة Nosait (403 مع code) ويعرض حواراً موحّداً فيه زر واتساب،
+/// ثم يترك الخطأ يمرّ كالمعتاد حتى توقف الشاشة العملية. إضافي وغير كاسر.
+class _SaasBlockInterceptor extends Interceptor {
+  @override
+  void onError(DioException err, ErrorInterceptorHandler handler) {
+    final data = err.response?.data;
+    if (err.response?.statusCode == 403 && data is Map) {
+      final code = data['code'];
+      final message = (data['message'] as String?) ?? '';
+      final ctx = rootNavigatorKey.currentContext;
+      if (ctx != null) {
+        if (code == 'SUBSCRIPTION_EXPIRED') {
+          PlatformBlockedDialog.show(
+            ctx,
+            title: 'انتهت الفترة التجريبية',
+            message: message.isNotEmpty
+                ? message
+                : 'انتهت الفترة التجريبية. يرجى التواصل مع إدارة Nosait لتفعيل الاشتراك.',
+          );
+        } else if (code == 'PLAYER_LIMIT_REACHED') {
+          PlatformBlockedDialog.show(
+            ctx,
+            title: 'الحد الأقصى للاعبين',
+            message: message.isNotEmpty
+                ? message
+                : 'لقد وصلت إلى الحد الأقصى للفترة التجريبية.',
+          );
+        }
+      }
     }
     handler.next(err);
   }

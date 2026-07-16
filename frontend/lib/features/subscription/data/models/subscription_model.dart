@@ -11,6 +11,9 @@ class SubscriptionModel {
   final String playerId;
   // اسم اللاعب — يُستخرج من playerId عندما يكون مُحمَّلاً (populated object)
   final String playerName;
+  final String playerCode;
+  final String? playerPhone;
+  final String? playerImageUrl;
   final String type; // 'NEW_SUBSCRIPTION' | 'RENEWAL'
   final double amount;
   final DateTime startDate;
@@ -26,6 +29,9 @@ class SubscriptionModel {
     required this.academyId,
     required this.playerId,
     this.playerName = '',
+    this.playerCode = '',
+    this.playerPhone,
+    this.playerImageUrl,
     required this.type,
     required this.amount,
     required this.startDate,
@@ -42,13 +48,22 @@ class SubscriptionModel {
     final raw = json['playerId'];
     final String pid;
     final String pName;
+    final String pCode;
+    final String? pPhone;
+    final String? pImage;
 
     if (raw is Map) {
-      pid   = (raw['_id']      as String?) ?? '';
-      pName = (raw['fullName'] as String?) ?? '';
+      pid    = (raw['_id']       as String?) ?? '';
+      pName  = (raw['fullName']  as String?) ?? '';
+      pCode  = (raw['playerCode'] as String?) ?? '';
+      pPhone = raw['parentPhone'] as String?;
+      pImage = raw['image_url'] as String?;
     } else {
-      pid   = (raw as String?) ?? '';
-      pName = '';
+      pid    = (raw as String?) ?? '';
+      pName  = '';
+      pCode  = '';
+      pPhone = null;
+      pImage = null;
     }
 
     return SubscriptionModel(
@@ -56,6 +71,9 @@ class SubscriptionModel {
       academyId: json['academyId'] as String,
       playerId:  pid,
       playerName: pName,
+      playerCode: pCode,
+      playerPhone: pPhone,
+      playerImageUrl: pImage,
       type:      json['type'] as String,
       amount:    (json['amount'] as num).toDouble(),
       startDate: DateTime.parse(json['startDate'] as String),
@@ -75,6 +93,9 @@ class SubscriptionModel {
         academyId: academyId,
         playerId: playerId,
         playerName: playerName,
+        playerCode: playerCode,
+        playerPhone: playerPhone,
+        playerImageUrl: playerImageUrl,
         type: type == 'NEW_SUBSCRIPTION'
             ? SubscriptionType.newSubscription
             : SubscriptionType.renewal,

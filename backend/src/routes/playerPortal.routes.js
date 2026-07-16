@@ -7,7 +7,10 @@ const {
   markPlayerNotificationRead,
   markAllPlayerRead,
 } = require('../controllers/notification.controller');
+const { updateMyPhoto, deleteMyPhoto } = require('../controllers/playerProfile.controller');
+const { getPlayerAlbum } = require('../controllers/academyAlbum.controller');
 const { protectPlayer } = require('../middleware/protectPlayer');
+const { uploadPlayerImage } = require('../config/cloudinary');
 const validate = require('../middleware/validate');
 
 const router = express.Router();
@@ -17,6 +20,14 @@ router.use(protectPlayer);
 
 // GET /api/v1/player/dashboard
 router.get('/dashboard', getPlayerDashboard);
+
+// ── صورة اللاعب الشخصية ──
+// يعيد استخدام نفس multer/Cloudinary الخاص بصور اللاعبين (حد 2MB مطبَّق هناك).
+router.put('/photo', uploadPlayerImage.single('image'), updateMyPhoto);
+router.delete('/photo', deleteMyPhoto);
+
+// ── ألبوم الأكاديمية (قراءة فقط — أكاديمية اللاعب حصراً) ──
+router.get('/album', getPlayerAlbum);
 
 // ── محادثة اللاعب مع أكاديميته (نص فقط) ──
 router.get('/chat', getPlayerConversation);
