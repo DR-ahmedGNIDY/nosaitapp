@@ -11,6 +11,8 @@ import 'package:basketball_academy/features/academy_registration/presentation/sc
 import 'package:basketball_academy/features/chat/presentation/screens/academy_conversations_screen.dart';
 import 'package:basketball_academy/features/academy_album/presentation/screens/academy_album_screen.dart';
 import 'package:basketball_academy/features/academy_album/presentation/screens/player_album_screen.dart';
+import 'package:basketball_academy/features/store/presentation/screens/store_management_screen.dart';
+import 'package:basketball_academy/features/store/presentation/screens/player_store_screen.dart';
 import 'package:basketball_academy/features/platform_subscription/presentation/screens/platform_subscriptions_screen.dart';
 import 'package:basketball_academy/features/player_portal/presentation/providers/player_session_provider.dart';
 import 'package:basketball_academy/features/player_portal/presentation/screens/player_login_screen.dart';
@@ -47,7 +49,9 @@ class AppRoutes {
   static const String playerChat = '/player/chat';
   static const String playerNotifications = '/player/notifications';
   static const String playerAlbum = '/player/album';
+  static const String playerStore = '/player/store';
   static const String academyAlbum = '/academy-album';
+  static const String academyStore = '/store';
   static const String platformSubscriptions = '/platform/subscriptions';
   static const String academyChat = '/chat';
   static const String home = '/home';
@@ -204,6 +208,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const PlayerAlbumScreen(),
       ),
       GoRoute(
+        path: AppRoutes.playerStore,
+        builder: (context, state) => const PlayerStoreScreen(),
+      ),
+      GoRoute(
         path: AppRoutes.playerDashboard,
         builder: (context, state) => const PlayerDashboardScreen(),
       ),
@@ -218,6 +226,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.academyAlbum,
         builder: (context, state) => const AcademyAlbumScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.academyStore,
+        builder: (context, state) => const StoreManagementScreen(),
       ),
       GoRoute(
         path: AppRoutes.home,

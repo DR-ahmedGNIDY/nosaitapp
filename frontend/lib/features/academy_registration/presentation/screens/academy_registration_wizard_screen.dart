@@ -1,7 +1,9 @@
 import 'dart:io';
 
 import 'package:basketball_academy/core/constants/app_colors.dart';
+import 'package:basketball_academy/core/constants/arab_countries.dart';
 import 'package:basketball_academy/core/constants/sports_constants.dart';
+import 'package:basketball_academy/core/utils/currency_utils.dart';
 import 'package:basketball_academy/core/di/injection_container.dart';
 import 'package:basketball_academy/core/errors/exceptions.dart';
 import 'package:basketball_academy/core/router/app_router.dart';
@@ -37,6 +39,7 @@ class _AcademyRegistrationWizardScreenState
   final _city = TextEditingController();
   final _password = TextEditingController();
   String _sport = SportsConstants.defaultSports.first;
+  ArabCountry _country = arabCountryDefault; // يحدّد العملة وكود الأرقام
   bool _obscure = true;
   bool _acceptedTerms = false;
   String? _logoPath;
@@ -91,11 +94,13 @@ class _AcademyRegistrationWizardScreenState
       await sl<AcademyRegistrationService>().register(
         academyName: _academyName.text.trim(),
         adminName: _adminName.text.trim(),
-        phone: _phone.text.trim(),
+        // الرقم يُرسَل دولياً: كود الدولة المختارة + الرقم المحلي.
+        phone: buildInternationalNumber(_country, _phone.text),
         email: _email.text.trim(),
         city: _city.text.trim(),
         sport: _sport,
         password: _password.text,
+        currency: _country.currencyCode, // العملة مشتقّة من الدولة
         logoPath: _logoPath,
       );
       // تسجيل الدخول تلقائياً تم داخل الخدمة — نعيد تحميل حالة المصادقة.
@@ -171,8 +176,9 @@ class _AcademyRegistrationWizardScreenState
           Gap(12.h),
           _field(_adminName, 'اسم المدير', Icons.person_outline),
           Gap(12.h),
-          _field(_phone, 'رقم الهاتف', Icons.phone_outlined,
-              keyboard: TextInputType.phone, ltr: true),
+          _countryField(),
+          Gap(12.h),
+          _phoneField(),
           Gap(12.h),
           _field(_email, 'البريد الإلكتروني', Icons.email_outlined,
               keyboard: TextInputType.emailAddress, ltr: true, isEmail: true),
@@ -322,6 +328,51 @@ class _AcademyRegistrationWizardScreenState
           ),
         ],
       ),
+    );
+  }
+
+  /// اختيار الدولة — يحدّد عملة الأكاديمية وكود الأرقام. يعرض العلم + الاسم +
+  /// العملة + الكود الدولي داخل القائمة.
+  Widget _countryField() {
+    return DropdownButtonFormField<ArabCountry>(
+      initialValue: _country,
+      isExpanded: true,
+      decoration: const InputDecoration(
+        labelText: 'الدولة (تحدّد العملة وكود الهاتف)',
+        prefixIcon: Icon(Icons.public_outlined),
+      ),
+      items: arabCountries
+          .map((c) => DropdownMenuItem<ArabCountry>(
+                value: c,
+                child: Text(
+                  '${c.flag}  ${c.nameAr} — ${CurrencyUtils.label(c.currencyCode)} (+${c.dialCode})',
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ))
+          .toList(),
+      onChanged: (c) => setState(() => _country = c ?? _country),
+    );
+  }
+
+  /// حقل الهاتف — يُدخِل المستخدم الرقم المحلي فقط، وكود الدولة يظهر كبادئة
+  /// ثابتة ويُضاف تلقائياً عند الإرسال.
+  Widget _phoneField() {
+    return TextFormField(
+      controller: _phone,
+      keyboardType: TextInputType.phone,
+      textDirection: TextDirection.ltr,
+      decoration: InputDecoration(
+        labelText: 'رقم الهاتف / واتساب',
+        prefixIcon: const Icon(Icons.phone_outlined),
+        prefixText: '+${_country.dialCode} ',
+        hintText: '1001234567',
+      ),
+      validator: (v) {
+        if (v == null || v.trim().isEmpty) return 'مطلوب';
+        final digits = v.replaceAll(RegExp(r'[^\d]'), '');
+        if (digits.length < 6) return 'رقم غير صحيح';
+        return null;
+      },
     );
   }
 

@@ -125,6 +125,20 @@ class WhatsAppUtils {
       'نتمنى له دوام الصحة والتوفيق والنجاح الرياضي.\n\n'
       'كل عام وأنتم بخير.';
 
+  /// طلب شراء منتج من متجر الأكاديمية — تُرسَل من اللاعب إلى واتساب المتجر.
+  static String buyProductTemplate({
+    required String academyName,
+    required String productName,
+    required String price,
+    required String currency,
+    String? playerName,
+  }) =>
+      'السلام عليكم،\n'
+      'أرغب في شراء هذا المنتج من متجر $academyName:\n'
+      '🛒 المنتج: $productName\n'
+      '💰 السعر: $price $currency'
+      '${playerName != null && playerName.isNotEmpty ? '\n👤 اللاعب: $playerName' : ''}';
+
   /// تذكير بانتهاء/قرب انتهاء الاشتراك — نص ثابت كما طلبت الإدارة.
   static String subscriptionExpiryTemplate({
     required String academyName,

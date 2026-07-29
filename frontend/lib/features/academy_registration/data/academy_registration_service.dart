@@ -20,6 +20,7 @@ class AcademyRegistrationService {
     required String city,
     required String sport,
     required String password,
+    String? currency,
     String? logoPath,
   }) async {
     Response<dynamic> response;
@@ -32,6 +33,7 @@ class AcademyRegistrationService {
         'city': city,
         'sport': sport,
         'password': password,
+        if (currency != null) 'currency': currency,
         'logo': await buildImageMultipart(logoPath, filename: 'academy_logo.jpg'),
       });
       response = await _api.postMultipart<Map<String, dynamic>>(
@@ -49,6 +51,7 @@ class AcademyRegistrationService {
           'city': city,
           'sport': sport,
           'password': password,
+          if (currency != null) 'currency': currency,
         },
       );
     }

@@ -136,12 +136,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             MessagesChatIcon(
               onTap: () => context.push(AppRoutes.academyChat),
             ),
-          if (user?.isAcademyAdmin == true)
-            IconButton(
-              tooltip: 'ألبوم الأكاديمية',
-              icon: const Icon(Icons.photo_library_outlined),
-              onPressed: () => context.push(AppRoutes.academyAlbum),
-            ),
           NotificationBellIcon(
             onTap: () => context.push(AppRoutes.notifications),
           ),
@@ -336,6 +330,18 @@ class _QuickActionsGrid extends StatelessWidget {
         label: 'المحادثات',
         color: AppColors.primary,
         onTap: () => context.push(AppRoutes.academyChat),
+      ),
+      _QuickActionItem(
+        icon: Icons.storefront_outlined,
+        label: 'المتجر',
+        color: AppColors.primary,
+        onTap: () => context.push(AppRoutes.academyStore),
+      ),
+      _QuickActionItem(
+        icon: Icons.photo_library_outlined,
+        label: 'ألبوم الأكاديمية',
+        color: AppColors.secondary,
+        onTap: () => context.push(AppRoutes.academyAlbum),
       ),
       _QuickActionItem(
         icon: Icons.workspace_premium_outlined,
@@ -987,6 +993,18 @@ class _DesktopQuickActions extends StatelessWidget {
           label: 'المحادثات',
           color: AppColors.primary,
           onTap: () => context.push(AppRoutes.academyChat),
+        ),
+        _DesktopQuickBtn(
+          icon: Icons.storefront_outlined,
+          label: 'المتجر',
+          color: AppColors.primary,
+          onTap: () => context.push(AppRoutes.academyStore),
+        ),
+        _DesktopQuickBtn(
+          icon: Icons.photo_library_outlined,
+          label: 'ألبوم الأكاديمية',
+          color: AppColors.secondary,
+          onTap: () => context.push(AppRoutes.academyAlbum),
         ),
       ],
     );
