@@ -80,16 +80,29 @@ class AcademyRepositoryImpl implements AcademyRepository {
     String currency = 'EGP',
     List<String> sports = const [],
     String? logoUrl,
+    String? websiteUrl,
+    String? facebookUrl,
+    String? tiktokUrl,
+    String? instagramUrl,
+    String? logoPath,
   }) async {
     try {
-      final model = await _remoteDatasource.updateAcademy(id, {
-        'name': name,
-        'phone': phone,
-        'address': address,
-        'currency': currency,
-        if (sports.isNotEmpty) 'sports': sports,
-        if (logoUrl != null) 'logo_url': logoUrl,
-      });
+      final model = await _remoteDatasource.updateAcademy(
+        id,
+        {
+          'name': name,
+          'phone': phone,
+          'address': address,
+          'currency': currency,
+          if (sports.isNotEmpty) 'sports': sports,
+          if (logoUrl != null) 'logo_url': logoUrl,
+          if (websiteUrl != null) 'websiteUrl': websiteUrl,
+          if (facebookUrl != null) 'facebookUrl': facebookUrl,
+          if (tiktokUrl != null) 'tiktokUrl': tiktokUrl,
+          if (instagramUrl != null) 'instagramUrl': instagramUrl,
+        },
+        logoPath: logoPath,
+      );
       return Right(model.toEntity());
     } on ValidationException catch (e) {
       return Left(ValidationFailure(message: e.message));

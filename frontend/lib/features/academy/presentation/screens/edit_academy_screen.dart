@@ -1,14 +1,19 @@
+import 'dart:io';
+
 import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/constants/app_strings.dart';
 import 'package:basketball_academy/core/constants/sports_constants.dart';
 import 'package:basketball_academy/core/utils/currency_utils.dart';
+import 'package:basketball_academy/core/utils/image_size_validator.dart';
 import 'package:basketball_academy/core/widgets/multi_select_chips.dart';
 import 'package:basketball_academy/features/academy/domain/entities/academy_entity.dart';
 import 'package:basketball_academy/features/academy/presentation/providers/academy_provider.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
+import 'package:image_picker/image_picker.dart';
 
 class EditAcademyScreen extends ConsumerStatefulWidget {
   final AcademyEntity academy;
@@ -24,10 +29,15 @@ class _EditAcademyScreenState extends ConsumerState<EditAcademyScreen> {
   late final TextEditingController _nameController;
   late final TextEditingController _phoneController;
   late final TextEditingController _addressController;
+  late final TextEditingController _websiteController;
+  late final TextEditingController _facebookController;
+  late final TextEditingController _tiktokController;
+  late final TextEditingController _instagramController;
 
   late String _selectedCurrency;
   late List<String> _selectedSports;
   bool _isLoading = false;
+  String? _logoPath;
 
   @override
   void initState() {
@@ -35,6 +45,10 @@ class _EditAcademyScreenState extends ConsumerState<EditAcademyScreen> {
     _nameController = TextEditingController(text: widget.academy.name);
     _phoneController = TextEditingController(text: widget.academy.phone);
     _addressController = TextEditingController(text: widget.academy.address);
+    _websiteController = TextEditingController(text: widget.academy.websiteUrl ?? '');
+    _facebookController = TextEditingController(text: widget.academy.facebookUrl ?? '');
+    _tiktokController = TextEditingController(text: widget.academy.tiktokUrl ?? '');
+    _instagramController = TextEditingController(text: widget.academy.instagramUrl ?? '');
     _selectedCurrency = CurrencyUtils.codes.contains(widget.academy.currency)
         ? widget.academy.currency
         : CurrencyUtils.defaultCode;
@@ -48,6 +62,10 @@ class _EditAcademyScreenState extends ConsumerState<EditAcademyScreen> {
     _nameController.dispose();
     _phoneController.dispose();
     _addressController.dispose();
+    _websiteController.dispose();
+    _facebookController.dispose();
+    _tiktokController.dispose();
+    _instagramController.dispose();
     super.dispose();
   }
 
@@ -66,6 +84,29 @@ class _EditAcademyScreenState extends ConsumerState<EditAcademyScreen> {
       return 'رقم الهاتف غير صحيح';
     }
     return null;
+  }
+
+  Future<void> _pickLogo() async {
+    try {
+      final picker = ImagePicker();
+      final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+      if (img == null) return;
+      final sizeError = await validateImageSize(img);
+      if (sizeError != null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(sizeError), backgroundColor: AppColors.error),
+        );
+        return;
+      }
+      setState(() => _logoPath = img.path);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تعذّر اختيار الشعار')),
+        );
+      }
+    }
   }
 
   Future<void> _submit() async {
@@ -91,6 +132,11 @@ class _EditAcademyScreenState extends ConsumerState<EditAcademyScreen> {
           address: _addressController.text.trim(),
           currency: _selectedCurrency,
           sports: _selectedSports,
+          websiteUrl: _websiteController.text.trim(),
+          facebookUrl: _facebookController.text.trim(),
+          tiktokUrl: _tiktokController.text.trim(),
+          instagramUrl: _instagramController.text.trim(),
+          logoPath: _logoPath,
         );
 
     if (!mounted) return;
@@ -134,33 +180,74 @@ class _EditAcademyScreenState extends ConsumerState<EditAcademyScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Header — show logo or default icon
+                // Header — tap to change the academy logo
                 Center(
-                  child: Container(
-                    width: 80.w,
-                    height: 80.w,
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryContainer,
-                      borderRadius: BorderRadius.circular(20.r),
-                    ),
-                    child: widget.academy.logoUrl != null
-                        ? ClipRRect(
+                  child: GestureDetector(
+                    onTap: _pickLogo,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          width: 80.w,
+                          height: 80.w,
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryContainer,
                             borderRadius: BorderRadius.circular(20.r),
-                            child: Image.network(
-                              widget.academy.logoUrl!,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Icon(
-                                Icons.sports_basketball,
-                                color: AppColors.primary,
-                                size: 40.sp,
-                              ),
-                            ),
-                          )
-                        : Icon(
-                            Icons.sports_basketball,
-                            color: AppColors.primary,
-                            size: 40.sp,
                           ),
+                          child: _logoPath != null
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(20.r),
+                                  child: kIsWeb
+                                      ? Image.network(_logoPath!, fit: BoxFit.cover)
+                                      : Image.file(File(_logoPath!), fit: BoxFit.cover),
+                                )
+                              : widget.academy.logoUrl != null
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(20.r),
+                                      child: Image.network(
+                                        widget.academy.logoUrl!,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => Icon(
+                                          Icons.sports_basketball,
+                                          color: AppColors.primary,
+                                          size: 40.sp,
+                                        ),
+                                      ),
+                                    )
+                                  : Icon(
+                                      Icons.sports_basketball,
+                                      color: AppColors.primary,
+                                      size: 40.sp,
+                                    ),
+                        ),
+                        Positioned(
+                          bottom: -4.h,
+                          right: -4.w,
+                          child: Container(
+                            padding: EdgeInsets.all(6.r),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: AppColors.white, width: 2),
+                            ),
+                            child: Icon(
+                              Icons.camera_alt,
+                              color: AppColors.white,
+                              size: 14.sp,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Gap(8.h),
+                Center(
+                  child: Text(
+                    'اضغط لتغيير شعار الأكاديمية',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: AppColors.grey600,
+                    ),
                   ),
                 ),
                 Gap(28.h),
@@ -281,6 +368,69 @@ class _EditAcademyScreenState extends ConsumerState<EditAcademyScreen> {
                   customHint: 'إضافة رياضة أخرى',
                   onChanged: (sports) =>
                       setState(() => _selectedSports = sports),
+                ),
+                Gap(20.h),
+
+                // Social media links (optional)
+                Text(
+                  'روابط التواصل الاجتماعي (اختياري)',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: AppColors.grey700,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Gap(8.h),
+                TextFormField(
+                  controller: _websiteController,
+                  keyboardType: TextInputType.url,
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(
+                    hintText: 'الموقع الإلكتروني',
+                    prefixIcon: const Icon(Icons.language_outlined),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                  ),
+                ),
+                Gap(12.h),
+                TextFormField(
+                  controller: _facebookController,
+                  keyboardType: TextInputType.url,
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(
+                    hintText: 'فيسبوك',
+                    prefixIcon: const Icon(Icons.facebook_outlined),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                  ),
+                ),
+                Gap(12.h),
+                TextFormField(
+                  controller: _tiktokController,
+                  keyboardType: TextInputType.url,
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(
+                    hintText: 'تيك توك',
+                    prefixIcon: const Icon(Icons.music_note_outlined),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                  ),
+                ),
+                Gap(12.h),
+                TextFormField(
+                  controller: _instagramController,
+                  keyboardType: TextInputType.url,
+                  textInputAction: TextInputAction.done,
+                  onFieldSubmitted: (_) => _submit(),
+                  decoration: InputDecoration(
+                    hintText: 'إنستقرام',
+                    prefixIcon: const Icon(Icons.camera_alt_outlined),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                  ),
                 ),
                 Gap(32.h),
 

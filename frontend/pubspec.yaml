@@ -1,7 +1,7 @@
 name: basketball_academy
 description: نظام إدارة أكاديمية كرة السلة
 publish_to: "none"
-version: 1.1.6+13
+version: 1.1.8+15
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
@@ -54,6 +54,10 @@ dependencies:
   # Excel Export
   excel: ^4.0.3
   share_plus: ^10.1.4
+
+  # Save images to device gallery (player card PNG export)
+  gal: ^2.3.0
+  open_filex: ^4.5.0
 
   cupertino_icons: ^1.0.8
   qr_flutter: ^4.1.0

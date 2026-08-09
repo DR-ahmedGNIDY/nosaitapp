@@ -21,6 +21,11 @@ abstract class AcademyRepository {
     String currency,
     List<String> sports,
     String? logoUrl,
+    String? websiteUrl,
+    String? facebookUrl,
+    String? tiktokUrl,
+    String? instagramUrl,
+    String? logoPath,
   });
   Future<Either<Failure, void>> deleteAcademy(String id);
 }

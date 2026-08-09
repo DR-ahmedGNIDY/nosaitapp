@@ -12,6 +12,11 @@ class UpdateAcademyParams {
   final String currency;
   final List<String> sports;
   final String? logoUrl;
+  final String? websiteUrl;
+  final String? facebookUrl;
+  final String? tiktokUrl;
+  final String? instagramUrl;
+  final String? logoPath;
 
   const UpdateAcademyParams({
     required this.id,
@@ -21,6 +26,11 @@ class UpdateAcademyParams {
     this.currency = 'EGP',
     this.sports = const [],
     this.logoUrl,
+    this.websiteUrl,
+    this.facebookUrl,
+    this.tiktokUrl,
+    this.instagramUrl,
+    this.logoPath,
   });
 }
 
@@ -38,6 +48,11 @@ class UpdateAcademyUsecase extends UseCase<AcademyEntity, UpdateAcademyParams> {
       currency: params.currency,
       sports: params.sports,
       logoUrl: params.logoUrl,
+      websiteUrl: params.websiteUrl,
+      facebookUrl: params.facebookUrl,
+      tiktokUrl: params.tiktokUrl,
+      instagramUrl: params.instagramUrl,
+      logoPath: params.logoPath,
     );
   }
 }
