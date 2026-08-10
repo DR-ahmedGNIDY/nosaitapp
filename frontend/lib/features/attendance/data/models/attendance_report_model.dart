@@ -24,6 +24,7 @@ class AttendanceReportMapper {
       fullName: (json['fullName'] ?? '').toString(),
       sport: json['sport'] as String?,
       expected: (json['expected'] as num?)?.toInt() ?? 0,
+      expectedThisMonth: (json['expectedThisMonth'] as num?)?.toInt() ?? 0,
       present: (json['present'] as num?)?.toInt() ?? 0,
       absent: (json['absent'] as num?)?.toInt() ?? 0,
       rate: (json['rate'] as num?)?.toInt() ?? 0,

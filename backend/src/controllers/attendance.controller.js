@@ -238,6 +238,14 @@ const getAttendanceReport = async (req, res, next) => {
   const sport = (req.query.sport && req.query.sport.trim().length > 0)
     ? req.query.sport.trim() : null;
 
+  // نطاق الشهر الحالي الكامل (من أول يوم لآخر يوم فيه) — مستقل عن startDate/endDate
+  // المطلوبين، يُستخدم لحساب "expectedThisMonth" (إجمالي الدوائر الشهرية في الواجهة)
+  // بحيث لا يتقلّص العدد كلما تقدّم الشهر.
+  const [tYear, tMonth] = today.split('-').map(Number);
+  const lastDayOfMonth = new Date(tYear, tMonth, 0).getDate();
+  const endOfMonth = `${today.slice(0, 8)}${String(lastDayOfMonth).padStart(2, '0')}`;
+  const monthWeekdayCounts = weekdayCountsInRange(firstOfMonth, endOfMonth);
+
   // (أ) لاعبو الأكاديمية النشطون
   const playerFilter = { academyId, isActive: true };
   if (sport) playerFilter.sport = sport;
@@ -265,6 +273,7 @@ const getAttendanceReport = async (req, res, next) => {
   const rows = players.map((p) => {
     const days = Array.isArray(p.attendanceDays) ? p.attendanceDays : [];
     const expected = days.reduce((sum, d) => sum + (weekdayCounts[d] || 0), 0);
+    const expectedThisMonth = days.reduce((sum, d) => sum + (monthWeekdayCounts[d] || 0), 0);
     const present = presentMap[p._id.toString()] || 0;
     const absent = Math.max(expected - present, 0);
     const rate = expected > 0
@@ -279,6 +288,7 @@ const getAttendanceReport = async (req, res, next) => {
       sport: p.sport,
       attendanceDays: days,
       expected,
+      expectedThisMonth,
       present,
       absent,
       rate,

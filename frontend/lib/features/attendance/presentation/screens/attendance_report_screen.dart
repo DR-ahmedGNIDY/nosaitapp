@@ -414,9 +414,12 @@ class _RowTile extends StatelessWidget {
                   ].join(' • '),
                   style: TextStyle(fontSize: 11.sp, color: AppColors.grey500),
                 ),
-                if (showMonthlyDots && row.expected > 0) ...[
+                if (showMonthlyDots && row.expectedThisMonth > 0) ...[
                   Gap(6.h),
-                  _AttendanceDots(expected: row.expected, present: row.present),
+                  _AttendanceDots(
+                    expected: row.expectedThisMonth,
+                    present: row.present,
+                  ),
                 ],
               ],
             ),

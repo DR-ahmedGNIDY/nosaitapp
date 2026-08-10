@@ -7,6 +7,7 @@ class AttendanceReportRow extends Equatable {
   final String fullName;
   final String? sport;
   final int expected; // عدد أيام التدريب المتوقعة في الفترة
+  final int expectedThisMonth; // إجمالي أيام التدريب المتوقعة للشهر الحالي كاملاً (لدوائر الحضور)
   final int present; // عدد أيام الحضور المسجّلة
   final int absent; // الغياب = المتوقع − الحضور
   final int rate; // نسبة الالتزام %
@@ -17,14 +18,24 @@ class AttendanceReportRow extends Equatable {
     required this.fullName,
     this.sport,
     required this.expected,
+    required this.expectedThisMonth,
     required this.present,
     required this.absent,
     required this.rate,
   });
 
   @override
-  List<Object?> get props =>
-      [playerId, playerCode, fullName, sport, expected, present, absent, rate];
+  List<Object?> get props => [
+        playerId,
+        playerCode,
+        fullName,
+        sport,
+        expected,
+        expectedThisMonth,
+        present,
+        absent,
+        rate,
+      ];
 }
 
 /// تقرير الحضور/الغياب الكامل القادم من GET /attendance/report.
