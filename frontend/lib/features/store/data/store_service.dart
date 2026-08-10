@@ -65,10 +65,17 @@ class StoreService {
   }
 
   // ══════════ جهة المدير — المنتجات ══════════
-  Future<ProductPage> getProducts({int page = 1, int limit = 20}) async {
+  // ملاحظة: academyId مطلوب من الـ backend لدور super_admin فقط (resolveAcademyFilter)
+  // — يُمرَّر عند "التصرف كأكاديمية"؛ يُتجاهل تلقائياً لباقي الأدوار (تُستخدم
+  // أكاديمية التوكن).
+  Future<ProductPage> getProducts({int page = 1, int limit = 20, String? academyId}) async {
     final res = await _api.get<Map<String, dynamic>>(
       '/store/products',
-      queryParameters: {'page': page, 'limit': limit},
+      queryParameters: {
+        'page': page,
+        'limit': limit,
+        if (academyId != null) 'academyId': academyId,
+      },
     );
     return _parseProducts(res);
   }
@@ -79,6 +86,7 @@ class StoreService {
     required double price,
     String? description,
     bool isAvailable = true,
+    String? academyId,
   }) async {
     final form = FormData.fromMap({
       'name': name,
@@ -89,6 +97,7 @@ class StoreService {
     });
     final res = await _api.postMultipart<Map<String, dynamic>>(
       '/store/products',
+      queryParameters: academyId != null ? {'academyId': academyId} : null,
       data: form,
     );
     return StoreProduct.fromJson(
@@ -121,13 +130,20 @@ class StoreService {
     await _api.delete('/store/products/$id');
   }
 
-  Future<void> reorderProducts(List<String> ids) async {
-    await _api.patch('/store/products/reorder', data: {'ids': ids});
+  Future<void> reorderProducts(List<String> ids, {String? academyId}) async {
+    await _api.patch(
+      '/store/products/reorder',
+      queryParameters: academyId != null ? {'academyId': academyId} : null,
+      data: {'ids': ids},
+    );
   }
 
   // ══════════ جهة المدير — الإعدادات ══════════
-  Future<StoreSettings> getSettings() async {
-    final res = await _api.get<Map<String, dynamic>>('/store/settings');
+  Future<StoreSettings> getSettings({String? academyId}) async {
+    final res = await _api.get<Map<String, dynamic>>(
+      '/store/settings',
+      queryParameters: academyId != null ? {'academyId': academyId} : null,
+    );
     final data = (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>;
     return StoreSettings(
       academyName: data['academyName'] as String? ?? '',
@@ -137,18 +153,28 @@ class StoreService {
     );
   }
 
-  Future<void> updateStoreWhatsApp(String number) async {
-    await _api.patch('/store/settings', data: {'storeWhatsApp': number});
+  Future<void> updateStoreWhatsApp(String number, {String? academyId}) async {
+    await _api.patch(
+      '/store/settings',
+      queryParameters: academyId != null ? {'academyId': academyId} : null,
+      data: {'storeWhatsApp': number},
+    );
   }
 
   // ══════════ جهة المدير — الطلبات ══════════
-  Future<OrderPage> getOrders({int page = 1, int limit = 20, String? status}) async {
+  Future<OrderPage> getOrders({
+    int page = 1,
+    int limit = 20,
+    String? status,
+    String? academyId,
+  }) async {
     final res = await _api.get<Map<String, dynamic>>(
       '/store/orders',
       queryParameters: {
         'page': page,
         'limit': limit,
         if (status != null && status.isNotEmpty) 'status': status,
+        if (academyId != null) 'academyId': academyId,
       },
     );
     final body = res.data as Map<String, dynamic>;

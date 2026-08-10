@@ -4,6 +4,8 @@ import 'package:equatable/equatable.dart';
 class AttendanceRecordResult extends Equatable {
   final bool recorded;
   final bool alreadyToday;
+  final bool subscriptionExpired;
+  final String? playerId;
   final String playerName;
   final String playerCode;
   final String? sport;
@@ -13,6 +15,8 @@ class AttendanceRecordResult extends Equatable {
   const AttendanceRecordResult({
     required this.recorded,
     required this.alreadyToday,
+    this.subscriptionExpired = false,
+    this.playerId,
     required this.playerName,
     required this.playerCode,
     this.sport,
@@ -21,8 +25,17 @@ class AttendanceRecordResult extends Equatable {
   });
 
   @override
-  List<Object?> get props =>
-      [recorded, alreadyToday, playerName, playerCode, sport, imageUrl, message];
+  List<Object?> get props => [
+        recorded,
+        alreadyToday,
+        subscriptionExpired,
+        playerId,
+        playerName,
+        playerCode,
+        sport,
+        imageUrl,
+        message,
+      ];
 }
 
 /// سطر في سجل الحضور القادم من GET /attendance.

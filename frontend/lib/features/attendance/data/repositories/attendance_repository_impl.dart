@@ -18,6 +18,7 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
     String? playerId,
     required String localDate,
     required String localTime,
+    bool allowExpired = false,
   }) async {
     try {
       final result = await _remoteDatasource.recordAttendance(
@@ -25,6 +26,7 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
         playerId: playerId,
         localDate: localDate,
         localTime: localTime,
+        allowExpired: allowExpired,
       );
       return Right(result);
     } on NotFoundException {

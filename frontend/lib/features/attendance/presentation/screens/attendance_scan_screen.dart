@@ -7,6 +7,7 @@ import 'package:basketball_academy/features/attendance/domain/entities/attendanc
 import 'package:basketball_academy/features/attendance/domain/usecases/record_attendance_usecase.dart';
 import 'package:basketball_academy/features/attendance/presentation/widgets/web_qr_scanner.dart';
 import 'package:basketball_academy/features/attendance/utils/player_qr.dart';
+import 'package:basketball_academy/features/subscription/presentation/screens/renew_subscription_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -119,6 +120,12 @@ class _AttendanceScanScreenState extends State<AttendanceScanScreen> {
     _lastCode = code;
     _lastAt = DateTime.now();
 
+    await _submit(code);
+  }
+
+  // إرسال طلب تسجيل الحضور فعلياً — تُستخدم من المسح الأول ومن زر
+  // "حضور والدفع لاحقاً" (بإعادة الإرسال مع allowExpired: true).
+  Future<void> _submit(String code, {bool allowExpired = false}) async {
     setState(() {
       _processing = true;
       _error = null;
@@ -129,12 +136,13 @@ class _AttendanceScanScreenState extends State<AttendanceScanScreen> {
         code: code,
         localDate: _todayStr(),
         localTime: _nowTimeStr(),
+        allowExpired: allowExpired,
       ),
     );
 
     if (!mounted) return;
-    result.fold(
-      (failure) {
+    await result.fold(
+      (failure) async {
         // 4) نتيجة البحث: فشل / لم يُعثر على اللاعب.
         debugPrint('[ATTENDANCE] search result: FAILED → ${failure.message}');
         setState(() {
@@ -143,10 +151,18 @@ class _AttendanceScanScreenState extends State<AttendanceScanScreen> {
           _processing = false;
         });
       },
-      (res) {
-        // 4) نتيجة البحث: تم العثور على اللاعب.
+      (res) async {
         debugPrint(
-            '[ATTENDANCE] search result: FOUND ${res.playerName} (${res.playerCode}) recorded=${res.recorded} alreadyToday=${res.alreadyToday}');
+            '[ATTENDANCE] search result: FOUND ${res.playerName} (${res.playerCode}) recorded=${res.recorded} alreadyToday=${res.alreadyToday} subscriptionExpired=${res.subscriptionExpired}');
+        if (res.subscriptionExpired) {
+          setState(() {
+            _result = null;
+            _error = null;
+            _processing = false;
+          });
+          await _showSubscriptionExpiredDialog(code, res);
+          return;
+        }
         setState(() {
           _result = res;
           _error = null;
@@ -159,6 +175,73 @@ class _AttendanceScanScreenState extends State<AttendanceScanScreen> {
     if (!_canUseCamera) {
       _manualController.clear();
       _manualFocus.requestFocus();
+    }
+  }
+
+  Future<void> _showSubscriptionExpiredDialog(
+      String code, AttendanceRecordResult res) async {
+    final action = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.r),
+        ),
+        title: const Text('اشتراك اللاعب منتهي'),
+        content: Text('اشتراك اللاعب ${res.playerName} منتهي. ماذا تريد أن تفعل؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop('cancel'),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.warning,
+              foregroundColor: AppColors.white,
+            ),
+            onPressed: () => Navigator.of(ctx).pop('attend'),
+            child: const Text('حضور والدفع لاحقاً'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.white,
+            ),
+            onPressed: () => Navigator.of(ctx).pop('renew'),
+            child: const Text('تجديد'),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted) return;
+
+    switch (action) {
+      case 'attend':
+        await _submit(code, allowExpired: true);
+        break;
+      case 'renew':
+        if (res.playerId != null) {
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => RenewSubscriptionScreen(
+                playerId: res.playerId!,
+                academyId: widget.academyId,
+                playerName: res.playerName,
+              ),
+            ),
+          );
+        }
+        if (!_canUseCamera && mounted) {
+          _manualController.clear();
+          _manualFocus.requestFocus();
+        }
+        break;
+      default:
+        // إلغاء — لا شيء.
+        if (!_canUseCamera && mounted) {
+          _manualController.clear();
+          _manualFocus.requestFocus();
+        }
     }
   }
 

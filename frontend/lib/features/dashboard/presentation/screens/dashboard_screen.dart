@@ -9,6 +9,7 @@ import 'package:basketball_academy/features/academy/presentation/providers/acade
 import 'package:basketball_academy/features/academy/presentation/providers/currency_provider.dart';
 import 'package:basketball_academy/features/dashboard/domain/entities/dashboard_entity.dart';
 import 'package:basketball_academy/features/dashboard/presentation/providers/dashboard_provider.dart';
+import 'package:basketball_academy/features/dashboard/presentation/providers/selected_academy_provider.dart';
 import 'package:basketball_academy/features/dashboard/presentation/widgets/player_accounts_stats_card.dart';
 import 'package:basketball_academy/features/attendance/presentation/screens/attendance_hub_screen.dart';
 import 'package:basketball_academy/features/dashboard/presentation/screens/sport_detail_screen.dart';
@@ -31,8 +32,6 @@ class DashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
-  String? _selectedAcademyId;
-
   @override
   void initState() {
     super.initState();
@@ -61,7 +60,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final user = authState?.user;
     final isSuperAdmin = user?.isSuperAdmin ?? false;
     final dashAsync = ref.watch(dashboardProvider);
-    final currentAcademyId = isSuperAdmin ? _selectedAcademyId : user?.academyId;
+    final selectedAcademyId = ref.watch(selectedAcademyIdProvider);
+    final currentAcademyId = isSuperAdmin ? selectedAcademyId : user?.academyId;
     final currencyLabel = ref.watch(
       academyCurrencyLabelProvider(currentAcademyId),
     );
@@ -73,9 +73,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
     void onRefresh() {
       final u = ref.read(authStateProvider).valueOrNull?.user;
+      final sel = ref.read(selectedAcademyIdProvider);
       ref.read(dashboardProvider.notifier).refresh(
-            academyId: isSuperAdmin ? _selectedAcademyId : u?.academyId,
+            academyId: isSuperAdmin ? sel : u?.academyId,
           );
+    }
+
+    void onAcademyChanged(String? newId) {
+      ref.read(selectedAcademyIdProvider.notifier).state = newId;
+      onRefresh();
     }
 
     final tier =
@@ -97,6 +103,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ? currentAcademy!.sports
                 : const <String>[],
             columns: tier == ScreenTier.desktop ? 3 : 2,
+            selectedAcademyId: selectedAcademyId,
+            onAcademyChanged: onAcademyChanged,
           );
           return tier == ScreenTier.desktop
               ? DesktopShell(location: AppRoutes.home, child: content)
@@ -156,21 +164,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ),
       body: dashAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => _ErrorWidget(
-          onRetry: () {
-            final u = ref.read(authStateProvider).valueOrNull?.user;
-            ref.read(dashboardProvider.notifier).refresh(
-                  academyId: isSuperAdmin ? _selectedAcademyId : u?.academyId,
-                );
-          },
-        ),
+        error: (err, _) => _ErrorWidget(onRetry: onRefresh),
         data: (dashState) => RefreshIndicator(
-          onRefresh: () {
-            final u = ref.read(authStateProvider).valueOrNull?.user;
-            return ref.read(dashboardProvider.notifier).refresh(
-                  academyId: isSuperAdmin ? _selectedAcademyId : u?.academyId,
-                );
-          },
+          onRefresh: () async => onRefresh(),
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: EdgeInsets.all(16.r),
@@ -181,17 +177,37 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 _WelcomeCard(userName: user?.name ?? ''),
                 Gap(16.h),
 
+                // Academy selector (super_admin only) — act as a specific academy
+                if (isSuperAdmin) ...[
+                  _AcademySelectorDropdown(
+                    selectedAcademyId: selectedAcademyId,
+                    onChanged: onAcademyChanged,
+                  ),
+                  Gap(12.h),
+                  if (currentAcademyId != null) ...[
+                    _ActingAsAcademyBanner(
+                      academyName: currentAcademy?.name,
+                      onChangeAcademy: () => onAcademyChanged(null),
+                    ),
+                    Gap(12.h),
+                  ],
+                ],
+
                 // Recent notifications widget
                 RecentNotificationsWidget(
                   onViewAll: () => context.push(AppRoutes.notifications),
                 ),
                 Gap(20.h),
 
-                // Quick actions for academy_admin (not admin)
-                if (!isSuperAdmin && user?.isAcademyAdmin == true && user?.academyId != null) ...[
+                // Quick actions for academy_admin (own academy) or super_admin acting as an academy
+                if ((user?.isAcademyAdmin == true && user?.academyId != null) ||
+                    (isSuperAdmin && currentAcademyId != null)) ...[
                   const _SectionTitle(title: 'الإجراءات السريعة'),
                   Gap(8.h),
-                  _QuickActionsGrid(academyId: user!.academyId!),
+                  _QuickActionsGrid(
+                    academyId: currentAcademyId!,
+                    showSystemSubscription: !isSuperAdmin,
+                  ),
                   Gap(20.h),
                 ],
 
@@ -264,7 +280,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
 class _QuickActionsGrid extends StatelessWidget {
   final String academyId;
-  const _QuickActionsGrid({required this.academyId});
+  final bool showSystemSubscription;
+  const _QuickActionsGrid({
+    required this.academyId,
+    this.showSystemSubscription = true,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -344,11 +364,20 @@ class _QuickActionsGrid extends StatelessWidget {
         onTap: () => context.push(AppRoutes.academyAlbum),
       ),
       _QuickActionItem(
-        icon: Icons.workspace_premium_outlined,
-        label: 'اشتراك النظام',
+        icon: Icons.sports_basketball,
+        label: 'المباريات',
         color: AppColors.primaryDark,
-        onTap: () => context.push(AppRoutes.systemSubscription),
+        onTap: () => context.push(
+          AppRoutes.matchesList.replaceFirst(':id', academyId),
+        ),
       ),
+      if (showSystemSubscription)
+        _QuickActionItem(
+          icon: Icons.workspace_premium_outlined,
+          label: 'اشتراك النظام',
+          color: AppColors.primaryDark,
+          onTap: () => context.push(AppRoutes.systemSubscription),
+        ),
     ];
 
     return GridView.count(
@@ -418,6 +447,112 @@ class _QuickActionItem extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─── Academy Selector (super_admin "act as" an academy) ──────────────────────
+
+class _AcademySelectorDropdown extends ConsumerWidget {
+  final String? selectedAcademyId;
+  final ValueChanged<String?> onChanged;
+
+  const _AcademySelectorDropdown({
+    required this.selectedAcademyId,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final academiesAsync = ref.watch(academiesProvider);
+
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 4.w),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: AppColors.grey200),
+      ),
+      child: academiesAsync.when(
+        loading: () => const LinearProgressIndicator(),
+        error: (_, __) => const SizedBox.shrink(),
+        data: (academies) {
+          final sorted = [...academies]
+            ..sort((a, b) => a.name.compareTo(b.name));
+          return DropdownButtonHideUnderline(
+            child: DropdownButton<String?>(
+              isExpanded: true,
+              value: selectedAcademyId,
+              hint: Text('اختر أكاديمية', style: TextStyle(fontSize: 13.sp)),
+              icon: const Icon(Icons.expand_more),
+              items: [
+                DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text('كل الأكاديميات', style: TextStyle(fontSize: 13.sp)),
+                ),
+                ...sorted.map(
+                  (a) => DropdownMenuItem<String?>(
+                    value: a.id,
+                    child: Text(a.name, style: TextStyle(fontSize: 13.sp)),
+                  ),
+                ),
+              ],
+              onChanged: onChanged,
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ActingAsAcademyBanner extends StatelessWidget {
+  final String? academyName;
+  final VoidCallback onChangeAcademy;
+
+  const _ActingAsAcademyBanner({
+    required this.academyName,
+    required this.onChangeAcademy,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.all(12.r),
+      decoration: BoxDecoration(
+        color: AppColors.primaryContainer,
+        borderRadius: BorderRadius.circular(12.r),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.admin_panel_settings_outlined,
+              color: AppColors.primary, size: 20.sp),
+          Gap(8.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'الأكاديمية الحالية: ${academyName ?? '...'}',
+                  style: TextStyle(
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.grey900,
+                  ),
+                ),
+                Text(
+                  'أنت الآن تدير هذه الأكاديمية.',
+                  style: TextStyle(fontSize: 11.sp, color: AppColors.grey700),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: onChangeAcademy,
+            child: Text('تغيير الأكاديمية', style: TextStyle(fontSize: 12.sp)),
+          ),
+        ],
       ),
     );
   }
@@ -529,7 +664,7 @@ class _SportsGrid extends StatelessWidget {
 // matches the Windows app (sidebar handled separately by DesktopShell /
 // TabletShell — this widget is only the scrollable content area).
 
-class _DesktopDashboardContent extends StatelessWidget {
+class _DesktopDashboardContent extends ConsumerWidget {
   final dynamic dashState;
   final dynamic user;
   final bool isSuperAdmin;
@@ -538,6 +673,8 @@ class _DesktopDashboardContent extends StatelessWidget {
   final String? academyId;
   final List<String> sports;
   final int columns;
+  final String? selectedAcademyId;
+  final ValueChanged<String?> onAcademyChanged;
 
   const _DesktopDashboardContent({
     required this.dashState,
@@ -548,10 +685,15 @@ class _DesktopDashboardContent extends StatelessWidget {
     required this.academyId,
     required this.sports,
     required this.columns,
+    required this.selectedAcademyId,
+    required this.onAcademyChanged,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentAcademyName = academyId != null
+        ? ref.watch(academyByIdProvider(academyId!)).valueOrNull?.name
+        : null;
     return Column(
       children: [
         _DesktopPageHeader(userName: user?.name ?? '', onRefresh: onRefresh),
@@ -561,6 +703,20 @@ class _DesktopDashboardContent extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (isSuperAdmin) ...[
+                  _DesktopAcademySelector(
+                    selectedAcademyId: selectedAcademyId,
+                    onChanged: onAcademyChanged,
+                  ),
+                  const SizedBox(height: 12),
+                  if (academyId != null) ...[
+                    _DesktopActingAsAcademyBanner(
+                      academyName: currentAcademyName,
+                      onChangeAcademy: () => onAcademyChanged(null),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                ],
                 _DesktopStatsGrid(
                     stats: dashState.stats,
                     currencyLabel: currencyLabel,
@@ -583,12 +739,11 @@ class _DesktopDashboardContent extends StatelessWidget {
                   const SizedBox(height: 24),
                 ],
 
-                if (!isSuperAdmin &&
-                    user?.isAcademyAdmin == true &&
-                    user?.academyId != null) ...[
+                if ((user?.isAcademyAdmin == true && user?.academyId != null) ||
+                    (isSuperAdmin && academyId != null)) ...[
                   const _DesktopSectionTitle(title: 'الإجراءات السريعة'),
                   const SizedBox(height: 12),
-                  _DesktopQuickActions(academyId: user!.academyId!),
+                  _DesktopQuickActions(academyId: academyId!),
                   const SizedBox(height: 24),
                 ],
 
@@ -922,6 +1077,109 @@ class _DesktopStatCard extends StatelessWidget {
   }
 }
 
+class _DesktopAcademySelector extends ConsumerWidget {
+  final String? selectedAcademyId;
+  final ValueChanged<String?> onChanged;
+
+  const _DesktopAcademySelector({
+    required this.selectedAcademyId,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final academiesAsync = ref.watch(academiesProvider);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.grey200),
+      ),
+      child: academiesAsync.when(
+        loading: () => const LinearProgressIndicator(),
+        error: (_, __) => const SizedBox.shrink(),
+        data: (academies) {
+          final sorted = [...academies]
+            ..sort((a, b) => a.name.compareTo(b.name));
+          return DropdownButtonHideUnderline(
+            child: DropdownButton<String?>(
+              isExpanded: true,
+              value: selectedAcademyId,
+              hint: const Text('اختر أكاديمية', style: TextStyle(fontSize: 13)),
+              icon: const Icon(Icons.expand_more),
+              items: [
+                const DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text('كل الأكاديميات', style: TextStyle(fontSize: 13)),
+                ),
+                ...sorted.map(
+                  (a) => DropdownMenuItem<String?>(
+                    value: a.id,
+                    child: Text(a.name, style: const TextStyle(fontSize: 13)),
+                  ),
+                ),
+              ],
+              onChanged: onChanged,
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _DesktopActingAsAcademyBanner extends StatelessWidget {
+  final String? academyName;
+  final VoidCallback onChangeAcademy;
+
+  const _DesktopActingAsAcademyBanner({
+    required this.academyName,
+    required this.onChangeAcademy,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.primaryContainer,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.admin_panel_settings_outlined,
+              color: AppColors.primary, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'الأكاديمية الحالية: ${academyName ?? '...'}',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.grey900,
+                  ),
+                ),
+                const Text(
+                  'أنت الآن تدير هذه الأكاديمية.',
+                  style: TextStyle(fontSize: 11, color: AppColors.grey700),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: onChangeAcademy,
+            child: const Text('تغيير الأكاديمية', style: TextStyle(fontSize: 12)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _DesktopQuickActions extends StatelessWidget {
   final String academyId;
   const _DesktopQuickActions({required this.academyId});
@@ -1005,6 +1263,14 @@ class _DesktopQuickActions extends StatelessWidget {
           label: 'ألبوم الأكاديمية',
           color: AppColors.secondary,
           onTap: () => context.push(AppRoutes.academyAlbum),
+        ),
+        _DesktopQuickBtn(
+          icon: Icons.sports_basketball,
+          label: 'المباريات',
+          color: AppColors.primaryDark,
+          onTap: () => context.push(
+            AppRoutes.matchesList.replaceFirst(':id', academyId),
+          ),
         ),
       ],
     );

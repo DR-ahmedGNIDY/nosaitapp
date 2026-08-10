@@ -12,6 +12,7 @@ import 'package:basketball_academy/features/chat/presentation/screens/academy_co
 import 'package:basketball_academy/features/academy_album/presentation/screens/academy_album_screen.dart';
 import 'package:basketball_academy/features/academy_album/presentation/screens/player_album_screen.dart';
 import 'package:basketball_academy/features/store/presentation/screens/store_management_screen.dart';
+import 'package:basketball_academy/features/matches/presentation/screens/matches_list_screen.dart';
 import 'package:basketball_academy/features/store/presentation/screens/player_store_screen.dart';
 import 'package:basketball_academy/features/platform_subscription/presentation/screens/platform_subscriptions_screen.dart';
 import 'package:basketball_academy/features/player_portal/presentation/providers/player_session_provider.dart';
@@ -60,6 +61,7 @@ class AppRoutes {
   static const String academyUsers = '/academies/:id/users';
   static const String playersList = '/academies/:id/players';
   static const String groupsList = '/academies/:id/groups';
+  static const String matchesList = '/academies/:id/matches';
   static const String subscriptionsList = '/academies/:id/subscriptions';
   static const String playerDetail = '/academies/:id/players/:playerId';
   static const String playerSubscriptions =
@@ -269,6 +271,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final academyId = state.pathParameters['id']!;
           return GroupsListScreen(academyId: academyId);
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.matchesList,
+        builder: (context, state) {
+          final academyId = state.pathParameters['id']!;
+          return MatchesListScreen(academyId: academyId);
         },
       ),
       GoRoute(

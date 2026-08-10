@@ -9,6 +9,7 @@ abstract class AttendanceRepository {
     String? playerId,
     required String localDate,
     required String localTime,
+    bool allowExpired,
   });
 
   Future<

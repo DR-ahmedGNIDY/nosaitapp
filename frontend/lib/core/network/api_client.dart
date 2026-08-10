@@ -107,12 +107,14 @@ class ApiClient {
   Future<Response<T>> postMultipart<T>(
     String path, {
     required FormData data,
+    Map<String, dynamic>? queryParameters,
     Options? options,
   }) async {
     try {
       return await _dio.post<T>(
         path,
         data: data,
+        queryParameters: queryParameters,
         options: options ?? Options(contentType: 'multipart/form-data'),
       );
     } on DioException catch (e) {

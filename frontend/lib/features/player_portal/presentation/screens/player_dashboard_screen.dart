@@ -1,5 +1,6 @@
 import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/router/app_router.dart';
+import 'package:basketball_academy/features/academy/presentation/providers/academy_provider.dart';
 import 'package:basketball_academy/features/player_portal/presentation/providers/player_data_providers.dart';
 import 'package:basketball_academy/features/player_portal/presentation/providers/player_session_provider.dart';
 import 'package:basketball_academy/features/player_portal/presentation/widgets/player_photo_sheet.dart';
@@ -9,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// لوحة اللاعب — تحية + تنبيه اشتراك + إحصائيات سريعة + إجراءات سريعة
 /// (المتجر/الألبوم) + جدول التدريب (مع تمييز اليوم) + الحضور + التقييمات،
@@ -87,6 +89,7 @@ class PlayerDashboardScreen extends ConsumerWidget {
               children: [
                 _header(context, ref, data['player'] as Map<String, dynamic>?),
                 Gap(16.h),
+                _socialLinksCard(context, ref),
                 if (alert != null) ...[alert, Gap(16.h)],
                 _statsRow(sub, attendance, latestEval),
                 Gap(16.h),
@@ -103,6 +106,75 @@ class PlayerDashboardScreen extends ConsumerWidget {
         },
       ),
     );
+  }
+
+  // ── روابط التواصل الاجتماعي للأكاديمية (تظهر فقط إن كانت مضبوطة) ──
+  Widget _socialLinksCard(BuildContext context, WidgetRef ref) {
+    final sessionPlayer = ref.watch(playerSessionProvider).valueOrNull?.player;
+    final academyId = sessionPlayer?['academy_id'] as String?;
+    if (academyId == null || academyId.isEmpty) return const SizedBox.shrink();
+
+    final academyAsync = ref.watch(academyByIdProvider(academyId));
+    final academy = academyAsync.valueOrNull;
+    if (academy == null) return const SizedBox.shrink();
+
+    final links = <(IconData, String)>[
+      if ((academy.websiteUrl ?? '').isNotEmpty) (Icons.language, academy.websiteUrl!),
+      if ((academy.facebookUrl ?? '').isNotEmpty) (Icons.facebook, academy.facebookUrl!),
+      if ((academy.tiktokUrl ?? '').isNotEmpty) (Icons.music_note, academy.tiktokUrl!),
+      if ((academy.instagramUrl ?? '').isNotEmpty) (Icons.camera_alt_outlined, academy.instagramUrl!),
+    ];
+    if (links.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      children: [
+        Container(
+          padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+          decoration: BoxDecoration(
+            color: AppColors.grey100,
+            borderRadius: BorderRadius.circular(14.r),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              for (final link in links)
+                IconButton(
+                  onPressed: () => _openSocialLink(context, link.$2),
+                  icon: Icon(link.$1, color: AppColors.secondary),
+                ),
+            ],
+          ),
+        ),
+        Gap(16.h),
+      ],
+    );
+  }
+
+  Future<void> _openSocialLink(BuildContext context, String url) async {
+    var target = url.trim();
+    if (!target.startsWith('http://') && !target.startsWith('https://')) {
+      target = 'https://$target';
+    }
+    final uri = Uri.tryParse(target);
+    if (uri == null) return;
+    bool ok = false;
+    try {
+      ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      ok = false;
+    }
+    if (!ok) {
+      try {
+        ok = await launchUrl(uri, mode: LaunchMode.platformDefault);
+      } catch (_) {
+        ok = false;
+      }
+    }
+    if (!ok && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذّر فتح الرابط')),
+      );
+    }
   }
 
   // ── تحية حسب الوقت ──

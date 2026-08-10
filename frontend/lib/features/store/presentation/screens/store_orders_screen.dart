@@ -10,7 +10,8 @@ import 'package:intl/intl.dart';
 
 /// طلبات المتجر — جهة المدير: قائمة طلبات اللاعبين مع تصفية بالحالة وتحديثها.
 class StoreOrdersScreen extends ConsumerWidget {
-  const StoreOrdersScreen({super.key});
+  final String? academyId;
+  const StoreOrdersScreen({super.key, this.academyId});
 
   static const _statuses = <String, String>{
     'pending': 'جديد',
@@ -34,8 +35,8 @@ class StoreOrdersScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(storeOrdersProvider);
-    final notifier = ref.read(storeOrdersProvider.notifier);
+    final state = ref.watch(storeOrdersProvider(academyId));
+    final notifier = ref.read(storeOrdersProvider(academyId).notifier);
 
     return Scaffold(
       backgroundColor: AppColors.background,

@@ -22,6 +22,10 @@ AcademyModel _$AcademyModelFromJson(Map<String, dynamic> json) => AcademyModel(
           ? null
           : DateTime.parse(json['updated_at'] as String),
       playerCount: (json['player_count'] as num?)?.toInt(),
+      websiteUrl: json['websiteUrl'] as String? ?? '',
+      facebookUrl: json['facebookUrl'] as String? ?? '',
+      tiktokUrl: json['tiktokUrl'] as String? ?? '',
+      instagramUrl: json['instagramUrl'] as String? ?? '',
     );
 
 Map<String, dynamic> _$AcademyModelToJson(AcademyModel instance) =>
@@ -36,4 +40,8 @@ Map<String, dynamic> _$AcademyModelToJson(AcademyModel instance) =>
       'created_at': instance.createdAt.toIso8601String(),
       'updated_at': instance.updatedAt?.toIso8601String(),
       'player_count': instance.playerCount,
+      'websiteUrl': instance.websiteUrl,
+      'facebookUrl': instance.facebookUrl,
+      'tiktokUrl': instance.tiktokUrl,
+      'instagramUrl': instance.instagramUrl,
     };

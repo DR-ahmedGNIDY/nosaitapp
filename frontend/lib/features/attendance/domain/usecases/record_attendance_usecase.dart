@@ -9,12 +9,14 @@ class RecordAttendanceParams {
   final String? playerId;
   final String localDate;
   final String localTime;
+  final bool allowExpired;
 
   const RecordAttendanceParams({
     this.code,
     this.playerId,
     required this.localDate,
     required this.localTime,
+    this.allowExpired = false,
   });
 }
 
@@ -32,6 +34,7 @@ class RecordAttendanceUsecase
       playerId: params.playerId,
       localDate: params.localDate,
       localTime: params.localTime,
+      allowExpired: params.allowExpired,
     );
   }
 }

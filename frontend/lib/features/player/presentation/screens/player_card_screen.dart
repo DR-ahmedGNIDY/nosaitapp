@@ -1,25 +1,22 @@
-import 'dart:typed_data';
-import 'dart:ui' as ui;
-
 import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/features/academy/presentation/providers/academy_provider.dart';
 import 'package:basketball_academy/features/player/domain/entities/player_entity.dart';
-import 'package:basketball_academy/features/player/services/player_card_pdf_service.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:basketball_academy/features/player/presentation/widgets/player_card_widget.dart';
+import 'package:basketball_academy/features/player/services/player_card_export_service.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
-import 'package:printing/printing.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 
 /// بطاقة تعريف دائمة للاعب — تُطبع مرة واحدة. تحتوي: شعار واسم الأكاديمية،
 /// الرياضة، صورة اللاعب، اسمه، الكود، المجموعة، ورمز QR.
 ///
-/// التصدير إلى PDF يلتقط نفس Widget البطاقة المعروض على الشاشة كصورة PNG عالية
-/// الدقة عبر RepaintBoundary ثم يضعها داخل صفحة PDF — فلا يوجد رسم ثانٍ للبطاقة
-/// إطلاقاً، والنتيجة مطابقة 100% لما يظهر داخل التطبيق.
+/// [PlayerCardWidget] هو مصدر التصميم الوحيد (Single Source of Truth) —
+/// نفس الـ Widget المعروض هنا هو الذي يُلتقط كصورة PNG عالية الدقة عبر
+/// RepaintBoundary عند الحفظ/المشاركة/الطباعة — بلا أي هامش شفاف حولها، فالصورة
+/// الناتجة تُقص عند حدود البطاقة تماماً. لا يوجد PDF ولا رسم ثانٍ للبطاقة في
+/// أي مكان — راجع [PlayerCardExportService].
 class PlayerCardScreen extends ConsumerStatefulWidget {
   final PlayerEntity player;
   const PlayerCardScreen({super.key, required this.player});
@@ -35,36 +32,7 @@ class _PlayerCardScreenState extends ConsumerState<PlayerCardScreen> {
   /// محتوى الـ QR — معرّف ثابت مشتق من كود اللاعب (لا يتغيّر مدى الحياة).
   String get _qrData => 'PLAYER:${widget.player.playerCode}';
 
-  /// يلتقط Widget البطاقة المعروضة كصورة PNG عالية الدقة (≥ 300 DPI عند الطباعة)
-  /// دون أي إعادة رسم — نفس الـ Gradient/Shadow/BorderRadius/الخطوط/الألوان.
-  Future<Uint8List> _capturePng() async {
-    // نلتقط مرجع الـ RenderObject قبل أي await (فلا نحمل BuildContext عبر فجوة
-    // غير متزامنة) — الـ RenderObject يبقى صالحاً طوال عملية الالتقاط.
-    final cardContext = _cardKey.currentContext;
-    if (cardContext == null) {
-      throw StateError('تعذّر التقاط البطاقة — لم تُرسم بعد');
-    }
-    final boundary = cardContext.findRenderObject() as RenderRepaintBoundary;
-
-    // ننتظر نهاية الإطار الحالي لضمان اكتمال رسم البطاقة (الصورة/الشعار/QR).
-    await WidgetsBinding.instance.endOfFrame;
-
-    // نستهدف عرضاً بكسلياً ~3500px كي لا تقل الجودة عن 300 DPI عند طباعة
-    // البطاقة على عرض صفحة A4 أفقية. PixelRatio يُشتق من الحجم المنطقي الفعلي.
-    const targetWidth = 3500.0;
-    final pixelRatio = (targetWidth / boundary.size.width).clamp(3.0, 10.0);
-
-    final image = await boundary.toImage(pixelRatio: pixelRatio);
-    try {
-      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-      if (byteData == null) {
-        throw StateError('تعذّر تحويل البطاقة إلى صورة');
-      }
-      return byteData.buffer.asUint8List();
-    } finally {
-      image.dispose();
-    }
-  }
+  String get _fileName => 'player_card_${widget.player.playerCode}.png';
 
   @override
   Widget build(BuildContext context) {
@@ -72,7 +40,6 @@ class _PlayerCardScreenState extends ConsumerState<PlayerCardScreen> {
     final academy = ref.watch(academyByIdProvider(player.academyId)).valueOrNull;
     final academyName = academy?.name ?? 'الأكاديمية';
     final academyLogoUrl = academy?.logoUrl;
-    const groupName = '';
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -84,26 +51,28 @@ class _PlayerCardScreenState extends ConsumerState<PlayerCardScreen> {
         padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 24.h),
         child: Column(
           children: [
-            Center(
-              // RepaintBoundary يغلّف البطاقة نفسها المعروضة — نلتقطها كما هي.
-              // Padding شفاف حولها كي يُلتقط الظل (Shadow) كاملاً دون قص.
-              child: RepaintBoundary(
-                key: _cardKey,
-                child: Padding(
-                  padding: EdgeInsets.all(28.w),
+            Padding(
+              // هامش مرئي فقط حول البطاقة على الشاشة (خارج RepaintBoundary)
+              // كي يظهر الظل أثناء العرض — لا يُلتقط ضمن الصورة المُصدَّرة.
+              padding: EdgeInsets.all(28.w),
+              child: Center(
+                // RepaintBoundary يغلّف البطاقة نفسها فقط بلا أي هامش شفاف
+                // حولها — الصورة المُصدَّرة تُقص عند حدود البطاقة تماماً.
+                child: RepaintBoundary(
+                  key: _cardKey,
                   child: ConstrainedBox(
                     constraints: BoxConstraints(maxWidth: 560.w),
                     child: AspectRatio(
                       aspectRatio: 1.586,
-                      child: _CardView(
+                      child: PlayerCardWidget(
                         academyName: academyName,
                         academyLogoUrl: academyLogoUrl,
                         fullName: player.fullName,
                         playerCode: player.playerCode,
                         sport: player.sport ?? '',
-                        groupName: groupName,
                         imageUrl: player.imageUrl,
                         qrData: _qrData,
+                        birthDate: player.birthDate,
                       ),
                     ),
                   ),
@@ -111,14 +80,7 @@ class _PlayerCardScreenState extends ConsumerState<PlayerCardScreen> {
               ),
             ),
             Gap(28.h),
-            _ActionButtons(
-              // نفس البطاقة الملتقطة هي مصدر الـ PDF الوحيد — لا رسم ثانٍ.
-              buildPdf: () async {
-                final png = await _capturePng();
-                return PlayerCardPdfService.generateFromImage(png);
-              },
-              fileName: 'player_card_${player.playerCode}.pdf',
-            ),
+            _ActionButtons(cardKey: _cardKey, fileName: _fileName),
           ],
         ),
       ),
@@ -127,511 +89,16 @@ class _PlayerCardScreenState extends ConsumerState<PlayerCardScreen> {
 }
 
 // ---------------------------------------------------------------------------
-// بطاقة عضوية رياضية فاخرة — رأس بتدرّج أزرق مضغوط، وجسم أبيض موسّع (صورة
-// كبيرة + اسم اللاعب + QR كبير) يمتد حتى الزوايا السفلية المستديرة.
-// ---------------------------------------------------------------------------
-
-class _CardView extends StatelessWidget {
-  final String academyName;
-  final String? academyLogoUrl;
-  final String fullName;
-  final String playerCode;
-  final String sport;
-  final String groupName;
-  final String? imageUrl;
-  final String qrData;
-
-  const _CardView({
-    required this.academyName,
-    required this.academyLogoUrl,
-    required this.fullName,
-    required this.playerCode,
-    required this.sport,
-    required this.groupName,
-    required this.imageUrl,
-    required this.qrData,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, c) {
-        final w = c.maxWidth;
-        final radius = w * 0.045;
-        // حجم QR كبير ومقروء بوضوح — 24.5% من عرض البطاقة، في عمود مستقل
-        // تماماً عن عمود الصورة/الاسم/الكود (لا تداخل ممكن بنيوياً).
-        final qrSize = w * 0.245;
-
-        return Container(
-          decoration: BoxDecoration(
-            color: AppColors.white,
-            borderRadius: BorderRadius.circular(radius),
-            boxShadow: [
-              // ظل أزرق ناعم — الهوية الأساسية للبطاقة
-              BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.16),
-                blurRadius: 40,
-                offset: const Offset(0, 18),
-              ),
-              // ظل ثانوي صغير — يمنح البطاقة عمقاً واقعياً قريباً من السطح
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.07),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(radius),
-            child: Stack(
-              children: [
-                // خلفية هندسية خفيفة جداً — خطوط ملعب كرة قدم (دائرة المنتصف
-                // + خط الوسط + قوس ركنية) بشفافية 2~3% فقط. لا تؤثر أبداً على
-                // وضوح القراءة.
-                Positioned.fill(
-                  child: CustomPaint(painter: _PitchPatternPainter()),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      flex: 18,
-                      child: _Header(
-                        w: w,
-                        academyName: academyName,
-                        academyLogoUrl: academyLogoUrl,
-                        sport: sport,
-                      ),
-                    ),
-                    // ── جسم البطاقة: عمودان — يسار (صورة/اسم/كود/مجموعة) 65%
-                    // ويمين (QR كبير + عبارة المسح) 35%. لا تداخل إطلاقاً بين
-                    // العناصر لأن كل عنصر في عموده الخاص. ──────────────────
-                    Expanded(
-                      flex: 82,
-                      child: Padding(
-                        // تباعد داخلي أوسع — البطاقة تتنفس حتى الحواف السفلية.
-                        padding: EdgeInsets.fromLTRB(
-                          w * 0.045,
-                          w * 0.035,
-                          w * 0.045,
-                          w * 0.03,
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Expanded(
-                              flex: 65,
-                              child: _LeftColumn(
-                                w: w,
-                                fullName: fullName,
-                                playerCode: playerCode,
-                                groupName: groupName,
-                                imageUrl: imageUrl,
-                              ),
-                            ),
-                            SizedBox(width: w * 0.03),
-                            Expanded(
-                              flex: 35,
-                              child: _RightColumn(w: w, qrSize: qrSize, qrData: qrData),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-/// خطوط ملعب كرة قدم خفيفة جداً — زخرفة هوية رياضية دون أي تأثير على القراءة.
-class _PitchPatternPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.primary.withValues(alpha: 0.028)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.4;
-
-    // دائرة المنتصف — أعلى يسار البطاقة
-    canvas.drawCircle(Offset(size.width * 0.14, size.height * 0.02), size.width * 0.12, paint);
-    // خط منتصف الملعب
-    canvas.drawLine(
-      Offset(size.width * 0.26, -size.height * 0.1),
-      Offset(size.width * 0.26, size.height * 0.5),
-      paint,
-    );
-    // قوس ركنية — أسفل يمين البطاقة
-    final cornerRect = Rect.fromCircle(
-      center: Offset(size.width * 1.0, size.height * 1.02),
-      radius: size.width * 0.16,
-    );
-    canvas.drawArc(cornerRect, 3.14, 1.6, false, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-// ─── رأس البطاقة: شعار (يسار) + اسم الأكاديمية (وسط) + شارة الرياضة (يمين) ──
-// ─── + تسمية "بطاقة لاعب رسمية" أسفل الرأس. رأس مضغوط بلا فراغ زائد. ────────
-class _Header extends StatelessWidget {
-  final double w;
-  final String academyName;
-  final String? academyLogoUrl;
-  final String sport;
-
-  const _Header({
-    required this.w,
-    required this.academyName,
-    required this.academyLogoUrl,
-    required this.sport,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    // Scales with the card while preserving space for the official-card label
-    // in the fixed 18% header section.
-    final logoSize = w * 0.065;
-
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppColors.primary, AppColors.primaryDark],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      padding: EdgeInsets.symmetric(horizontal: w * 0.045, vertical: w * 0.008),
-      // اتجاه ثابت LTR لضمان بقاء الشعار يساراً والشارة يميناً فعلياً — نصوص
-      // العربية تُشكَّل بصرياً بشكل صحيح تلقائياً بصرف النظر عن اتجاه الحاوية.
-      child: Directionality(
-        textDirection: TextDirection.ltr,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // LEFT — شعار الأكاديمية
-                Container(
-                  width: logoSize,
-                  height: logoSize,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.white,
-                    border: Border.all(color: AppColors.white, width: 1.4),
-                    boxShadow: [
-                      BoxShadow(color: Colors.black.withValues(alpha: 0.16), blurRadius: 5, offset: const Offset(0, 2)),
-                    ],
-                  ),
-                  child: ClipOval(
-                    child: (academyLogoUrl != null && academyLogoUrl!.isNotEmpty)
-                        ? CachedNetworkImage(
-                            imageUrl: academyLogoUrl!,
-                            fit: BoxFit.cover,
-                            errorWidget: (_, __, ___) => _logoPlaceholder(logoSize),
-                            placeholder: (_, __) => _logoPlaceholder(logoSize),
-                          )
-                        : _logoPlaceholder(logoSize),
-                  ),
-                ),
-                SizedBox(width: w * 0.022),
-                // CENTER — اسم الأكاديمية (سطر واحد)
-                Expanded(
-                  child: Text(
-                    academyName,
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: w * 0.030,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.white,
-                      height: 1.1,
-                    ),
-                  ),
-                ),
-                SizedBox(width: w * 0.018),
-                // RIGHT — شارة الرياضة
-                if (sport.isNotEmpty)
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: w * 0.02, vertical: w * 0.007),
-                    decoration: BoxDecoration(
-                      color: AppColors.white.withValues(alpha: 0.16),
-                      borderRadius: BorderRadius.circular(w * 0.05),
-                      border: Border.all(color: AppColors.white.withValues(alpha: 0.55), width: 1),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.sports_soccer, size: w * 0.017, color: AppColors.white),
-                        SizedBox(width: w * 0.008),
-                        Text(
-                          sport,
-                          maxLines: 1,
-                          style: TextStyle(
-                            fontSize: w * 0.017,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-            // BOTTOM — تسمية مصغّرة "بطاقة لاعب رسمية"
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: w * 0.02, vertical: w * 0.005),
-              decoration: BoxDecoration(
-                color: AppColors.white.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(w * 0.04),
-              ),
-              child: Text(
-                'بطاقة لاعب رسمية',
-                style: TextStyle(
-                  fontSize: w * 0.014,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.white.withValues(alpha: 0.92),
-                  letterSpacing: 0.2,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  static Widget _logoPlaceholder(double size) => Container(
-        color: AppColors.primaryContainer,
-        alignment: Alignment.center,
-        child: Icon(Icons.shield_outlined, size: size * 0.55, color: AppColors.primary),
-      );
-}
-
-// ─── العمود الأيسر (~65%): صورة دائرية كبيرة + اسم اللاعب (الأبرز على
-// البطاقة) + كود اللاعب + شارة المجموعة. عمود مستقل تماماً عن الـQR — لا
-// تداخل ممكن بنيوياً. ──────────────────────────────────────────────────────
-class _LeftColumn extends StatelessWidget {
-  final double w;
-  final String fullName;
-  final String playerCode;
-  final String groupName;
-  final String? imageUrl;
-
-  const _LeftColumn({
-    required this.w,
-    required this.fullName,
-    required this.playerCode,
-    required this.groupName,
-    required this.imageUrl,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final photoSize = w * 0.30;
-
-    // FittedBox كشبكة أمان فقط: يمنع أي تجاوز محتمل لارتفاع العمود عبر
-    // تصغير المجموعة كتناسب موحّد — لا يُفعَّل إطلاقاً إن كانت المساحة كافية،
-    // فلا يغيّر التصميم المطلوب فعلياً.
-    return Container(
-      color: Colors.transparent,
-      padding: EdgeInsets.symmetric(horizontal: w * 0.03),
-      child: Center(
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Directionality(
-            textDirection: TextDirection.rtl,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: photoSize,
-                  height: photoSize,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.primary, width: 3.4),
-                    boxShadow: [
-                      BoxShadow(color: AppColors.primary.withValues(alpha: 0.28), blurRadius: 20, offset: const Offset(0, 10)),
-                      BoxShadow(color: Colors.black.withValues(alpha: 0.14), blurRadius: 8, offset: const Offset(0, 4)),
-                    ],
-                  ),
-                  child: ClipOval(
-                    child: (imageUrl != null && imageUrl!.isNotEmpty)
-                        ? CachedNetworkImage(
-                            imageUrl: imageUrl!,
-                            fit: BoxFit.cover,
-                            errorWidget: (_, __, ___) => _avatarPlaceholder(photoSize),
-                            placeholder: (_, __) => _avatarPlaceholder(photoSize),
-                          )
-                        : _avatarPlaceholder(photoSize),
-                  ),
-                ),
-                SizedBox(height: w * 0.034),
-                Text(
-                  fullName,
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: w * 0.062,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.grey900,
-                    height: 1.1,
-                  ),
-                ),
-                SizedBox(height: w * 0.028),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: w * 0.036, vertical: w * 0.014),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: [AppColors.primaryLight, AppColors.primary]),
-                    borderRadius: BorderRadius.circular(w * 0.05),
-                    boxShadow: [
-                      BoxShadow(color: AppColors.primary.withValues(alpha: 0.35), blurRadius: 10, offset: const Offset(0, 4)),
-                    ],
-                  ),
-                  child: Text(
-                    playerCode,
-                    style: TextStyle(
-                      fontSize: w * 0.032,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.white,
-                      letterSpacing: 0.6,
-                    ),
-                  ),
-                ),
-                if (groupName.isNotEmpty) ...[
-                  SizedBox(height: w * 0.026),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: w * 0.034, vertical: w * 0.011),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(w * 0.05),
-                      boxShadow: [
-                        BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 3)),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.groups_outlined, size: w * 0.018, color: AppColors.white),
-                        SizedBox(width: w * 0.008),
-                        Text(
-                          groupName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: w * 0.017,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  static Widget _avatarPlaceholder(double size) => Container(
-        color: AppColors.primaryContainer,
-        alignment: Alignment.center,
-        child: Icon(Icons.person, size: size * 0.55, color: AppColors.primary),
-      );
-}
-
-// ─── العمود الأيمن (~35%): QR كبير (24~25% من عرض البطاقة) + عبارة المسح.
-// عمود منفصل تماماً عن اليسار — لا يتداخل أبداً مع الصورة/الاسم/الكود. ───────
-class _RightColumn extends StatelessWidget {
-  final double w;
-  final double qrSize;
-  final String qrData;
-
-  const _RightColumn({required this.w, required this.qrSize, required this.qrData});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: Colors.transparent,
-      alignment: Alignment.center,
-      // إزاحة الـQR قليلاً للداخل بعيداً عن حافة البطاقة
-      padding: EdgeInsets.symmetric(horizontal: w * 0.025),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: qrSize,
-            height: qrSize,
-            padding: EdgeInsets.all(w * 0.014),
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(w * 0.028),
-              border: Border.all(color: AppColors.primary, width: 2.2),
-              boxShadow: [
-                BoxShadow(color: AppColors.primary.withValues(alpha: 0.32), blurRadius: 18, offset: const Offset(0, 8)),
-                BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 6, offset: const Offset(0, 3)),
-              ],
-            ),
-            child: QrImageView(
-              data: qrData,
-              version: QrVersions.auto,
-              backgroundColor: AppColors.white,
-              eyeStyle: const QrEyeStyle(
-                eyeShape: QrEyeShape.square,
-                color: AppColors.primaryDark,
-              ),
-              dataModuleStyle: const QrDataModuleStyle(
-                dataModuleShape: QrDataModuleShape.square,
-                color: AppColors.primaryDark,
-              ),
-              errorStateBuilder: (_, __) => Center(
-                child: Text(
-                  'تعذّر توليد QR',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: w * 0.016, color: AppColors.error),
-                ),
-              ),
-            ),
-          ),
-          SizedBox(height: w * 0.01),
-          Directionality(
-            textDirection: TextDirection.rtl,
-            child: Text(
-              'امسح للحضور',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: w * 0.016,
-                fontWeight: FontWeight.w700,
-                color: AppColors.grey500,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// أزرار: تحميل PDF / مشاركة / طباعة
+// تُولَّد الصورة مرة واحدة فقط عند الضغط على "إنشاء صورة البطاقة" (وليس عند
+// فتح الصفحة) — بعدها تظهر أزرار: حفظ في الهاتف / مشاركة / فتح الصورة، مع
+// إمكانية "إعادة إنشاء الصورة" في أي وقت. زر الطباعة إضافي يستخدم نفس الصورة
+// المولَّدة (راجع التوثيق في PlayerCardExportService لسبب استثناء الطباعة).
 // ---------------------------------------------------------------------------
 
 class _ActionButtons extends StatefulWidget {
-  final Future<Uint8List> Function() buildPdf;
+  final GlobalKey cardKey;
   final String fileName;
-  const _ActionButtons({required this.buildPdf, required this.fileName});
+  const _ActionButtons({required this.cardKey, required this.fileName});
 
   @override
   State<_ActionButtons> createState() => _ActionButtonsState();
@@ -639,26 +106,106 @@ class _ActionButtons extends StatefulWidget {
 
 class _ActionButtonsState extends State<_ActionButtons> {
   bool _busy = false;
+  Uint8List? _png;
+  String? _tempPath;
 
-  Future<void> _run(Future<void> Function(Uint8List bytes) action) async {
+  void _showError(Object e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('تعذّرت العملية: $e'),
+        backgroundColor: AppColors.error,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _showSuccess(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppColors.success,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  /// يُنشئ صورة البطاقة (وإعادة الإنشاء تعيد نفس الخطوة من جديد).
+  Future<void> _generate() async {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      final bytes = await widget.buildPdf();
-      if (bytes.isEmpty) {
-        throw StateError('ملف PDF فارغ');
-      }
-      await action(bytes);
+      final png = await PlayerCardExportService.capturePng(widget.cardKey);
+      final path = await PlayerCardExportService.writeTempFile(png, widget.fileName);
+      if (!mounted) return;
+      setState(() {
+        _png = png;
+        _tempPath = path;
+      });
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('تعذّر إنشاء البطاقة: $e'),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+      _showError(e);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _save() async {
+    final png = _png;
+    if (png == null || _busy) return;
+    setState(() => _busy = true);
+    try {
+      if (kIsWeb) {
+        throw UnsupportedError('الحفظ المباشر غير مدعوم على الويب — استخدم زر المشاركة');
       }
+      final result = await PlayerCardExportService.saveToDevice(png, widget.fileName);
+      _showSuccess(
+        result.savedToGallery ? 'تم حفظ البطاقة في معرض الصور' : 'تم حفظ البطاقة في: ${result.filePath}',
+      );
+    } catch (e) {
+      _showError(e);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _share() async {
+    final png = _png;
+    if (png == null || _busy) return;
+    setState(() => _busy = true);
+    try {
+      await PlayerCardExportService.shareImage(png, widget.fileName);
+    } catch (e) {
+      _showError(e);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _open() async {
+    final path = _tempPath;
+    if (path == null || _busy) return;
+    setState(() => _busy = true);
+    try {
+      if (kIsWeb) {
+        throw UnsupportedError('فتح الصورة كملف غير مدعوم على الويب — استخدم زر المشاركة');
+      }
+      await PlayerCardExportService.openImage(path);
+    } catch (e) {
+      _showError(e);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _print() async {
+    final png = _png;
+    if (png == null || _busy) return;
+    setState(() => _busy = true);
+    try {
+      await PlayerCardExportService.printImage(png);
+    } catch (e) {
+      _showError(e);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -672,25 +219,59 @@ class _ActionButtonsState extends State<_ActionButtons> {
         child: const Center(child: CircularProgressIndicator()),
       );
     }
+
+    if (_png == null) {
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: AppColors.white,
+          ),
+          onPressed: _generate,
+          icon: const Icon(Icons.image_outlined),
+          label: const Text('إنشاء صورة البطاقة'),
+        ),
+      );
+    }
+
     return Column(
       children: [
         Row(
           children: [
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: () => _run((bytes) =>
-                    Printing.sharePdf(bytes: bytes, filename: widget.fileName)),
+                onPressed: _save,
                 icon: const Icon(Icons.download_outlined),
-                label: const Text('تحميل PDF'),
+                label: const Text('حفظ في الهاتف'),
               ),
             ),
             Gap(8.w),
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: () => _run((bytes) =>
-                    Printing.sharePdf(bytes: bytes, filename: widget.fileName)),
+                onPressed: _share,
                 icon: const Icon(Icons.share_outlined),
-                label: const Text('مشاركة البطاقة'),
+                label: const Text('مشاركة'),
+              ),
+            ),
+          ],
+        ),
+        Gap(8.h),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _open,
+                icon: const Icon(Icons.open_in_new_outlined),
+                label: const Text('فتح الصورة'),
+              ),
+            ),
+            Gap(8.w),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _generate,
+                icon: const Icon(Icons.refresh_outlined),
+                label: const Text('إعادة إنشاء الصورة'),
               ),
             ),
           ],
@@ -703,8 +284,7 @@ class _ActionButtonsState extends State<_ActionButtons> {
               backgroundColor: AppColors.primary,
               foregroundColor: AppColors.white,
             ),
-            onPressed: () =>
-                _run((bytes) => Printing.layoutPdf(onLayout: (_) async => bytes)),
+            onPressed: _print,
             icon: const Icon(Icons.print_outlined),
             label: const Text('طباعة البطاقة'),
           ),

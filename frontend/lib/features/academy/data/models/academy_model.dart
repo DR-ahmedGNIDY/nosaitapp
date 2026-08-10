@@ -22,6 +22,14 @@ class AcademyModel {
   final DateTime? updatedAt;
   @JsonKey(name: 'player_count')
   final int? playerCount;
+  @JsonKey(defaultValue: '')
+  final String? websiteUrl;
+  @JsonKey(defaultValue: '')
+  final String? facebookUrl;
+  @JsonKey(defaultValue: '')
+  final String? tiktokUrl;
+  @JsonKey(defaultValue: '')
+  final String? instagramUrl;
 
   const AcademyModel({
     required this.id,
@@ -34,6 +42,10 @@ class AcademyModel {
     required this.createdAt,
     this.updatedAt,
     this.playerCount,
+    this.websiteUrl,
+    this.facebookUrl,
+    this.tiktokUrl,
+    this.instagramUrl,
   });
 
   factory AcademyModel.fromJson(Map<String, dynamic> json) =>
@@ -52,5 +64,9 @@ class AcademyModel {
         createdAt: createdAt,
         updatedAt: updatedAt,
         playerCount: playerCount,
+        websiteUrl: websiteUrl,
+        facebookUrl: facebookUrl,
+        tiktokUrl: tiktokUrl,
+        instagramUrl: instagramUrl,
       );
 }

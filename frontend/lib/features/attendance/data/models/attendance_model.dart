@@ -42,6 +42,8 @@ class AttendanceRecordMapper {
     return AttendanceRecordResult(
       recorded: data['recorded'] == true,
       alreadyToday: data['alreadyToday'] == true,
+      subscriptionExpired: data['subscriptionExpired'] == true,
+      playerId: (player['id'] as String?),
       playerName: (player['fullName'] ?? '').toString(),
       playerCode: (player['playerCode'] ?? '').toString(),
       sport: player['sport'] as String?,

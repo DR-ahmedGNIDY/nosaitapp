@@ -10,6 +10,7 @@ abstract class AttendanceRemoteDatasource {
     String? playerId,
     required String localDate,
     required String localTime,
+    bool allowExpired,
   });
 
   Future<
@@ -48,12 +49,14 @@ class AttendanceRemoteDatasourceImpl implements AttendanceRemoteDatasource {
     String? playerId,
     required String localDate,
     required String localTime,
+    bool allowExpired = false,
   }) async {
     final data = <String, dynamic>{
       if (code != null) 'code': code,
       if (playerId != null) 'playerId': playerId,
       'localDate': localDate,
       'localTime': localTime,
+      if (allowExpired) 'allowExpired': true,
     };
     final response = await _apiClient.post('/attendance', data: data);
     final body = response.data as Map<String, dynamic>;

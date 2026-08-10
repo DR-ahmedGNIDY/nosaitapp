@@ -157,7 +157,10 @@ class _AttendanceReportScreenState
                   ],
                 ),
               ),
-              data: (report) => _ReportBody(report: report),
+              data: (report) => _ReportBody(
+                report: report,
+                showMonthlyDots: _period == _Period.thisMonth,
+              ),
             ),
           ),
         ],
@@ -249,7 +252,8 @@ class _AttendanceReportScreenState
 
 class _ReportBody extends StatelessWidget {
   final AttendanceReport report;
-  const _ReportBody({required this.report});
+  final bool showMonthlyDots;
+  const _ReportBody({required this.report, required this.showMonthlyDots});
 
   @override
   Widget build(BuildContext context) {
@@ -299,7 +303,8 @@ class _ReportBody extends StatelessWidget {
             ),
           )
         else
-          ...report.rows.map((r) => _RowTile(row: r)),
+          ...report.rows
+              .map((r) => _RowTile(row: r, showMonthlyDots: showMonthlyDots)),
       ],
     );
   }
@@ -343,7 +348,8 @@ class _SummaryCard extends StatelessWidget {
 
 class _RowTile extends StatelessWidget {
   final AttendanceReportRow row;
-  const _RowTile({required this.row});
+  final bool showMonthlyDots;
+  const _RowTile({required this.row, required this.showMonthlyDots});
 
   Color get _rateColor {
     if (row.rate >= 75) return const Color(0xFF2D9748);
@@ -408,6 +414,10 @@ class _RowTile extends StatelessWidget {
                   ].join(' • '),
                   style: TextStyle(fontSize: 11.sp, color: AppColors.grey500),
                 ),
+                if (showMonthlyDots && row.expected > 0) ...[
+                  Gap(6.h),
+                  _AttendanceDots(expected: row.expected, present: row.present),
+                ],
               ],
             ),
           ),
@@ -434,6 +444,37 @@ class _RowTile extends StatelessWidget {
             style: TextStyle(
                 fontSize: 12.sp, fontWeight: FontWeight.w700, color: color)),
       ],
+    );
+  }
+}
+
+// دوائر صغيرة تمثّل أيام التدريب المتوقعة في الشهر — كل حضور يلوّن دائرة.
+class _AttendanceDots extends StatelessWidget {
+  final int expected;
+  final int present;
+  const _AttendanceDots({required this.expected, required this.present});
+
+  @override
+  Widget build(BuildContext context) {
+    final filled = present > expected ? expected : present;
+    return Wrap(
+      spacing: 4.w,
+      runSpacing: 4.h,
+      children: List.generate(expected, (i) {
+        final isFilled = i < filled;
+        return Container(
+          width: 9.w,
+          height: 9.w,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isFilled ? const Color(0xFF2D9748) : Colors.transparent,
+            border: Border.all(
+              color: isFilled ? const Color(0xFF2D9748) : AppColors.grey300,
+              width: 1.2,
+            ),
+          ),
+        );
+      }),
     );
   }
 }

@@ -46,16 +46,18 @@ class ProductsState {
 
 class ProductsNotifier extends StateNotifier<ProductsState> {
   final StoreService _service;
+  final String? _academyId;
   static const int _limit = 20;
 
-  ProductsNotifier(this._service) : super(const ProductsState()) {
+  ProductsNotifier(this._service, this._academyId) : super(const ProductsState()) {
     refresh();
   }
 
   Future<void> refresh() async {
     state = const ProductsState(loading: true);
     try {
-      final res = await _service.getProducts(page: 1, limit: _limit);
+      final res =
+          await _service.getProducts(page: 1, limit: _limit, academyId: _academyId);
       state = ProductsState(
         items: res.items,
         loading: false,
@@ -71,7 +73,8 @@ class ProductsNotifier extends StateNotifier<ProductsState> {
     if (state.loadingMore || !state.hasNext || state.loading) return;
     state = state.copyWith(loadingMore: true);
     try {
-      final res = await _service.getProducts(page: state.page + 1, limit: _limit);
+      final res = await _service.getProducts(
+          page: state.page + 1, limit: _limit, academyId: _academyId);
       state = state.copyWith(
         items: [...state.items, ...res.items],
         loadingMore: false,
@@ -84,9 +87,11 @@ class ProductsNotifier extends StateNotifier<ProductsState> {
   }
 }
 
-final storeProductsProvider =
-    StateNotifierProvider.autoDispose<ProductsNotifier, ProductsState>((ref) {
-  return ProductsNotifier(sl<StoreService>());
+/// [academyId]: أكاديمية اللاعب/المدير الحالية، أو الأكاديمية التي يتصرف
+/// كها super_admin (null لأدوار أخرى تعتمد على أكاديمية التوكن مباشرة).
+final storeProductsProvider = StateNotifierProvider.autoDispose
+    .family<ProductsNotifier, ProductsState, String?>((ref, academyId) {
+  return ProductsNotifier(sl<StoreService>(), academyId);
 });
 
 // ══════════════════════ متجر (منتجات) — جهة اللاعب ══════════════════════
@@ -238,9 +243,10 @@ class OrdersState {
 
 class OrdersNotifier extends StateNotifier<OrdersState> {
   final StoreService _service;
+  final String? _academyId;
   static const int _limit = 20;
 
-  OrdersNotifier(this._service) : super(const OrdersState()) {
+  OrdersNotifier(this._service, this._academyId) : super(const OrdersState()) {
     refresh();
   }
 
@@ -256,6 +262,7 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
         page: 1,
         limit: _limit,
         status: state.statusFilter,
+        academyId: _academyId,
       );
       state = state.copyWith(
         items: res.items,
@@ -277,6 +284,7 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
         page: state.page + 1,
         limit: _limit,
         status: state.statusFilter,
+        academyId: _academyId,
       );
       state = state.copyWith(
         items: [...state.items, ...res.items],
@@ -295,7 +303,8 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
   }
 }
 
-final storeOrdersProvider =
-    StateNotifierProvider.autoDispose<OrdersNotifier, OrdersState>((ref) {
-  return OrdersNotifier(sl<StoreService>());
+/// [academyId]: انظر توضيح storeProductsProvider أعلاه.
+final storeOrdersProvider = StateNotifierProvider.autoDispose
+    .family<OrdersNotifier, OrdersState, String?>((ref, academyId) {
+  return OrdersNotifier(sl<StoreService>(), academyId);
 });

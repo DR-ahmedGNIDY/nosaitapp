@@ -1,7 +1,7 @@
 import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/di/injection_container.dart';
 import 'package:basketball_academy/features/academy/presentation/providers/currency_provider.dart';
-import 'package:basketball_academy/features/auth/presentation/providers/auth_provider.dart';
+import 'package:basketball_academy/features/dashboard/presentation/providers/selected_academy_provider.dart';
 import 'package:basketball_academy/features/store/data/store_product.dart';
 import 'package:basketball_academy/features/store/data/store_service.dart';
 import 'package:basketball_academy/features/store/presentation/dialogs/product_form_dialog.dart';
@@ -21,12 +21,13 @@ class StoreManagementScreen extends ConsumerWidget {
   StoreService get _service => sl<StoreService>();
 
   String _currencyLabel(WidgetRef ref) {
-    final academyId = ref.read(authStateProvider).valueOrNull?.user?.academyId;
+    final academyId = ref.read(effectiveAcademyIdProvider);
     return ref.read(academyCurrencyLabelProvider(academyId));
   }
 
   Future<void> _add(BuildContext context, WidgetRef ref) async {
     final messenger = ScaffoldMessenger.of(context);
+    final academyId = ref.read(effectiveAcademyIdProvider);
     final res = await showDialog<ProductFormResult>(
       context: context,
       builder: (_) => ProductFormDialog(currencyLabel: _currencyLabel(ref)),
@@ -39,8 +40,9 @@ class StoreManagementScreen extends ConsumerWidget {
         price: res.price,
         description: res.description,
         isAvailable: res.isAvailable,
+        academyId: academyId,
       );
-      ref.read(storeProductsProvider.notifier).refresh();
+      ref.read(storeProductsProvider(academyId).notifier).refresh();
       messenger.showSnackBar(const SnackBar(
         content: Text('تمت إضافة المنتج بنجاح'), backgroundColor: AppColors.success));
     } catch (_) {
@@ -51,6 +53,7 @@ class StoreManagementScreen extends ConsumerWidget {
 
   Future<void> _edit(BuildContext context, WidgetRef ref, StoreProduct p) async {
     final messenger = ScaffoldMessenger.of(context);
+    final academyId = ref.read(effectiveAcademyIdProvider);
     final res = await showDialog<ProductFormResult>(
       context: context,
       builder: (_) => ProductFormDialog(existing: p, currencyLabel: _currencyLabel(ref)),
@@ -66,7 +69,7 @@ class StoreManagementScreen extends ConsumerWidget {
         price: res.price,
         isAvailable: res.isAvailable,
       );
-      ref.read(storeProductsProvider.notifier).refresh();
+      ref.read(storeProductsProvider(academyId).notifier).refresh();
       messenger.showSnackBar(const SnackBar(
         content: Text('تم تحديث المنتج'), backgroundColor: AppColors.success));
     } catch (_) {
@@ -77,6 +80,7 @@ class StoreManagementScreen extends ConsumerWidget {
 
   Future<void> _delete(BuildContext context, WidgetRef ref, StoreProduct p) async {
     final messenger = ScaffoldMessenger.of(context);
+    final academyId = ref.read(effectiveAcademyIdProvider);
     final ok = await showDialog<bool>(
       context: context,
       builder: (dCtx) => AlertDialog(
@@ -94,7 +98,7 @@ class StoreManagementScreen extends ConsumerWidget {
     if (ok != true) return;
     try {
       await _service.deleteProduct(p.id);
-      ref.read(storeProductsProvider.notifier).refresh();
+      ref.read(storeProductsProvider(academyId).notifier).refresh();
       messenger.showSnackBar(const SnackBar(
         content: Text('تم حذف المنتج'), backgroundColor: AppColors.success));
     } catch (_) {
@@ -103,35 +107,37 @@ class StoreManagementScreen extends ConsumerWidget {
     }
   }
 
-  void _openSettings(BuildContext context) {
-    showDialog(context: context, builder: (_) => const StoreSettingsDialog());
+  void _openSettings(BuildContext context, String? academyId) {
+    showDialog(
+      context: context,
+      builder: (_) => StoreSettingsDialog(academyId: academyId),
+    );
   }
 
-  void _openOrders(BuildContext context) {
+  void _openOrders(BuildContext context, String? academyId) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const StoreOrdersScreen()),
+      MaterialPageRoute(builder: (_) => StoreOrdersScreen(academyId: academyId)),
     );
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(storeProductsProvider);
-    final notifier = ref.read(storeProductsProvider.notifier);
-    final currencyCode =
-        ref.watch(academyCurrencyCodeProvider(
-            ref.read(authStateProvider).valueOrNull?.user?.academyId));
-    final pending = ref.watch(storeOrdersProvider).pendingCount;
+    final academyId = ref.watch(effectiveAcademyIdProvider);
+    final state = ref.watch(storeProductsProvider(academyId));
+    final notifier = ref.read(storeProductsProvider(academyId).notifier);
+    final currencyCode = ref.watch(academyCurrencyCodeProvider(academyId));
+    final pending = ref.watch(storeOrdersProvider(academyId)).pendingCount;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('المتجر'),
         actions: [
-          _OrdersButton(count: pending, onTap: () => _openOrders(context)),
+          _OrdersButton(count: pending, onTap: () => _openOrders(context, academyId)),
           IconButton(
             tooltip: 'إعدادات المتجر',
             icon: const Icon(Icons.settings_outlined),
-            onPressed: () => _openSettings(context),
+            onPressed: () => _openSettings(context, academyId),
           ),
         ],
       ),

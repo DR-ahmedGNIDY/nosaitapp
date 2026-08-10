@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Attendance = require('../models/attendance.model');
 const Player = require('../models/player.model');
+const Subscription = require('../models/subscription.model');
 const AppError = require('../utils/AppError');
 const { sendSuccess, sendPaginated } = require('../utils/apiResponse');
 const logger = require('../utils/logger');
@@ -41,7 +42,7 @@ const playerSummary = (p) => ({
 // ─── POST /attendance ─────────────────────────────────────────────────────────
 // مسح واحد = طلب واحد: بحث عن اللاعب + منع التكرار + إنشاء السجل + إرجاع بيانات اللاعب.
 const recordAttendance = async (req, res, next) => {
-  const { code, playerId, localDate, localTime } = req.body;
+  const { code, playerId, localDate, localTime, allowExpired } = req.body;
   logger.info(`[ATTENDANCE] record request: code="${code ?? ''}" playerId="${playerId ?? ''}"`);
 
   // 1) العثور على اللاعب (بالكود من الـ QR أو بالمعرّف)
@@ -74,7 +75,24 @@ const recordAttendance = async (req, res, next) => {
   const date = (localDate && /^\d{4}-\d{2}-\d{2}$/.test(localDate)) ? localDate : serverDateStr();
   const time = (localTime && /^\d{2}:\d{2}$/.test(localTime)) ? localTime : serverTimeStr();
 
-  // 3) محاولة الإنشاء — الفهرس الفريد (playerId, date) هو حارس منع التكرار.
+  // 3) فحص حالة الاشتراك — آخر اشتراك للاعب (الأحدث تاريخ انتهاء).
+  const latestSubscription = await Subscription.findOne({ playerId: player._id })
+    .sort({ endDate: -1 });
+  const subscriptionExpired = !latestSubscription || latestSubscription.endDate < new Date();
+
+  if (subscriptionExpired && allowExpired !== true) {
+    return sendSuccess(res, {
+      data: {
+        recorded: false,
+        alreadyToday: false,
+        subscriptionExpired: true,
+        player: playerSummary(player),
+      },
+      message: 'اشتراك اللاعب منتهي',
+    });
+  }
+
+  // 4) محاولة الإنشاء — الفهرس الفريد (playerId, date) هو حارس منع التكرار.
   try {
     const attendance = await Attendance.create({
       playerId: player._id,
@@ -83,6 +101,7 @@ const recordAttendance = async (req, res, next) => {
       date,
       time,
       status: 'present',
+      subscriptionExpiredAtCheckin: subscriptionExpired && allowExpired === true,
     });
 
     logger.info(`Attendance recorded: ${player.playerCode} @ ${date} ${time}`);

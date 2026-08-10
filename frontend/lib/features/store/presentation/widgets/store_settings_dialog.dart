@@ -9,7 +9,8 @@ import 'package:flutter/services.dart';
 /// كود الدولة (كل الدول العربية) فيُضاف تلقائياً للرقم المحلي عند الحفظ.
 /// إن تُرك فارغاً تُرسَل الطلبات إلى رقم هاتف الأكاديمية الأساسي (fallback).
 class StoreSettingsDialog extends StatefulWidget {
-  const StoreSettingsDialog({super.key});
+  final String? academyId;
+  const StoreSettingsDialog({super.key, this.academyId});
 
   @override
   State<StoreSettingsDialog> createState() => _StoreSettingsDialogState();
@@ -39,7 +40,7 @@ class _StoreSettingsDialogState extends State<StoreSettingsDialog> {
 
   Future<void> _load() async {
     try {
-      final s = await _service.getSettings();
+      final s = await _service.getSettings(academyId: widget.academyId);
       final split = splitStoredNumber(s.storeWhatsApp);
       setState(() {
         _country = split.country;
@@ -60,7 +61,7 @@ class _StoreSettingsDialogState extends State<StoreSettingsDialog> {
     try {
       // يُبنى الرقم دولياً: كود الدولة + الرقم المحلي (بدون صفر البداية).
       final full = buildInternationalNumber(_country, _ctrl.text);
-      await _service.updateStoreWhatsApp(full);
+      await _service.updateStoreWhatsApp(full, academyId: widget.academyId);
       if (mounted) Navigator.pop(context, true);
     } catch (_) {
       setState(() {
