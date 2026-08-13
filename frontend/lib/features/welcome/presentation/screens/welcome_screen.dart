@@ -167,8 +167,8 @@ class _PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 50.h,
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: 50.h),
       child: ElevatedButton(
         onPressed: onPressed,
         child: Text(label,
@@ -186,8 +186,8 @@ class _SecondaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 50.h,
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: 50.h),
       child: OutlinedButton.icon(
         onPressed: onPressed,
         icon: Icon(icon, color: AppColors.primary),
