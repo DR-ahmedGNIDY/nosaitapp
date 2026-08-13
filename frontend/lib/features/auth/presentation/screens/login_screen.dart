@@ -333,8 +333,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               ],
                             ),
                             Gap(20.h),
-                            SizedBox(
-                              height: 50.h,
+                            ConstrainedBox(
+                              constraints: BoxConstraints(minHeight: 50.h),
                               child: ElevatedButton(
                                 onPressed: isLoading ? null : _handleLogin,
                                 child: isLoading
@@ -361,8 +361,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     ),
                     Gap(20.h),
                     // إنشاء حساب أكاديمية — يفتح شاشة تسجيل أكاديمية جديدة
-                    SizedBox(
-                      height: 50.h,
+                    ConstrainedBox(
+                      constraints: BoxConstraints(minHeight: 50.h),
                       child: ElevatedButton.icon(
                         onPressed: () => context.go(AppRoutes.registerAcademy),
                         icon: const Icon(Icons.add_business_outlined),
@@ -384,8 +384,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     ),
                     Gap(12.h),
                     // تواصل مع الدعم — يفتح واتساب الشركة
-                    SizedBox(
-                      height: 50.h,
+                    ConstrainedBox(
+                      constraints: BoxConstraints(minHeight: 50.h),
                       child: OutlinedButton.icon(
                         onPressed: _contactCompany,
                         icon: const Icon(Icons.chat_bubble_outline,

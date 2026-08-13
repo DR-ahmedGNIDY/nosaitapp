@@ -132,8 +132,8 @@ class _PlayerLoginScreenState extends ConsumerState<PlayerLoginScreen> {
                                   (v == null || v.isEmpty) ? 'مطلوب' : null,
                             ),
                             Gap(22.h),
-                            SizedBox(
-                              height: 50.h,
+                            ConstrainedBox(
+                              constraints: BoxConstraints(minHeight: 50.h),
                               child: ElevatedButton(
                                 onPressed: isLoading ? null : _login,
                                 child: isLoading
