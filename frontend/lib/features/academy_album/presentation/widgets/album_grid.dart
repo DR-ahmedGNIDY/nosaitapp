@@ -53,6 +53,14 @@ class _AlbumGridState extends State<AlbumGrid> {
     }
   }
 
+  /// Cloudinary يولّد صورة إطار تلقائياً لأي فيديو عند استبدال امتداد الملف
+  /// بـ jpg على نفس الرابط (/video/upload/...mp4 → ...jpg).
+  String _videoThumbnail(String url) {
+    final dot = url.lastIndexOf('.');
+    if (dot == -1) return url;
+    return '${url.substring(0, dot)}.jpg';
+  }
+
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
@@ -84,15 +92,45 @@ class _AlbumGridState extends State<AlbumGrid> {
                 fit: StackFit.expand,
                 children: [
                   CachedNetworkImage(
-                    imageUrl: img.imageUrl,
+                    imageUrl: img.isVideo ? _videoThumbnail(img.imageUrl) : img.imageUrl,
                     fit: BoxFit.cover,
                     placeholder: (_, __) =>
                         Container(color: AppColors.grey200),
                     errorWidget: (_, __, ___) => Container(
-                      color: AppColors.grey200,
-                      child: const Icon(Icons.broken_image, color: AppColors.grey500),
+                      color: AppColors.grey800,
+                      child: const Icon(Icons.videocam, color: Colors.white54),
                     ),
                   ),
+                  if (img.isVideo)
+                    const Center(
+                      child: Icon(Icons.play_circle_fill,
+                          color: Colors.white, size: 36, shadows: [
+                        Shadow(color: Colors.black54, blurRadius: 6),
+                      ]),
+                    ),
+                  if (img.likesCount > 0 || img.commentsCount > 0)
+                    Positioned(
+                      left: 4.r,
+                      bottom: 4.r,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (img.likesCount > 0) ...[
+                            const Icon(Icons.favorite, color: Colors.redAccent, size: 13),
+                            SizedBox(width: 2.r),
+                            Text('${img.likesCount}',
+                                style: const TextStyle(color: Colors.white, fontSize: 11)),
+                            SizedBox(width: 6.r),
+                          ],
+                          if (img.commentsCount > 0) ...[
+                            const Icon(Icons.mode_comment, color: Colors.white, size: 12),
+                            SizedBox(width: 2.r),
+                            Text('${img.commentsCount}',
+                                style: const TextStyle(color: Colors.white, fontSize: 11)),
+                          ],
+                        ],
+                      ),
+                    ),
                   if (img.title.isNotEmpty)
                     Positioned(
                       left: 0, right: 0, bottom: 0,

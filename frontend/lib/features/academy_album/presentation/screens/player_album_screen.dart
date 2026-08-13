@@ -22,8 +22,12 @@ class PlayerAlbumScreen extends ConsumerWidget {
         onRefresh: notifier.refresh,
         onLoadMore: notifier.loadMore,
         onTapImage: (i) => Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) => AlbumViewerScreen(images: state.items, initialIndex: i),
-        )),
+          builder: (_) => AlbumViewerScreen(
+            images: state.items,
+            initialIndex: i,
+            playerSide: true,
+          ),
+        )).then((_) => notifier.refresh()),
       ),
     );
   }

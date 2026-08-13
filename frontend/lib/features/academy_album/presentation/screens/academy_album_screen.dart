@@ -28,10 +28,13 @@ class AcademyAlbumScreen extends ConsumerWidget {
         imagePath: res.imagePath!,
         title: res.title,
         description: res.description,
+        isVideo: res.isVideo,
       );
       ref.read(academyAlbumProvider.notifier).refresh();
-      messenger.showSnackBar(const SnackBar(
-        content: Text('تمت إضافة الصورة بنجاح'), backgroundColor: AppColors.success));
+      messenger.showSnackBar(SnackBar(
+        content: Text(res.isVideo ? 'تمت إضافة الفيديو بنجاح' : 'تمت إضافة الصورة بنجاح'),
+        backgroundColor: AppColors.success,
+      ));
     } catch (_) {
       messenger.showSnackBar(const SnackBar(
         content: Text('تعذّرت الإضافة. حاول مرة أخرى.'), backgroundColor: AppColors.error));
@@ -103,7 +106,7 @@ class AcademyAlbumScreen extends ConsumerWidget {
         onLoadMore: notifier.loadMore,
         onTapImage: (i) => Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => AlbumViewerScreen(images: state.items, initialIndex: i),
-        )),
+        )).then((_) => notifier.refresh()),
         onEdit: (img) => _edit(context, ref, img),
         onDelete: (img) => _delete(context, ref, img),
       ),

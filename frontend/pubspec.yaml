@@ -1,7 +1,7 @@
 name: basketball_academy
 description: نظام إدارة أكاديمية كرة السلة
 publish_to: "none"
-version: 1.1.8+15
+version: 1.1.9+16
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
@@ -31,6 +31,9 @@ dependencies:
   # Image
   cached_network_image: ^3.4.1
   image_picker: ^1.1.2
+
+  # Video (Academy Album)
+  video_player: ^2.9.2
 
   # UI Utilities
   flutter_screenutil: ^5.9.3

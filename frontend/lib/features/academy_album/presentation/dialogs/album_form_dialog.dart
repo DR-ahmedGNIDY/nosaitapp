@@ -4,15 +4,21 @@ import 'package:basketball_academy/features/academy_album/data/album_image.dart'
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-/// نتيجة نموذج الألبوم: عند الإضافة يحمل مسار الصورة؛ عند التعديل لا يحمله.
+/// نتيجة نموذج الألبوم: عند الإضافة يحمل مسار الملف؛ عند التعديل لا يحمله.
 class AlbumFormResult {
   final String? imagePath; // null عند التعديل
+  final bool isVideo;
   final String title;
   final String description;
-  const AlbumFormResult({this.imagePath, required this.title, required this.description});
+  const AlbumFormResult({
+    this.imagePath,
+    this.isVideo = false,
+    required this.title,
+    required this.description,
+  });
 }
 
-/// نموذج موحّد: إضافة صورة (اختيار من المعرض + عنوان + وصف) أو تعديل
+/// نموذج موحّد: إضافة صورة/فيديو (اختيار من المعرض + عنوان + وصف) أو تعديل
 /// (عنوان + وصف فقط). يعيد AlbumFormResult أو null عند الإلغاء.
 class AlbumFormDialog extends StatefulWidget {
   final AlbumImage? existing; // null = إضافة
@@ -26,6 +32,7 @@ class _AlbumFormDialogState extends State<AlbumFormDialog> {
   final _titleCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
   XFile? _picked;
+  bool _pickedIsVideo = false;
   String? _error;
 
   bool get _isEdit => widget.existing != null;
@@ -46,7 +53,7 @@ class _AlbumFormDialogState extends State<AlbumFormDialog> {
     super.dispose();
   }
 
-  Future<void> _pick() async {
+  Future<void> _pickImage() async {
     final img = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (img == null) return;
     final sizeError = await validateImageSize(img);
@@ -56,6 +63,22 @@ class _AlbumFormDialogState extends State<AlbumFormDialog> {
     }
     setState(() {
       _picked = img;
+      _pickedIsVideo = false;
+      _error = null;
+    });
+  }
+
+  Future<void> _pickVideo() async {
+    final video = await ImagePicker().pickVideo(source: ImageSource.gallery);
+    if (video == null) return;
+    final sizeError = await validateAlbumVideoSize(video);
+    if (sizeError != null) {
+      setState(() => _error = sizeError);
+      return;
+    }
+    setState(() {
+      _picked = video;
+      _pickedIsVideo = true;
       _error = null;
     });
   }
@@ -67,13 +90,14 @@ class _AlbumFormDialogState extends State<AlbumFormDialog> {
       return;
     }
     if (!_isEdit && _picked == null) {
-      setState(() => _error = 'اختر صورة أولاً');
+      setState(() => _error = 'اختر صورة أو فيديو أولاً');
       return;
     }
     Navigator.pop(
       context,
       AlbumFormResult(
         imagePath: _picked?.path,
+        isVideo: _pickedIsVideo,
         title: title,
         description: _descCtrl.text.trim(),
       ),
@@ -83,17 +107,37 @@ class _AlbumFormDialogState extends State<AlbumFormDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(_isEdit ? 'تعديل الصورة' : 'إضافة صورة'),
+      title: Text(_isEdit ? 'تعديل الصورة' : 'إضافة صورة أو فيديو'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (!_isEdit) ...[
-              OutlinedButton.icon(
-                onPressed: _pick,
-                icon: const Icon(Icons.photo_library_outlined),
-                label: Text(_picked == null ? 'اختيار صورة من المعرض' : 'تم اختيار الصورة'),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _pickImage,
+                      icon: const Icon(Icons.photo_library_outlined),
+                      label: Text(
+                        _picked != null && !_pickedIsVideo ? 'تم اختيار الصورة' : 'صورة',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _pickVideo,
+                      icon: const Icon(Icons.videocam_outlined),
+                      label: Text(
+                        _picked != null && _pickedIsVideo ? 'تم اختيار الفيديو' : 'فيديو',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
             ],

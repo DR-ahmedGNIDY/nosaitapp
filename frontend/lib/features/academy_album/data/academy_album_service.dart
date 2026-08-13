@@ -10,13 +10,19 @@ class AlbumPage {
   const AlbumPage(this.items, this.hasNext);
 }
 
-/// خدمة ألبوم الأكاديمية — تعيد استخدام ApiClient نفسه. جهة المدير (CRUD)
-/// وجهة اللاعب (قراءة فقط عبر /player/album). لا خدمة رفع/شبكة جديدة.
+/// خدمة ألبوم الأكاديمية — تعيد استخدام ApiClient نفسه. جهة المدير (CRUD +
+/// إعجاب/تعليق) وجهة اللاعب (قراءة + إعجاب/تعليق عبر /player/album).
 class AcademyAlbumService {
   final ApiClient _api;
   AcademyAlbumService(this._api);
 
-  AlbumPage _parse(Response<Map<String, dynamic>> res) {
+  String _base(bool playerSide) => playerSide ? '/player/album' : '/academy-album';
+
+  AlbumImage _parseItem(Response<Map<String, dynamic>> res) => AlbumImage.fromJson(
+        (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>,
+      );
+
+  AlbumPage _parsePage(Response<Map<String, dynamic>> res) {
     final body = res.data as Map<String, dynamic>;
     final list = (body['data'] as List<dynamic>? ?? [])
         .map((e) => AlbumImage.fromJson(e as Map<String, dynamic>))
@@ -32,26 +38,34 @@ class AcademyAlbumService {
       '/academy-album',
       queryParameters: {'page': page, 'limit': limit},
     );
-    return _parse(res);
+    return _parsePage(res);
   }
 
   Future<AlbumImage> upload({
     required String imagePath,
     required String title,
     String? description,
+    bool isVideo = false,
   }) async {
+    final ext = isVideo ? _videoExtension(imagePath) : 'jpg';
     final form = FormData.fromMap({
       'title': title,
       if (description != null && description.isNotEmpty) 'description': description,
-      'image': await buildImageMultipart(imagePath, filename: 'album.jpg'),
+      'image': await buildImageMultipart(imagePath, filename: 'album.$ext'),
     });
     final res = await _api.postMultipart<Map<String, dynamic>>(
       '/academy-album',
       data: form,
     );
-    return AlbumImage.fromJson(
-      (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>,
-    );
+    return _parseItem(res);
+  }
+
+  String _videoExtension(String path) {
+    final dot = path.lastIndexOf('.');
+    if (dot == -1 || dot == path.length - 1) return 'mp4';
+    final ext = path.substring(dot + 1).toLowerCase();
+    const allowed = {'mp4', 'mov', 'webm'};
+    return allowed.contains(ext) ? ext : 'mp4';
   }
 
   Future<AlbumImage> update({
@@ -66,9 +80,7 @@ class AcademyAlbumService {
         if (description != null) 'description': description,
       },
     );
-    return AlbumImage.fromJson(
-      (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>,
-    );
+    return _parseItem(res);
   }
 
   Future<void> delete(String id) async {
@@ -85,6 +97,27 @@ class AcademyAlbumService {
       '/player/album',
       queryParameters: {'page': page, 'limit': limit},
     );
-    return _parse(res);
+    return _parsePage(res);
+  }
+
+  // ── إعجاب/تعليق — مشتركة بين المدير واللاعب حسب playerSide ──
+  Future<AlbumImage> toggleLike(String id, {required bool playerSide}) async {
+    final res = await _api.post<Map<String, dynamic>>('${_base(playerSide)}/$id/like');
+    return _parseItem(res);
+  }
+
+  Future<AlbumImage> addComment(String id, String text, {required bool playerSide}) async {
+    final res = await _api.post<Map<String, dynamic>>(
+      '${_base(playerSide)}/$id/comments',
+      data: {'text': text},
+    );
+    return _parseItem(res);
+  }
+
+  Future<AlbumImage> deleteComment(String id, String commentId, {required bool playerSide}) async {
+    final res = await _api.delete<Map<String, dynamic>>(
+      '${_base(playerSide)}/$id/comments/$commentId',
+    );
+    return _parseItem(res);
   }
 }
