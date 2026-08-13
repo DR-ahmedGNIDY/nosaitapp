@@ -52,6 +52,7 @@ class UsersNotifier extends AsyncNotifier<List<UserManagementEntity>> {
     required String password,
     required String academyId,
     String role = 'academy_admin',
+    List<String>? permissions,
   }) async {
     assert(() {
       // ignore: avoid_print
@@ -65,6 +66,7 @@ class UsersNotifier extends AsyncNotifier<List<UserManagementEntity>> {
         password: password,
         academyId: academyId,
         role: role,
+        permissions: permissions,
       ),
     );
     return result.fold(

@@ -26,6 +26,8 @@ AcademyModel _$AcademyModelFromJson(Map<String, dynamic> json) => AcademyModel(
       facebookUrl: json['facebookUrl'] as String? ?? '',
       tiktokUrl: json['tiktokUrl'] as String? ?? '',
       instagramUrl: json['instagramUrl'] as String? ?? '',
+      cardColor: json['cardColor'] as String? ?? 'navy',
+      cardSlogan: json['cardSlogan'] as String? ?? '',
     );
 
 Map<String, dynamic> _$AcademyModelToJson(AcademyModel instance) =>
@@ -44,4 +46,6 @@ Map<String, dynamic> _$AcademyModelToJson(AcademyModel instance) =>
       'facebookUrl': instance.facebookUrl,
       'tiktokUrl': instance.tiktokUrl,
       'instagramUrl': instance.instagramUrl,
+      'cardColor': instance.cardColor,
+      'cardSlogan': instance.cardSlogan,
     };

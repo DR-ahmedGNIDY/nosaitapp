@@ -117,4 +117,24 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
       return const Left(UnknownFailure());
     }
   }
+
+  @override
+  Future<Either<Failure, void>> deleteAttendance(String id) async {
+    try {
+      await _remoteDatasource.deleteAttendance(id);
+      return const Right(null);
+    } on NotFoundException {
+      return const Left(NotFoundFailure(message: 'سجل الحضور غير موجود'));
+    } on UnauthorizedException {
+      return const Left(UnauthorizedFailure());
+    } on NetworkException {
+      return const Left(NetworkFailure());
+    } on TimeoutException {
+      return const Left(TimeoutFailure());
+    } on AppException catch (e) {
+      return Left(ServerFailure(message: e.message));
+    } catch (_) {
+      return const Left(UnknownFailure());
+    }
+  }
 }

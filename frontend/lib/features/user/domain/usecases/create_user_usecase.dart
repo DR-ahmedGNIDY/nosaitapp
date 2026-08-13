@@ -10,6 +10,7 @@ class CreateUserParams {
   final String password;
   final String academyId;
   final String role;
+  final List<String>? permissions;
 
   const CreateUserParams({
     required this.name,
@@ -17,6 +18,7 @@ class CreateUserParams {
     required this.password,
     required this.academyId,
     this.role = 'academy_admin',
+    this.permissions,
   });
 }
 
@@ -35,6 +37,7 @@ class CreateUserUsecase
       password: params.password,
       academyId: params.academyId,
       role: params.role,
+      permissions: params.permissions,
     );
   }
 }

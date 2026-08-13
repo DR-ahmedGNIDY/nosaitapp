@@ -77,6 +77,7 @@ import 'package:basketball_academy/features/user/domain/usecases/update_user_use
 import 'package:basketball_academy/features/attendance/data/datasources/attendance_remote_datasource.dart';
 import 'package:basketball_academy/features/attendance/data/repositories/attendance_repository_impl.dart';
 import 'package:basketball_academy/features/attendance/domain/repositories/attendance_repository.dart';
+import 'package:basketball_academy/features/attendance/domain/usecases/delete_attendance_usecase.dart';
 import 'package:basketball_academy/features/attendance/domain/usecases/get_attendance_log_usecase.dart';
 import 'package:basketball_academy/features/attendance/domain/usecases/get_attendance_report_usecase.dart';
 import 'package:basketball_academy/features/attendance/domain/usecases/record_attendance_usecase.dart';
@@ -351,6 +352,9 @@ Future<void> initDependencies() async {
   );
   sl.registerLazySingleton<GetAttendanceReportUsecase>(
     () => GetAttendanceReportUsecase(sl<AttendanceRepository>()),
+  );
+  sl.registerLazySingleton<DeleteAttendanceUsecase>(
+    () => DeleteAttendanceUsecase(sl<AttendanceRepository>()),
   );
 
   // Staff

@@ -17,6 +17,8 @@ class UpdateAcademyParams {
   final String? tiktokUrl;
   final String? instagramUrl;
   final String? logoPath;
+  final String? cardColor;
+  final String? cardSlogan;
 
   const UpdateAcademyParams({
     required this.id,
@@ -31,6 +33,8 @@ class UpdateAcademyParams {
     this.tiktokUrl,
     this.instagramUrl,
     this.logoPath,
+    this.cardColor,
+    this.cardSlogan,
   });
 }
 
@@ -53,6 +57,8 @@ class UpdateAcademyUsecase extends UseCase<AcademyEntity, UpdateAcademyParams> {
       tiktokUrl: params.tiktokUrl,
       instagramUrl: params.instagramUrl,
       logoPath: params.logoPath,
+      cardColor: params.cardColor,
+      cardSlogan: params.cardSlogan,
     );
   }
 }

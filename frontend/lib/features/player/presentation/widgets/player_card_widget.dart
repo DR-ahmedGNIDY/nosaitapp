@@ -10,6 +10,41 @@ import 'package:qr_flutter/qr_flutter.dart';
 /// PNG عالية الدقة عند الحفظ/المشاركة/الطباعة (عبر `PlayerCardExportService`
 /// و`RepaintBoundary`). أي تعديل هنا يظهر تلقائياً في كل تلك المسارات دون
 /// الحاجة لتعديل أي كود آخر — لا يوجد رسم ثانٍ للبطاقة في أي مكان.
+class _CardScheme {
+  final Color primary;
+  final Color primaryDark;
+  final Color mid;
+  final Color soft;
+  const _CardScheme(this.primary, this.primaryDark, this.mid, this.soft);
+}
+
+const _cardSchemes = <String, _CardScheme>{
+  'navy': _CardScheme(
+    Color(0xFF0B2E6B),
+    Color(0xFF071F4A),
+    Color(0xFF3E6FC4),
+    Color(0xFFEAF1FB),
+  ),
+  'red': _CardScheme(
+    Color(0xFFB91C1C),
+    Color(0xFF7F1010),
+    Color(0xFFEF4444),
+    Color(0xFFFCE8E8),
+  ),
+  'orange': _CardScheme(
+    Color(0xFFC2410C),
+    Color(0xFF7C2D0C),
+    Color(0xFFF97316),
+    Color(0xFFFDEEDC),
+  ),
+  'black': _CardScheme(
+    Color(0xFF1A1A1A),
+    Color(0xFF000000),
+    Color(0xFF4B5563),
+    Color(0xFFECECEC),
+  ),
+};
+
 class PlayerCardWidget extends StatelessWidget {
   final String academyName;
   final String? academyLogoUrl;
@@ -19,6 +54,8 @@ class PlayerCardWidget extends StatelessWidget {
   final String? imageUrl;
   final String qrData;
   final DateTime? birthDate;
+  final String cardColor;
+  final String? slogan;
 
   const PlayerCardWidget({
     super.key,
@@ -30,12 +67,13 @@ class PlayerCardWidget extends StatelessWidget {
     required this.imageUrl,
     required this.qrData,
     this.birthDate,
+    this.cardColor = 'navy',
+    this.slogan,
   });
 
-  static const _navy = Color(0xFF0B2E6B);
-  static const _navyDark = Color(0xFF071F4A);
-  static const _blueMid = Color(0xFF3E6FC4);
-  static const _blueSoft = Color(0xFFEAF1FB);
+  _CardScheme get _scheme => _cardSchemes[cardColor] ?? _cardSchemes['navy']!;
+
+  String get _slogan => (slogan != null && slogan!.isNotEmpty) ? slogan! : 'معًا نحو القمة';
 
   String get _birthDateLabel {
     final d = birthDate;
@@ -47,6 +85,7 @@ class PlayerCardWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = _scheme;
     return LayoutBuilder(
       builder: (context, c) {
         final w = c.maxWidth;
@@ -58,7 +97,7 @@ class PlayerCardWidget extends StatelessWidget {
             borderRadius: BorderRadius.circular(radius),
             boxShadow: [
               BoxShadow(
-                color: _navy.withValues(alpha: 0.16),
+                color: scheme.primary.withValues(alpha: 0.16),
                 blurRadius: 40,
                 offset: const Offset(0, 18),
               ),
@@ -76,7 +115,9 @@ class PlayerCardWidget extends StatelessWidget {
                 // خلفية بيضاء نظيفة + لمسات احترافية خفيفة جداً (منحنيات،
                 // Hexagon، أمواج) بشفافية منخفضة — بلا أي ازدحام بصري.
                 Positioned.fill(child: Container(color: Colors.white)),
-                Positioned.fill(child: CustomPaint(painter: _BackgroundPatternPainter())),
+                Positioned.fill(
+                  child: CustomPaint(painter: _BackgroundPatternPainter(scheme.primary)),
+                ),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -84,6 +125,7 @@ class PlayerCardWidget extends StatelessWidget {
                       flex: 16,
                       child: _Header(
                         w: w,
+                        scheme: scheme,
                         academyName: academyName,
                         academyLogoUrl: academyLogoUrl,
                         sport: sport,
@@ -101,7 +143,7 @@ class PlayerCardWidget extends StatelessWidget {
                               // يمين البطاقة (أول عنصر في صف RTL) — صورة اللاعب.
                               Expanded(
                                 flex: 30,
-                                child: _PlayerPhoto(w: w, imageUrl: imageUrl),
+                                child: _PlayerPhoto(w: w, scheme: scheme, imageUrl: imageUrl),
                               ),
                               SizedBox(width: w * 0.02),
                               // المنتصف — الاسم والكود.
@@ -109,6 +151,7 @@ class PlayerCardWidget extends StatelessWidget {
                                 flex: 40,
                                 child: _CenterInfo(
                                   w: w,
+                                  scheme: scheme,
                                   fullName: fullName,
                                   playerCode: playerCode,
                                 ),
@@ -117,7 +160,7 @@ class PlayerCardWidget extends StatelessWidget {
                               // يسار البطاقة — QR.
                               Expanded(
                                 flex: 30,
-                                child: _QrColumn(w: w, qrData: qrData),
+                                child: _QrColumn(w: w, scheme: scheme, qrData: qrData),
                               ),
                             ],
                           ),
@@ -126,7 +169,12 @@ class PlayerCardWidget extends StatelessWidget {
                     ),
                     Expanded(
                       flex: 22,
-                      child: _BottomBar(w: w, birthDateLabel: _birthDateLabel),
+                      child: _BottomBar(
+                        w: w,
+                        scheme: scheme,
+                        birthDateLabel: _birthDateLabel,
+                        slogan: _slogan,
+                      ),
                     ),
                   ],
                 ),
@@ -141,14 +189,17 @@ class PlayerCardWidget extends StatelessWidget {
 
 // ─── خلفية احترافية خفيفة جداً: منحنيات + Hexagon + أمواج بشفافية منخفضة ────
 class _BackgroundPatternPainter extends CustomPainter {
+  final Color color;
+  const _BackgroundPatternPainter(this.color);
+
   @override
   void paint(Canvas canvas, Size size) {
     final stroke = Paint()
-      ..color = PlayerCardWidget._navy.withValues(alpha: 0.035)
+      ..color = color.withValues(alpha: 0.035)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.4;
     final fill = Paint()
-      ..color = PlayerCardWidget._navy.withValues(alpha: 0.025)
+      ..color = color.withValues(alpha: 0.025)
       ..style = PaintingStyle.fill;
 
     // منحنى موجي أعلى يمين البطاقة.
@@ -193,18 +244,21 @@ class _BackgroundPatternPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _BackgroundPatternPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 // ─── رأس البطاقة: شعار + اسم الأكاديمية (حقيقي من البيانات) + شارة الرياضة ──
 class _Header extends StatelessWidget {
   final double w;
+  final _CardScheme scheme;
   final String academyName;
   final String? academyLogoUrl;
   final String sport;
 
   const _Header({
     required this.w,
+    required this.scheme,
     required this.academyName,
     required this.academyLogoUrl,
     required this.sport,
@@ -218,7 +272,7 @@ class _Header extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(
-          bottom: BorderSide(color: PlayerCardWidget._navy.withValues(alpha: 0.08), width: 1),
+          bottom: BorderSide(color: scheme.primary.withValues(alpha: 0.08), width: 1),
         ),
       ),
       padding: EdgeInsets.symmetric(horizontal: w * 0.045, vertical: w * 0.014),
@@ -232,18 +286,18 @@ class _Header extends StatelessWidget {
               height: logoSize,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: PlayerCardWidget._blueSoft,
-                border: Border.all(color: PlayerCardWidget._navy, width: 1.6),
+                color: scheme.soft,
+                border: Border.all(color: scheme.primary, width: 1.6),
               ),
               child: ClipOval(
                 child: (academyLogoUrl != null && academyLogoUrl!.isNotEmpty)
                     ? CachedNetworkImage(
                         imageUrl: academyLogoUrl!,
                         fit: BoxFit.cover,
-                        errorWidget: (_, __, ___) => _logoPlaceholder(logoSize),
-                        placeholder: (_, __) => _logoPlaceholder(logoSize),
+                        errorWidget: (_, __, ___) => _logoPlaceholder(logoSize, scheme),
+                        placeholder: (_, __) => _logoPlaceholder(logoSize, scheme),
                       )
-                    : _logoPlaceholder(logoSize),
+                    : _logoPlaceholder(logoSize, scheme),
               ),
             ),
             SizedBox(width: w * 0.022),
@@ -254,9 +308,9 @@ class _Header extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: w * 0.028,
+                  fontSize: w * 0.034,
                   fontWeight: FontWeight.w800,
-                  color: PlayerCardWidget._navy,
+                  color: scheme.primary,
                   height: 1.1,
                 ),
               ),
@@ -266,9 +320,9 @@ class _Header extends StatelessWidget {
               Container(
                 padding: EdgeInsets.symmetric(horizontal: w * 0.02, vertical: w * 0.007),
                 decoration: BoxDecoration(
-                  color: PlayerCardWidget._blueSoft,
+                  color: scheme.soft,
                   borderRadius: BorderRadius.circular(w * 0.05),
-                  border: Border.all(color: PlayerCardWidget._navy.withValues(alpha: 0.35), width: 1),
+                  border: Border.all(color: scheme.primary.withValues(alpha: 0.35), width: 1),
                 ),
                 child: Text(
                   sport,
@@ -276,7 +330,7 @@ class _Header extends StatelessWidget {
                   style: TextStyle(
                     fontSize: w * 0.016,
                     fontWeight: FontWeight.w700,
-                    color: PlayerCardWidget._navy,
+                    color: scheme.primary,
                   ),
                 ),
               ),
@@ -287,19 +341,20 @@ class _Header extends StatelessWidget {
     );
   }
 
-  static Widget _logoPlaceholder(double size) => Container(
-        color: PlayerCardWidget._blueSoft,
+  static Widget _logoPlaceholder(double size, _CardScheme scheme) => Container(
+        color: scheme.soft,
         alignment: Alignment.center,
-        child: Icon(Icons.shield_outlined, size: size * 0.55, color: PlayerCardWidget._navy),
+        child: Icon(Icons.shield_outlined, size: size * 0.55, color: scheme.primary),
       );
 }
 
 // ─── صورة اللاعب — دائرة كبيرة، إطار كحلي غامق، ظل خفيف. ────────────────────
 class _PlayerPhoto extends StatelessWidget {
   final double w;
+  final _CardScheme scheme;
   final String? imageUrl;
 
-  const _PlayerPhoto({required this.w, required this.imageUrl});
+  const _PlayerPhoto({required this.w, required this.scheme, required this.imageUrl});
 
   @override
   Widget build(BuildContext context) {
@@ -310,10 +365,10 @@ class _PlayerPhoto extends StatelessWidget {
         height: photoSize,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          border: Border.all(color: PlayerCardWidget._navy, width: 3.4),
+          border: Border.all(color: scheme.primary, width: 3.4),
           boxShadow: [
             BoxShadow(
-              color: PlayerCardWidget._navy.withValues(alpha: 0.22),
+              color: scheme.primary.withValues(alpha: 0.22),
               blurRadius: 18,
               offset: const Offset(0, 8),
             ),
@@ -324,29 +379,35 @@ class _PlayerPhoto extends StatelessWidget {
               ? CachedNetworkImage(
                   imageUrl: imageUrl!,
                   fit: BoxFit.cover,
-                  errorWidget: (_, __, ___) => _avatarPlaceholder(photoSize),
-                  placeholder: (_, __) => _avatarPlaceholder(photoSize),
+                  errorWidget: (_, __, ___) => _avatarPlaceholder(photoSize, scheme),
+                  placeholder: (_, __) => _avatarPlaceholder(photoSize, scheme),
                 )
-              : _avatarPlaceholder(photoSize),
+              : _avatarPlaceholder(photoSize, scheme),
         ),
       ),
     );
   }
 
-  static Widget _avatarPlaceholder(double size) => Container(
-        color: PlayerCardWidget._blueSoft,
+  static Widget _avatarPlaceholder(double size, _CardScheme scheme) => Container(
+        color: scheme.soft,
         alignment: Alignment.center,
-        child: Icon(Icons.person, size: size * 0.55, color: PlayerCardWidget._navy),
+        child: Icon(Icons.person, size: size * 0.55, color: scheme.primary),
       );
 }
 
 // ─── منتصف البطاقة — اسم اللاعب (كبير جداً/Bold/كحلي) + كود اللاعب. ─────────
 class _CenterInfo extends StatelessWidget {
   final double w;
+  final _CardScheme scheme;
   final String fullName;
   final String playerCode;
 
-  const _CenterInfo({required this.w, required this.fullName, required this.playerCode});
+  const _CenterInfo({
+    required this.w,
+    required this.scheme,
+    required this.fullName,
+    required this.playerCode,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -364,7 +425,7 @@ class _CenterInfo extends StatelessWidget {
               style: TextStyle(
                 fontSize: w * 0.058,
                 fontWeight: FontWeight.w900,
-                color: PlayerCardWidget._navyDark,
+                color: scheme.primaryDark,
                 height: 1.15,
               ),
             ),
@@ -372,13 +433,13 @@ class _CenterInfo extends StatelessWidget {
             Container(
               padding: EdgeInsets.symmetric(horizontal: w * 0.036, vertical: w * 0.014),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [PlayerCardWidget._blueMid, PlayerCardWidget._navy],
+                gradient: LinearGradient(
+                  colors: [scheme.mid, scheme.primary],
                 ),
                 borderRadius: BorderRadius.circular(w * 0.05),
                 boxShadow: [
                   BoxShadow(
-                    color: PlayerCardWidget._navy.withValues(alpha: 0.3),
+                    color: scheme.primary.withValues(alpha: 0.3),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -405,9 +466,10 @@ class _CenterInfo extends StatelessWidget {
 // منطق أو بيانات الـ QR نفسه (نفس `qrData` كما يصل من الشاشة). ──────────────
 class _QrColumn extends StatelessWidget {
   final double w;
+  final _CardScheme scheme;
   final String qrData;
 
-  const _QrColumn({required this.w, required this.qrData});
+  const _QrColumn({required this.w, required this.scheme, required this.qrData});
 
   @override
   Widget build(BuildContext context) {
@@ -423,10 +485,10 @@ class _QrColumn extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(w * 0.028),
-              border: Border.all(color: PlayerCardWidget._navy, width: 2.2),
+              border: Border.all(color: scheme.primary, width: 2.2),
               boxShadow: [
                 BoxShadow(
-                  color: PlayerCardWidget._navy.withValues(alpha: 0.22),
+                  color: scheme.primary.withValues(alpha: 0.22),
                   blurRadius: 14,
                   offset: const Offset(0, 6),
                 ),
@@ -436,13 +498,13 @@ class _QrColumn extends StatelessWidget {
               data: qrData,
               version: QrVersions.auto,
               backgroundColor: Colors.white,
-              eyeStyle: const QrEyeStyle(
+              eyeStyle: QrEyeStyle(
                 eyeShape: QrEyeShape.square,
-                color: PlayerCardWidget._navyDark,
+                color: scheme.primaryDark,
               ),
-              dataModuleStyle: const QrDataModuleStyle(
+              dataModuleStyle: QrDataModuleStyle(
                 dataModuleShape: QrDataModuleShape.square,
-                color: PlayerCardWidget._navyDark,
+                color: scheme.primaryDark,
               ),
               errorStateBuilder: (_, __) => Center(
                 child: Text(
@@ -460,7 +522,7 @@ class _QrColumn extends StatelessWidget {
             style: TextStyle(
               fontSize: w * 0.016,
               fontWeight: FontWeight.w700,
-              color: PlayerCardWidget._navy.withValues(alpha: 0.7),
+              color: scheme.primary.withValues(alpha: 0.7),
             ),
           ),
         ],
@@ -472,14 +534,21 @@ class _QrColumn extends StatelessWidget {
 // ─── الشريط السفلي — Navy Blue بعرض البطاقة: تاريخ الميلاد + الشعار. ────────
 class _BottomBar extends StatelessWidget {
   final double w;
+  final _CardScheme scheme;
   final String birthDateLabel;
+  final String slogan;
 
-  const _BottomBar({required this.w, required this.birthDateLabel});
+  const _BottomBar({
+    required this.w,
+    required this.scheme,
+    required this.birthDateLabel,
+    required this.slogan,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: PlayerCardWidget._navy,
+      color: scheme.primary,
       padding: EdgeInsets.symmetric(horizontal: w * 0.045),
       alignment: Alignment.center,
       child: Directionality(
@@ -491,12 +560,12 @@ class _BottomBar extends StatelessWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('📅', style: TextStyle(fontSize: w * 0.02)),
+                  Text('📅', style: TextStyle(fontSize: w * 0.024)),
                   SizedBox(width: w * 0.012),
                   Text(
                     birthDateLabel,
                     style: TextStyle(
-                      fontSize: w * 0.02,
+                      fontSize: w * 0.024,
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
                     ),
@@ -506,9 +575,9 @@ class _BottomBar extends StatelessWidget {
             else
               const SizedBox.shrink(),
             Text(
-              'معًا نحو القمة',
+              slogan,
               style: TextStyle(
-                fontSize: w * 0.02,
+                fontSize: w * 0.024,
                 fontWeight: FontWeight.w800,
                 color: Colors.white,
                 letterSpacing: 0.3,

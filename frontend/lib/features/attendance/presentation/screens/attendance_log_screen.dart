@@ -1,13 +1,23 @@
 import 'package:basketball_academy/core/constants/app_colors.dart';
+import 'package:basketball_academy/core/di/injection_container.dart';
 import 'package:basketball_academy/features/academy/presentation/providers/academy_provider.dart';
 import 'package:basketball_academy/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:basketball_academy/features/attendance/domain/usecases/delete_attendance_usecase.dart';
 import 'package:basketball_academy/features/attendance/presentation/providers/attendance_provider.dart';
+import 'package:basketball_academy/features/auth/domain/entities/user_entity.dart';
+import 'package:basketball_academy/features/auth/presentation/providers/auth_provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
+
+const _kAttendanceManagerRoles = [
+  UserRole.superAdmin,
+  UserRole.academyAdmin,
+  UserRole.admin,
+];
 
 class AttendanceLogScreen extends ConsumerStatefulWidget {
   final String academyId;
@@ -32,7 +42,6 @@ class _AttendanceLogScreenState extends ConsumerState<AttendanceLogScreen> {
       initialDate: now,
       firstDate: DateTime(now.year - 3),
       lastDate: now,
-      locale: const Locale('ar'),
     );
     if (picked != null) {
       setState(() =>
@@ -46,6 +55,8 @@ class _AttendanceLogScreenState extends ConsumerState<AttendanceLogScreen> {
         ref.watch(academyByIdProvider(widget.academyId)).valueOrNull;
     final isMultiSport = academy?.isMultiSport ?? false;
     final sports = academy?.sports ?? const <String>[];
+    final userRole = ref.watch(authStateProvider).valueOrNull?.user?.role;
+    final canDelete = _kAttendanceManagerRoles.contains(userRole);
 
     final filter = AttendanceLogFilter(
       academyId: widget.academyId,
@@ -136,7 +147,14 @@ class _AttendanceLogScreenState extends ConsumerState<AttendanceLogScreen> {
                     padding: EdgeInsets.all(16.r),
                     itemCount: records.length,
                     separatorBuilder: (_, __) => Gap(10.h),
-                    itemBuilder: (_, i) => _LogTile(entry: records[i]),
+                    itemBuilder: (_, i) => _LogTile(
+                      entry: records[i],
+                      canDelete: canDelete,
+                      onDeleted: () {
+                        ref.invalidate(attendanceLogProvider(filter));
+                        ref.invalidate(attendanceReportProvider);
+                      },
+                    ),
                   ),
                 );
               },
@@ -192,7 +210,65 @@ class _SportChips extends StatelessWidget {
 
 class _LogTile extends StatelessWidget {
   final AttendanceLogEntry entry;
-  const _LogTile({required this.entry});
+  final bool canDelete;
+  final VoidCallback onDeleted;
+  const _LogTile({
+    required this.entry,
+    required this.canDelete,
+    required this.onDeleted,
+  });
+
+  Future<void> _confirmDelete(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.r),
+        ),
+        title: const Text('حذف سجل الحضور'),
+        content: Text(
+          'هل تريد حذف سجل حضور "${entry.playerName.isNotEmpty ? entry.playerName : entry.playerCode}" بتاريخ ${_fmtDate(entry.date)}؟',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: AppColors.white,
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('حذف'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    if (!context.mounted) return;
+
+    final result = await sl<DeleteAttendanceUsecase>()(entry.id);
+    if (!context.mounted) return;
+    result.fold(
+      (failure) => ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('تعذّر حذف السجل: ${failure.message}'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      ),
+      (_) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم حذف سجل الحضور'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        onDeleted();
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -274,6 +350,15 @@ class _LogTile extends StatelessWidget {
               ),
             ],
           ),
+          if (canDelete) ...[
+            Gap(4.w),
+            IconButton(
+              tooltip: 'حذف سجل الحضور',
+              icon: Icon(Icons.delete_outline,
+                  color: AppColors.error, size: 20.sp),
+              onPressed: () => _confirmDelete(context),
+            ),
+          ],
         ],
       ),
     );

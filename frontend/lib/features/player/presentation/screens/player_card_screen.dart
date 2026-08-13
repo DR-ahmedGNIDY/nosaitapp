@@ -40,6 +40,8 @@ class _PlayerCardScreenState extends ConsumerState<PlayerCardScreen> {
     final academy = ref.watch(academyByIdProvider(player.academyId)).valueOrNull;
     final academyName = academy?.name ?? 'الأكاديمية';
     final academyLogoUrl = academy?.logoUrl;
+    final cardColor = academy?.cardColor ?? 'navy';
+    final cardSlogan = academy?.cardSlogan;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -73,6 +75,8 @@ class _PlayerCardScreenState extends ConsumerState<PlayerCardScreen> {
                         imageUrl: player.imageUrl,
                         qrData: _qrData,
                         birthDate: player.birthDate,
+                        cardColor: cardColor,
+                        slogan: cardSlogan,
                       ),
                     ),
                   ),

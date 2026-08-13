@@ -1,9 +1,23 @@
 import 'package:basketball_academy/core/constants/app_colors.dart';
+import 'package:basketball_academy/features/auth/presentation/providers/auth_provider.dart';
 import 'package:basketball_academy/features/user/presentation/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
+
+// المفاتيح المتاحة لصلاحيات حساب "مشرف" (role='admin') — مطابقة لقائمة
+// ADMIN_PERMISSIONS في الباك إند (backend/src/constants/permissions.js).
+const _kPermissionOptions = <String, String>{
+  'register_players': 'تسجيل لاعبين',
+  'record_subscriptions': 'تسجيل اشتراكات',
+  'record_evaluations': 'تسجيل تقييمات',
+  'add_matches': 'إضافة مباريات',
+  'use_album': 'استخدام الألبوم',
+  'use_store': 'استخدام المتجر',
+  'view_reports': 'رؤية التقارير',
+  'view_dashboard_revenue': 'رؤية الداشبورد والإحصائيات والإيرادات',
+};
 
 // ─── بطاقة اختيار الدور — بديل موثوق عن SegmentedButton ───────────────────
 class _RoleCard extends StatelessWidget {
@@ -80,6 +94,19 @@ class _AddUserScreenState extends ConsumerState<AddUserScreen> {
   bool _isLoading = false;
   bool _obscurePassword = true;
   String _selectedRole = 'academy_admin';
+  final Set<String> _selectedPermissions = {};
+
+  @override
+  void initState() {
+    super.initState();
+    // مدير الأكاديمية يقدر يُنشئ حسابات "مشرف" (admin) فقط — أبداً حساب
+    // مدير أكاديمية آخر مكافئ له في الصلاحيات.
+    final callerIsAcademyAdmin =
+        ref.read(authStateProvider).valueOrNull?.user?.isAcademyAdmin ?? false;
+    if (callerIsAcademyAdmin) {
+      _selectedRole = 'admin';
+    }
+  }
 
   @override
   void dispose() {
@@ -136,6 +163,8 @@ class _AddUserScreenState extends ConsumerState<AddUserScreen> {
           password: _passwordController.text,
           academyId: widget.academyId,
           role: roleToSend,
+          permissions:
+              roleToSend == 'admin' ? _selectedPermissions.toList() : null,
         );
 
     if (!mounted) return;
@@ -164,6 +193,8 @@ class _AddUserScreenState extends ConsumerState<AddUserScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final callerIsAcademyAdmin =
+        ref.watch(authStateProvider).valueOrNull?.user?.isAcademyAdmin ?? false;
 
     return Scaffold(
       appBar: AppBar(
@@ -278,47 +309,103 @@ class _AddUserScreenState extends ConsumerState<AddUserScreen> {
                 ),
                 Gap(20.h),
 
-                // Role selector — بطاقات مخصصة بدلاً من SegmentedButton
-                Text(
-                  'الدور الوظيفي',
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: AppColors.grey700,
-                    fontWeight: FontWeight.w600,
+                // Role selector — بطاقات مخصصة بدلاً من SegmentedButton.
+                // مدير الأكاديمية يُنشئ حسابات "مشرف" فقط — الاختيار مخفي وثابت.
+                if (!callerIsAcademyAdmin) ...[
+                  Text(
+                    'الدور الوظيفي',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: AppColors.grey700,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-                Gap(8.h),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _RoleCard(
-                        value: 'academy_admin',
-                        label: 'مدير أكاديمية',
-                        icon: Icons.admin_panel_settings_outlined,
-                        selectedValue: _selectedRole,
-                        onTap: (v) => setState(() {
-                          _selectedRole = v;
-                          // ignore: avoid_print
-                          assert(() { print('[RoleCard] selected="$_selectedRole"'); return true; }());
-                        }),
+                  Gap(8.h),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _RoleCard(
+                          value: 'academy_admin',
+                          label: 'مدير أكاديمية',
+                          icon: Icons.admin_panel_settings_outlined,
+                          selectedValue: _selectedRole,
+                          onTap: (v) => setState(() {
+                            _selectedRole = v;
+                            // ignore: avoid_print
+                            assert(() { print('[RoleCard] selected="$_selectedRole"'); return true; }());
+                          }),
+                        ),
                       ),
-                    ),
-                    SizedBox(width: 12.w),
-                    Expanded(
-                      child: _RoleCard(
-                        value: 'admin',
-                        label: 'مشرف',
-                        icon: Icons.manage_accounts_outlined,
-                        selectedValue: _selectedRole,
-                        onTap: (v) => setState(() {
-                          _selectedRole = v;
-                          // ignore: avoid_print
-                          assert(() { print('[RoleCard] selected="$_selectedRole"'); return true; }());
-                        }),
+                      SizedBox(width: 12.w),
+                      Expanded(
+                        child: _RoleCard(
+                          value: 'admin',
+                          label: 'مشرف',
+                          icon: Icons.manage_accounts_outlined,
+                          selectedValue: _selectedRole,
+                          onTap: (v) => setState(() {
+                            _selectedRole = v;
+                            // ignore: avoid_print
+                            assert(() { print('[RoleCard] selected="$_selectedRole"'); return true; }());
+                          }),
+                        ),
                       ),
+                    ],
+                  ),
+                  Gap(20.h),
+                ],
+
+                // قسم الصلاحيات — يظهر فقط لحساب "مشرف" (admin).
+                if (_selectedRole == 'admin') ...[
+                  Text(
+                    'صلاحيات الحساب',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: AppColors.grey700,
+                      fontWeight: FontWeight.w600,
                     ),
-                  ],
-                ),
-                Gap(32.h),
+                  ),
+                  Gap(8.h),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => setState(() {
+                            _selectedPermissions
+                              ..clear()
+                              ..addAll(_kPermissionOptions.keys);
+                          }),
+                          child: const Text('مدير (كل الصلاحيات)'),
+                        ),
+                      ),
+                      SizedBox(width: 12.w),
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () =>
+                              setState(() => _selectedPermissions.clear()),
+                          child: const Text('مشرف (اختيار يدوي)'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Gap(4.h),
+                  ..._kPermissionOptions.entries.map(
+                    (entry) => CheckboxListTile(
+                      value: _selectedPermissions.contains(entry.key),
+                      onChanged: (checked) => setState(() {
+                        if (checked == true) {
+                          _selectedPermissions.add(entry.key);
+                        } else {
+                          _selectedPermissions.remove(entry.key);
+                        }
+                      }),
+                      title: Text(entry.value, style: TextStyle(fontSize: 14.sp)),
+                      controlAffinity: ListTileControlAffinity.leading,
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                    ),
+                  ),
+                  Gap(12.h),
+                ],
+                Gap(20.h),
 
                 // Submit button
                 SizedBox(

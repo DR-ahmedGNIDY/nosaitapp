@@ -26,6 +26,8 @@ abstract class AcademyRepository {
     String? tiktokUrl,
     String? instagramUrl,
     String? logoPath,
+    String? cardColor,
+    String? cardSlogan,
   });
   Future<Either<Failure, void>> deleteAcademy(String id);
 }

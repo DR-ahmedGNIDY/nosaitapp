@@ -15,6 +15,8 @@ class AcademyEntity extends Equatable {
   final String? facebookUrl;
   final String? tiktokUrl;
   final String? instagramUrl;
+  final String cardColor;
+  final String? cardSlogan;
 
   const AcademyEntity({
     required this.id,
@@ -31,6 +33,8 @@ class AcademyEntity extends Equatable {
     this.facebookUrl,
     this.tiktokUrl,
     this.instagramUrl,
+    this.cardColor = 'navy',
+    this.cardSlogan,
   });
 
   /// True when the academy runs more than one sport — controls whether
@@ -38,5 +42,5 @@ class AcademyEntity extends Equatable {
   bool get isMultiSport => sports.length > 1;
 
   @override
-  List<Object?> get props => [id, name, logoUrl, phone, address, currency, sports, createdAt, updatedAt, playerCount, websiteUrl, facebookUrl, tiktokUrl, instagramUrl];
+  List<Object?> get props => [id, name, logoUrl, phone, address, currency, sports, createdAt, updatedAt, playerCount, websiteUrl, facebookUrl, tiktokUrl, instagramUrl, cardColor, cardSlogan];
 }

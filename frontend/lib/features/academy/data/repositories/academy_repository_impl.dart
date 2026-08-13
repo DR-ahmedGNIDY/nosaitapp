@@ -85,6 +85,8 @@ class AcademyRepositoryImpl implements AcademyRepository {
     String? tiktokUrl,
     String? instagramUrl,
     String? logoPath,
+    String? cardColor,
+    String? cardSlogan,
   }) async {
     try {
       final model = await _remoteDatasource.updateAcademy(
@@ -100,6 +102,8 @@ class AcademyRepositoryImpl implements AcademyRepository {
           if (facebookUrl != null) 'facebookUrl': facebookUrl,
           if (tiktokUrl != null) 'tiktokUrl': tiktokUrl,
           if (instagramUrl != null) 'instagramUrl': instagramUrl,
+          if (cardColor != null) 'cardColor': cardColor,
+          if (cardSlogan != null) 'cardSlogan': cardSlogan,
         },
         logoPath: logoPath,
       );

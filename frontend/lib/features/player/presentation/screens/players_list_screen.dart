@@ -18,6 +18,7 @@ import 'package:basketball_academy/features/player/domain/entities/player_entity
 import 'package:basketball_academy/features/player/presentation/providers/player_provider.dart';
 import 'package:basketball_academy/features/subscription/presentation/providers/subscription_provider.dart';
 import 'package:basketball_academy/features/player/presentation/screens/add_player_screen.dart';
+import 'package:basketball_academy/features/player/presentation/screens/player_card_settings_screen.dart';
 import 'package:basketball_academy/features/player/presentation/screens/player_detail_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -105,6 +106,7 @@ class _PlayersListScreenState extends ConsumerState<PlayersListScreen> {
     final playersAsync = ref.watch(playersProvider);
     final authState = ref.watch(authStateProvider).valueOrNull;
     final isSuperAdmin = authState?.user?.isSuperAdmin ?? false;
+    final isAcademyAdmin = authState?.user?.isAcademyAdmin ?? false;
     final isAcademyLevel = authState?.user?.isAcademyLevel ?? false;
     final statusMap = ref
         .watch(academyPlayerStatusMapProvider(widget.academyId))
@@ -331,6 +333,17 @@ class _PlayersListScreenState extends ConsumerState<PlayersListScreen> {
           NotificationBellIcon(
             onTap: () => context.push(AppRoutes.notifications),
           ),
+          if (isAcademyAdmin || isSuperAdmin)
+            IconButton(
+              icon: const Icon(Icons.style_outlined),
+              tooltip: 'إعدادات بطاقة اللاعب',
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      PlayerCardSettingsScreen(academyId: widget.academyId),
+                ),
+              ),
+            ),
           IconButton(
             icon: const Icon(Icons.manage_accounts_outlined),
             tooltip: 'إعدادات الحساب',

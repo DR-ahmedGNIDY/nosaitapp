@@ -14,6 +14,7 @@ abstract class UserRepository {
     required String password,
     required String academyId,
     String role = 'academy_admin',
+    List<String>? permissions,
   });
 
   Future<Either<Failure, UserManagementEntity>> updateUser({

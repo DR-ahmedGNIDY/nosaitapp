@@ -75,6 +75,8 @@ class AcademiesNotifier extends AsyncNotifier<List<AcademyEntity>> {
     String? tiktokUrl,
     String? instagramUrl,
     String? logoPath,
+    String? cardColor,
+    String? cardSlogan,
   }) async {
     final result = await _updateAcademyUsecase(
       UpdateAcademyParams(
@@ -90,6 +92,8 @@ class AcademiesNotifier extends AsyncNotifier<List<AcademyEntity>> {
         tiktokUrl: tiktokUrl,
         instagramUrl: instagramUrl,
         logoPath: logoPath,
+        cardColor: cardColor,
+        cardSlogan: cardSlogan,
       ),
     );
     return result.fold(

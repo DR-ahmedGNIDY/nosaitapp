@@ -37,4 +37,6 @@ abstract class AttendanceRepository {
     String? endDate,
     String? sport,
   });
+
+  Future<Either<Failure, void>> deleteAttendance(String id);
 }

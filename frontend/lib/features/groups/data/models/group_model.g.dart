@@ -17,9 +17,7 @@ GroupModel _$GroupModelFromJson(Map<String, dynamic> json) => GroupModel(
       playersCount: (json['playersCount'] as num?)?.toInt() ?? 0,
       occupationRate: (json['occupationRate'] as num?)?.toInt(),
       order: (json['order'] as num?)?.toInt() ?? 0,
-      createdAt: json['created_at'] == null
-          ? DateTime.fromMillisecondsSinceEpoch(0)
-          : DateTime.parse(json['created_at'] as String),
+      createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: json['updated_at'] == null
           ? null
           : DateTime.parse(json['updated_at'] as String),

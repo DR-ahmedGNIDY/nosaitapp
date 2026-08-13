@@ -51,6 +51,7 @@ class UserRepositoryImpl implements UserRepository {
     required String password,
     required String academyId,
     String role = 'academy_admin',
+    List<String>? permissions,
   }) async {
     try {
       final model = await _remoteDatasource.createUser({
@@ -59,6 +60,7 @@ class UserRepositoryImpl implements UserRepository {
         'password': password,
         'academyId': academyId,
         'role': role,
+        if (permissions != null) 'permissions': permissions,
       });
       return Right(model.toEntity());
     } on ValidationException catch (e) {

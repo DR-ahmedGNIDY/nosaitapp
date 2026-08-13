@@ -36,6 +36,8 @@ abstract class AttendanceRemoteDatasource {
     String? endDate,
     String? sport,
   });
+
+  Future<void> deleteAttendance(String id);
 }
 
 class AttendanceRemoteDatasourceImpl implements AttendanceRemoteDatasource {
@@ -125,5 +127,10 @@ class AttendanceRemoteDatasourceImpl implements AttendanceRemoteDatasource {
         await _apiClient.get('/attendance/report', queryParameters: query);
     final body = response.data as Map<String, dynamic>;
     return AttendanceReportMapper.fromJson(body['data'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<void> deleteAttendance(String id) async {
+    await _apiClient.delete('/attendance/$id');
   }
 }

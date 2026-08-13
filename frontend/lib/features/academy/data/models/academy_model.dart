@@ -30,6 +30,10 @@ class AcademyModel {
   final String? tiktokUrl;
   @JsonKey(defaultValue: '')
   final String? instagramUrl;
+  @JsonKey(defaultValue: 'navy')
+  final String cardColor;
+  @JsonKey(defaultValue: '')
+  final String? cardSlogan;
 
   const AcademyModel({
     required this.id,
@@ -46,6 +50,8 @@ class AcademyModel {
     this.facebookUrl,
     this.tiktokUrl,
     this.instagramUrl,
+    this.cardColor = 'navy',
+    this.cardSlogan,
   });
 
   factory AcademyModel.fromJson(Map<String, dynamic> json) =>
@@ -68,5 +74,7 @@ class AcademyModel {
         facebookUrl: facebookUrl,
         tiktokUrl: tiktokUrl,
         instagramUrl: instagramUrl,
+        cardColor: cardColor,
+        cardSlogan: cardSlogan,
       );
 }

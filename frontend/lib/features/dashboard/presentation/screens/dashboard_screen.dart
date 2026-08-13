@@ -15,6 +15,7 @@ import 'package:basketball_academy/features/attendance/presentation/screens/atte
 import 'package:basketball_academy/features/dashboard/presentation/screens/sport_detail_screen.dart';
 import 'package:basketball_academy/features/chat/presentation/widgets/messages_chat_icon.dart';
 import 'package:basketball_academy/features/notification/presentation/screens/notifications_screen.dart';
+import 'package:basketball_academy/features/user/presentation/screens/add_user_screen.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -378,6 +379,16 @@ class _QuickActionsGrid extends StatelessWidget {
           color: AppColors.primaryDark,
           onTap: () => context.push(AppRoutes.systemSubscription),
         ),
+      _QuickActionItem(
+        icon: Icons.admin_panel_settings_outlined,
+        label: 'إنشاء حسابات الإدارة',
+        color: AppColors.secondary,
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => AddUserScreen(academyId: academyId),
+          ),
+        ),
+      ),
     ];
 
     return GridView.count(
@@ -1270,6 +1281,16 @@ class _DesktopQuickActions extends StatelessWidget {
           color: AppColors.primaryDark,
           onTap: () => context.push(
             AppRoutes.matchesList.replaceFirst(':id', academyId),
+          ),
+        ),
+        _DesktopQuickBtn(
+          icon: Icons.admin_panel_settings_outlined,
+          label: 'إنشاء حسابات الإدارة',
+          color: AppColors.secondary,
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => AddUserScreen(academyId: academyId),
+            ),
           ),
         ),
       ],
