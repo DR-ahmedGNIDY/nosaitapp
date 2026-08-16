@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/router/app_router.dart';
+import 'package:basketball_academy/core/services/pwa_install_service.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
@@ -68,6 +72,10 @@ class WelcomeScreen extends StatelessWidget {
                         color: AppColors.white.withValues(alpha: 0.75),
                       ),
                     ),
+                    if (kIsWeb) ...[
+                      Gap(18.h),
+                      const _InstallAppButton(),
+                    ],
                     Gap(40.h),
 
                     // ── بطاقة مدير الأكاديمية ──
@@ -106,6 +114,107 @@ class WelcomeScreen extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// زر تثبيت التطبيق (PWA) — يظهر فقط في نسخة الويب، ويكتشف تلقائياً
+/// إن كان المتصفح يدعم التثبيت المباشر (Chrome/Edge/Android) أو
+/// يحتاج تعليمات يدوية (Safari/iOS)، ويختفي إن كان التطبيق مثبتاً بالفعل.
+class _InstallAppButton extends StatefulWidget {
+  const _InstallAppButton();
+
+  @override
+  State<_InstallAppButton> createState() => _InstallAppButtonState();
+}
+
+class _InstallAppButtonState extends State<_InstallAppButton> {
+  Timer? _timer;
+  bool _installable = false;
+  bool _installed = false;
+  bool _isIos = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+    // beforeinstallprompt قد يصل بعد بناء الواجهة بلحظات، لذا نفحص دورياً.
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) => _refresh());
+  }
+
+  void _refresh() {
+    final installable = PwaInstallService.isInstallable();
+    final installed = PwaInstallService.isInstalled();
+    final isIos = PwaInstallService.isIos();
+    if (installable != _installable ||
+        installed != _installed ||
+        isIos != _isIos) {
+      if (mounted) {
+        setState(() {
+          _installable = installable;
+          _installed = installed;
+          _isIos = isIos;
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _handleTap() {
+    if (_installable) {
+      PwaInstallService.triggerInstall();
+    } else if (_isIos) {
+      _showIosInstructions();
+    }
+  }
+
+  void _showIosInstructions() {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('تثبيت التطبيق'),
+        content: const Text(
+          'لتثبيت التطبيق على شاشتك الرئيسية:\n\n'
+          '1. اضغط على زر المشاركة (Share) أسفل المتصفح.\n'
+          '2. اختر "إضافة إلى الشاشة الرئيسية" (Add to Home Screen).',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('حسناً'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_installed || (!_installable && !_isIos)) {
+      return const SizedBox.shrink();
+    }
+    return OutlinedButton.icon(
+      onPressed: _handleTap,
+      icon: Icon(Icons.install_mobile_outlined,
+          color: AppColors.white, size: 20.sp),
+      label: Text(
+        'تثبيت التطبيق على جهازك',
+        style: TextStyle(
+          color: AppColors.white,
+          fontWeight: FontWeight.w700,
+          fontSize: 14.sp,
+        ),
+      ),
+      style: OutlinedButton.styleFrom(
+        side: BorderSide(color: AppColors.white.withValues(alpha: 0.6)),
+        padding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 10.h),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14.r)),
       ),
     );
   }

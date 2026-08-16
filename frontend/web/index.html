@@ -19,19 +19,64 @@
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="منصة إدارة أكاديميات كرة السلة">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="basketball_academy">
+  <meta name="apple-mobile-web-app-title" content="Nosait Academy">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>basketball_academy</title>
+  <title>Nosait Academy</title>
   <link rel="manifest" href="manifest.json">
+
+  <!-- PWA install prompt bridge (used by lib/core/services/pwa_install_service_web.dart) -->
+  <script>
+    (function () {
+      window.__pwaDeferredPrompt = null;
+      window.__pwaInstallable = false;
+
+      function isStandalone() {
+        return window.matchMedia('(display-mode: standalone)').matches ||
+            window.navigator.standalone === true;
+      }
+
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        window.__pwaDeferredPrompt = e;
+        window.__pwaInstallable = true;
+      });
+
+      window.addEventListener('appinstalled', function () {
+        window.__pwaDeferredPrompt = null;
+        window.__pwaInstallable = false;
+      });
+
+      window.isPwaInstallable = function () {
+        return !!window.__pwaInstallable && !isStandalone();
+      };
+
+      window.isPwaInstalled = function () {
+        return isStandalone();
+      };
+
+      window.isIosDevice = function () {
+        return /iphone|ipad|ipod/i.test(window.navigator.userAgent) && !window.MSStream;
+      };
+
+      window.triggerPwaInstall = function () {
+        if (!window.__pwaDeferredPrompt) return;
+        window.__pwaDeferredPrompt.prompt();
+        window.__pwaDeferredPrompt.userChoice.finally(function () {
+          window.__pwaDeferredPrompt = null;
+          window.__pwaInstallable = false;
+        });
+      };
+    })();
+  </script>
 </head>
 <body>
   <!--
