@@ -59,7 +59,15 @@ class _SubscriptionsListScreenState
         result = result.where((s) => s.isExpiringSoon).toList();
         break;
       case _SubFilter.expired:
-        result = result.where((s) => !s.isActive).toList();
+        // لاعب عنده أي اشتراك نشط (حتى لو له سجلات قديمة منتهية من قبل
+        // التجديد) ما ينفعش يظهر تحت "منتهي" — الحالة الحقيقية للاعب هي
+        // الأحدث، مش كل سجل تاريخي على حدة.
+        final playersWithActiveSub =
+            all.where((s) => s.isActive).map((s) => s.playerId).toSet();
+        result = result
+            .where((s) =>
+                !s.isActive && !playersWithActiveSub.contains(s.playerId))
+            .toList();
         break;
     }
 
