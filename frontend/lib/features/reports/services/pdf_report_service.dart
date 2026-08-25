@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import 'package:basketball_academy/core/di/injection_container.dart';
 import 'package:basketball_academy/features/evaluation/domain/usecases/get_evaluations_by_academy_usecase.dart';
+import 'package:basketball_academy/features/expenses/domain/entities/expense_entity.dart';
+import 'package:basketball_academy/features/expenses/domain/repositories/expense_repository.dart';
 import 'package:basketball_academy/features/player/domain/usecases/get_players_usecase.dart';
 import 'package:basketball_academy/features/reports/domain/models/report_filter.dart';
 import 'package:basketball_academy/features/reports/services/report_sport_filter.dart';
@@ -834,5 +836,46 @@ class PdfReportService {
     );
 
     return pdf.save();
+  }
+
+  // ---------------------------------------------------------------------------
+  // 8. Expenses Report (ReportFilter-driven, matches the other reports)
+  // ---------------------------------------------------------------------------
+
+  static Future<Uint8List> generateExpensesReport(ReportFilter filter) async {
+    final repo = sl<ExpenseRepository>();
+    final result = await repo.getExpenses(
+      startDate: filter.startDate != null
+          ? DateFormat('yyyy-MM-dd').format(filter.startDate!)
+          : null,
+      endDate: filter.endDate != null
+          ? DateFormat('yyyy-MM-dd').format(filter.endDate!)
+          : null,
+      limit: 500,
+    );
+    final List<ExpenseEntity> expenses =
+        result.fold((_) => [], (data) => data.expenses);
+
+    final totalAmount = expenses.fold<double>(0, (sum, e) => sum + e.amount);
+    final byCategory = <String, double>{};
+    for (final e in expenses) {
+      byCategory[e.categoryLabel] = (byCategory[e.categoryLabel] ?? 0) + e.amount;
+    }
+
+    return generateExpenseReport(
+      rows: expenses
+          .map((e) => (
+                name: e.name,
+                category: e.categoryLabel,
+                amount: e.amount,
+                date: e.date,
+              ))
+          .toList(),
+      totalAmount: totalAmount,
+      byCategory: byCategory,
+      academyName: filter.academyName ?? '',
+      dateRangeLabel: _dateRange(filter),
+      currencyLabel: filter.currencyLabel,
+    );
   }
 }

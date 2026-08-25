@@ -468,7 +468,15 @@ class _AddPlayerScreenState extends ConsumerState<AddPlayerScreen> {
                             child: Text('بدون مجموعة'),
                           ),
                           ...groups.map((g) => DropdownMenuItem(
-                              value: g.id, child: Text(g.name))),
+                                value: g.id,
+                                enabled: !g.isFull,
+                                child: Text(
+                                  g.isFull ? '${g.name} (مكتملة)' : g.name,
+                                  style: g.isFull
+                                      ? TextStyle(color: AppColors.grey400)
+                                      : null,
+                                ),
+                              )),
                         ],
                         onChanged: (val) =>
                             setState(() => _selectedGroupId = val),

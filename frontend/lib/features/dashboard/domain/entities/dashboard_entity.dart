@@ -17,6 +17,8 @@ class DashboardStatsEntity extends Equatable {
   final int largestGroupSize;
   final int groupOccupancyRate;
   final double avgPlayersPerGroup;
+  final double totalExpenses;
+  final double currentMonthExpenses;
 
   const DashboardStatsEntity({
     required this.totalPlayers,
@@ -34,6 +36,8 @@ class DashboardStatsEntity extends Equatable {
     this.largestGroupSize = 0,
     this.groupOccupancyRate = 0,
     this.avgPlayersPerGroup = 0,
+    this.totalExpenses = 0,
+    this.currentMonthExpenses = 0,
   });
 
   @override
@@ -53,6 +57,8 @@ class DashboardStatsEntity extends Equatable {
         largestGroupSize,
         groupOccupancyRate,
         avgPlayersPerGroup,
+        totalExpenses,
+        currentMonthExpenses,
       ];
 }
 

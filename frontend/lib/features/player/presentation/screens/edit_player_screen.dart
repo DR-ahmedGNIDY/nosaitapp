@@ -483,8 +483,22 @@ class _EditPlayerScreenState extends ConsumerState<EditPlayerScreen> {
                         decoration: _inputDecoration(hint: 'اختر المجموعة'),
                         items: [
                           const DropdownMenuItem(value: null, child: Text('بدون مجموعة')),
-                          ...groups.map((g) => DropdownMenuItem(
-                              value: g.id, child: Text(g.name))),
+                          ...groups.map((g) {
+                            // المجموعة الحالية للاعب تبقى قابلة للاختيار حتى لو
+                            // اكتملت — منعاً لقفل اللاعب داخل مجموعته الحالية.
+                            final isCurrentGroup = g.id == widget.player.groupId;
+                            final locked = g.isFull && !isCurrentGroup;
+                            return DropdownMenuItem(
+                              value: g.id,
+                              enabled: !locked,
+                              child: Text(
+                                locked ? '${g.name} (مكتملة)' : g.name,
+                                style: locked
+                                    ? TextStyle(color: AppColors.grey400)
+                                    : null,
+                              ),
+                            );
+                          }),
                         ],
                         onChanged: (val) =>
                             setState(() => _selectedGroupId = val),

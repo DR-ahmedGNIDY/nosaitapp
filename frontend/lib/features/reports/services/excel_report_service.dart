@@ -8,6 +8,8 @@ import 'package:basketball_academy/features/subscription/domain/entities/subscri
 import 'package:basketball_academy/features/subscription/domain/usecases/get_revenue_summary_usecase.dart';
 import 'package:basketball_academy/features/subscription/domain/usecases/get_subscriptions_by_academy_usecase.dart';
 import 'package:basketball_academy/features/evaluation/domain/usecases/get_evaluations_by_academy_usecase.dart';
+import 'package:basketball_academy/features/expenses/domain/entities/expense_entity.dart';
+import 'package:basketball_academy/features/expenses/domain/repositories/expense_repository.dart';
 import 'package:excel/excel.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
@@ -426,5 +428,31 @@ class ExcelReportService {
     final bytes = excel.save();
     if (bytes == null) throw Exception('فشل إنشاء ملف Excel');
     return Uint8List.fromList(bytes);
+  }
+
+  static Future<Uint8List> generateExpensesExcel(ReportFilter filter) async {
+    final repo = sl<ExpenseRepository>();
+    final result = await repo.getExpenses(
+      startDate: filter.startDate != null
+          ? DateFormat('yyyy-MM-dd').format(filter.startDate!)
+          : null,
+      endDate: filter.endDate != null
+          ? DateFormat('yyyy-MM-dd').format(filter.endDate!)
+          : null,
+      limit: 500,
+    );
+    final List<ExpenseEntity> expenses =
+        result.fold((_) => [], (data) => data.expenses);
+
+    return generateExpenseExcel(
+      expenses
+          .map((e) => (
+                name: e.name,
+                category: e.categoryLabel,
+                amount: e.amount,
+                date: e.date,
+              ))
+          .toList(),
+    );
   }
 }

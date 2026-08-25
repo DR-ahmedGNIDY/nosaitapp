@@ -16,6 +16,8 @@ class DashboardStatsModel {
   final int largestGroupSize;
   final int groupOccupancyRate;
   final double avgPlayersPerGroup;
+  final double totalExpenses;
+  final double currentMonthExpenses;
 
   const DashboardStatsModel({
     required this.totalPlayers,
@@ -33,6 +35,8 @@ class DashboardStatsModel {
     this.largestGroupSize = 0,
     this.groupOccupancyRate = 0,
     this.avgPlayersPerGroup = 0,
+    this.totalExpenses = 0,
+    this.currentMonthExpenses = 0,
   });
 
   factory DashboardStatsModel.fromJson(Map<String, dynamic> json) {
@@ -52,6 +56,8 @@ class DashboardStatsModel {
       largestGroupSize: (json['largestGroupSize'] as num?)?.toInt() ?? 0,
       groupOccupancyRate: (json['groupOccupancyRate'] as num?)?.toInt() ?? 0,
       avgPlayersPerGroup: (json['avgPlayersPerGroup'] as num?)?.toDouble() ?? 0.0,
+      totalExpenses: (json['totalExpenses'] as num?)?.toDouble() ?? 0.0,
+      currentMonthExpenses: (json['currentMonthExpenses'] as num?)?.toDouble() ?? 0.0,
     );
   }
 
@@ -72,6 +78,8 @@ class DashboardStatsModel {
       largestGroupSize: largestGroupSize,
       groupOccupancyRate: groupOccupancyRate,
       avgPlayersPerGroup: avgPlayersPerGroup,
+      totalExpenses: totalExpenses,
+      currentMonthExpenses: currentMonthExpenses,
     );
   }
 }

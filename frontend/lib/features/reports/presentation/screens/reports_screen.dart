@@ -82,9 +82,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   String _subscriptionStatusFilter = 'all'; // 'all' | 'active' | 'expired'
 
   // Loading states per report index (PDF)
-  final List<bool> _loading = [false, false, false, false];
+  final List<bool> _loading = [false, false, false, false, false];
   // Loading states per report index (Excel)
-  final List<bool> _loadingExcel = [false, false, false, false];
+  final List<bool> _loadingExcel = [false, false, false, false, false];
 
   ReportFilter get _currentFilter {
     return ReportFilter(
@@ -146,6 +146,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           bytes = await PdfReportService.generateEvaluationsReport(
               _currentFilter);
           fileName = 'evaluations_report.pdf';
+          break;
+        case 4:
+          bytes =
+              await PdfReportService.generateExpensesReport(_currentFilter);
+          fileName = 'expenses_report.pdf';
           break;
         default:
           return;
@@ -259,6 +264,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           bytes = await ExcelReportService.generateEvaluationsExcel(_currentFilter);
           fileName = 'evaluations_report.xlsx';
           break;
+        case 4:
+          bytes = await ExcelReportService.generateExpensesExcel(_currentFilter);
+          fileName = 'expenses_report.xlsx';
+          break;
         default:
           return;
       }
@@ -368,6 +377,17 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         loadingExcel: _loadingExcel[3],
         onGenerate: () => _generateReport(3),
         onExport: () => _generateExcel(3),
+      ),
+      (
+        index: 4,
+        icon: Icons.receipt_long_outlined,
+        iconColor: AppColors.error,
+        title: AppStrings.expensesReport,
+        description: 'سجل المصروفات مفصّلاً حسب التصنيف والتاريخ والإجمالي',
+        loading: _loading[4],
+        loadingExcel: _loadingExcel[4],
+        onGenerate: () => _generateReport(4),
+        onExport: () => _generateExcel(4),
       ),
     ];
 
@@ -673,6 +693,19 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   loadingExcel: _loadingExcel[3],
                   onGenerate: () => _generateReport(3),
                   onExport: () => _generateExcel(3),
+                ),
+                Gap(12.h),
+                _ReportCard(
+                  index: 4,
+                  icon: Icons.receipt_long_outlined,
+                  iconColor: AppColors.error,
+                  title: AppStrings.expensesReport,
+                  description:
+                      'سجل المصروفات مفصّلاً حسب التصنيف والتاريخ والإجمالي',
+                  loading: _loading[4],
+                  loadingExcel: _loadingExcel[4],
+                  onGenerate: () => _generateReport(4),
+                  onExport: () => _generateExcel(4),
                 ),
                 Gap(24.h),
               ],

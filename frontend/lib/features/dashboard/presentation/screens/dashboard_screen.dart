@@ -347,6 +347,14 @@ class _QuickActionsGrid extends StatelessWidget {
         ),
       ),
       _QuickActionItem(
+        icon: Icons.groups_outlined,
+        label: 'المجموعات',
+        color: AppColors.primary,
+        onTap: () => context.push(
+          AppRoutes.groupsList.replaceFirst(':id', academyId),
+        ),
+      ),
+      _QuickActionItem(
         icon: Icons.chat_outlined,
         label: 'المحادثات',
         color: AppColors.primary,
@@ -1000,6 +1008,20 @@ class _DesktopStatsGrid extends StatelessWidget {
         bg: const Color(0xFFEFF6FF),
       ),
       _StatCardData(
+        label: 'إجمالي المصروفات',
+        value: _fmt(s?.totalExpenses ?? 0),
+        icon: Icons.receipt_long_outlined,
+        color: AppColors.error,
+        bg: AppColors.errorLight,
+      ),
+      _StatCardData(
+        label: 'مصروفات الشهر',
+        value: _fmt(s?.currentMonthExpenses ?? 0),
+        icon: Icons.request_quote_outlined,
+        color: const Color(0xFFDC2626),
+        bg: const Color(0xFFFEF2F2),
+      ),
+      _StatCardData(
         label: 'متوسط التقييم',
         value: '${(s?.averageEvaluationScore ?? 0).toStringAsFixed(1)} / 10',
         icon: Icons.star_outline_rounded,
@@ -1255,6 +1277,14 @@ class _DesktopQuickActions extends StatelessWidget {
           color: AppColors.error,
           onTap: () => context.push(
             AppRoutes.expensesList.replaceFirst(':id', academyId),
+          ),
+        ),
+        _DesktopQuickBtn(
+          icon: Icons.groups_outlined,
+          label: 'المجموعات',
+          color: AppColors.primary,
+          onTap: () => context.push(
+            AppRoutes.groupsList.replaceFirst(':id', academyId),
           ),
         ),
         _DesktopQuickBtn(
@@ -2029,6 +2059,20 @@ class _StatsGrid extends StatelessWidget {
         icon: Icons.refresh,
         color: const Color(0xFF2563EB),
         bg: const Color(0xFFEFF6FF),
+      ),
+      _StatCardData(
+        label: 'إجمالي المصروفات',
+        value: _formatCurrency(s?.totalExpenses ?? 0),
+        icon: Icons.receipt_long,
+        color: AppColors.error,
+        bg: AppColors.errorLight,
+      ),
+      _StatCardData(
+        label: 'مصروفات الشهر',
+        value: _formatCurrency(s?.currentMonthExpenses ?? 0),
+        icon: Icons.request_quote_outlined,
+        color: const Color(0xFFDC2626),
+        bg: const Color(0xFFFEF2F2),
       ),
       _StatCardData(
         label: 'متوسط التقييم',

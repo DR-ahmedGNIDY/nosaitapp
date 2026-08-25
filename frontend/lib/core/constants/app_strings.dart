@@ -166,6 +166,7 @@ class AppStrings {
   static const String subscriptionsReport = 'تقرير الاشتراكات';
   static const String revenueReport = 'تقرير الإيرادات';
   static const String evaluationsReport = 'تقرير التقييمات';
+  static const String expensesReport = 'تقرير المصروفات';
   static const String reportPeriod = 'الفترة الزمنية';
   static const String thisMonth = 'هذا الشهر';
   static const String last3Months = 'آخر 3 أشهر';
