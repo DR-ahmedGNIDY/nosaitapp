@@ -284,7 +284,7 @@ class _AttendanceScanScreenState extends State<AttendanceScanScreen> {
               onSubmitted: _handleCode,
               decoration: InputDecoration(
                 labelText: 'إدخال الكود يدوياً أو عبر قارئ USB',
-                hintText: 'مثال: Y-0001',
+                hintText: 'مثال: 1 أو Y-0001',
                 filled: true,
                 fillColor: AppColors.white,
                 prefixIcon: const Icon(Icons.qr_code_2_outlined),
