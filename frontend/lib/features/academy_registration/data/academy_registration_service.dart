@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:basketball_academy/core/network/api_client.dart';
 import 'package:basketball_academy/core/network/token_manager.dart';
 import 'package:basketball_academy/core/utils/multipart/image_multipart_helper.dart';
@@ -18,7 +20,7 @@ class AcademyRegistrationService {
     required String phone,
     required String email,
     required String city,
-    required String sport,
+    required List<String> sports,
     required String password,
     String? currency,
     String? logoPath,
@@ -31,7 +33,9 @@ class AcademyRegistrationService {
         'phone': phone,
         'email': email,
         'city': city,
-        'sport': sport,
+        // sports: قائمة الرياضات (JSON داخل multipart). sport: توافق مع سيرفر قديم.
+        'sports': jsonEncode(sports),
+        'sport': sports.first,
         'password': password,
         if (currency != null) 'currency': currency,
         'logo': await buildImageMultipart(logoPath, filename: 'academy_logo.jpg'),
@@ -49,7 +53,8 @@ class AcademyRegistrationService {
           'phone': phone,
           'email': email,
           'city': city,
-          'sport': sport,
+          'sports': sports,
+          'sport': sports.first,
           'password': password,
           if (currency != null) 'currency': currency,
         },

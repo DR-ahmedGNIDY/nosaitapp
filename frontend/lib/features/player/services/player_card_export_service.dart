@@ -12,6 +12,8 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 
+import 'web_download_service.dart';
+
 /// نتيجة عملية الحفظ — تفيد الواجهة في صياغة رسالة النجاح.
 class PlayerCardSaveResult {
   final bool savedToGallery;
@@ -71,7 +73,8 @@ class PlayerCardExportService {
   /// يحفظ صورة PNG في الجهاز:
   /// - Android: يُحفظ في معرض الصور (Gallery) عبر `gal`.
   /// - Windows/macOS/Linux: يُحفظ في مجلد التنزيلات (Downloads).
-  /// - Web: لا نظام ملفات محلي — يُستخدم زر "مشاركة" بدلاً من ذلك.
+  /// - Web: لا نظام ملفات محلي — يُنزَّل الملف مباشرة عبر المتصفح (Blob +
+  ///   عنصر تنزيل مخفي)، فيحفظه المتصفح في مجلد التنزيلات كأي ملف عادي.
   static Future<PlayerCardSaveResult> saveToDevice(
     Uint8List pngBytes,
     String fileName,
@@ -81,7 +84,8 @@ class PlayerCardExportService {
     }
 
     if (kIsWeb) {
-      throw UnsupportedError('الحفظ المباشر غير مدعوم على الويب — استخدم زر المشاركة');
+      downloadBytesInBrowser(pngBytes, fileName);
+      return const PlayerCardSaveResult(savedToGallery: false);
     }
 
     if (Platform.isAndroid || Platform.isIOS) {

@@ -179,9 +179,21 @@ class _AuthInterceptor extends Interceptor {
   }
 
   @override
-  void onError(DioException err, ErrorInterceptorHandler handler) {
+  void onError(DioException err, ErrorInterceptorHandler handler) async {
     if (err.response?.statusCode == 401) {
-      _tokenManager.clearToken();
+      // ⚠️ مسح التوكن عند أي 401 كان يُسقط الجلسة صامتاً: نداء واحد إلى مسار
+      // لا يخصّ نوع الجلسة (مثل مسار مدراء بتوكن لاعب) كان يمحو توكن اللاعب
+      // فيفشل كل ما بعده. نمسح فقط إذا كان الرفض من مسار يخصّ هذه الجلسة —
+      // أي أن التوكن نفسه هو المرفوض حقاً.
+      final path = err.requestOptions.path;
+      final sessionType = await _tokenManager.getSessionType();
+      final isPlayerSession = sessionType == 'player';
+      final belongsToSession = isPlayerSession
+          ? (path.startsWith('/player') || path.startsWith('/auth/player'))
+          : !(path.startsWith('/player') || path.startsWith('/auth/player'));
+      if (belongsToSession) {
+        await _tokenManager.clearToken();
+      }
     }
     handler.next(err);
   }

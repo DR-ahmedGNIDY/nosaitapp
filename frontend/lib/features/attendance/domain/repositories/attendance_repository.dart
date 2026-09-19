@@ -36,7 +36,17 @@ abstract class AttendanceRepository {
     String? startDate,
     String? endDate,
     String? sport,
+    String? subscription,
   });
+
+  Future<Either<Failure, List<AttendancePlayer>>> searchPlayers({
+    String? academyId,
+    required String query,
+    String? sport,
+  });
+
+  Future<Either<Failure, AttendancePlayerSummary>> getPlayerSummary(
+      String playerId);
 
   Future<Either<Failure, void>> deleteAttendance(String id);
 }

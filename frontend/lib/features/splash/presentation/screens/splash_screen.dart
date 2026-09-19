@@ -55,8 +55,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       final auth = authAsync.valueOrNull;
       if (auth?.isAuthenticated == true) {
         final user = auth?.user;
-        if (user?.isAdmin == true && user?.academyId != null) {
-          context.go(AppRoutes.playersList.replaceFirst(':id', user!.academyId!));
+        if (user?.isAdmin == true &&
+            user?.academyId != null &&
+            !user!.hasPermission('view_dashboard_revenue')) {
+          context.go(AppRoutes.playersList.replaceFirst(':id', user.academyId!));
         } else {
           context.go(AppRoutes.home);
         }

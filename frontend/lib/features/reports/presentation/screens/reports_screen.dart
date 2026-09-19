@@ -295,8 +295,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final isSuperAdmin = user?.isSuperAdmin ?? false;
     final userAcademyId = user?.academyId;
 
-    // admin لا يملك صلاحية التقارير
-    if (user?.isAdmin == true) {
+    // admin بلا صلاحية view_reports لا يملك صلاحية التقارير
+    if (user?.isAdmin == true && user?.hasPermission('view_reports') != true) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         if (userAcademyId != null) {

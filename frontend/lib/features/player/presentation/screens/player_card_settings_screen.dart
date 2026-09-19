@@ -1,10 +1,15 @@
+import 'dart:io';
+
 import 'package:basketball_academy/core/constants/app_colors.dart';
+import 'package:basketball_academy/core/utils/image_size_validator.dart';
 import 'package:basketball_academy/features/academy/domain/entities/academy_entity.dart';
 import 'package:basketball_academy/features/academy/presentation/providers/academy_provider.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
+import 'package:image_picker/image_picker.dart';
 
 const _kCardColorOptions = <String, Color>{
   'navy': Color(0xFF0B2E6B),
@@ -13,9 +18,10 @@ const _kCardColorOptions = <String, Color>{
   'black': Color(0xFF1A1A1A),
 };
 
-/// إعدادات بطاقة اللاعب (لون البطاقة + الشعار في أسفلها) — منقولة من شاشة
-/// "تعديل الأكاديمية" إلى شاشة مستقلة يصل إليها مدير الأكاديمية من صفحة
-/// اللاعبين مباشرة.
+/// إعدادات الأكاديمية والبطاقة (شعار الأكاديمية + لون البطاقة + شعارها النصي)
+/// — منقولة من شاشة "تعديل الأكاديمية" إلى شاشة مستقلة يصل إليها مدير
+/// الأكاديمية من صفحة اللاعبين مباشرة. الشعار المحفوظ هنا هو نفسه الظاهر في
+/// بطاقة اللاعب (player_card_screen.dart يقرأه من academyByIdProvider).
 class PlayerCardSettingsScreen extends ConsumerWidget {
   final String academyId;
   const PlayerCardSettingsScreen({super.key, required this.academyId});
@@ -27,7 +33,7 @@ class PlayerCardSettingsScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('إعدادات بطاقة اللاعب'),
+        title: const Text('إعدادات الأكاديمية والبطاقة'),
         centerTitle: true,
       ),
       body: academyAsync.when(
@@ -56,6 +62,7 @@ class _PlayerCardSettingsFormState
   late final TextEditingController _sloganController;
   late String _selectedCardColor;
   bool _isLoading = false;
+  String? _logoPath;
 
   @override
   void initState() {
@@ -77,6 +84,30 @@ class _PlayerCardSettingsFormState
     super.dispose();
   }
 
+  Future<void> _pickLogo() async {
+    try {
+      final picker = ImagePicker();
+      final img =
+          await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+      if (img == null) return;
+      final sizeError = await validateImageSize(img);
+      if (sizeError != null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(sizeError), backgroundColor: AppColors.error),
+        );
+        return;
+      }
+      setState(() => _logoPath = img.path);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تعذّر اختيار الشعار')),
+        );
+      }
+    }
+  }
+
   Future<void> _submit() async {
     setState(() => _isLoading = true);
 
@@ -94,6 +125,7 @@ class _PlayerCardSettingsFormState
           instagramUrl: academy.instagramUrl,
           cardColor: _selectedCardColor,
           cardSlogan: _sloganController.text.trim(),
+          logoPath: _logoPath,
         );
 
     if (!mounted) return;
@@ -107,16 +139,43 @@ class _PlayerCardSettingsFormState
           behavior: SnackBarBehavior.floating,
         ),
       );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('تم تحديث إعدادات بطاقة اللاعب بنجاح'),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
+      return;
+    }
+
+    // بطاقة اللاعب تقرأ الشعار من هذا الـ provider — إبطاله يجعل الشعار
+    // الجديد يظهر فوراً دون إعادة تشغيل التطبيق.
+    ref.invalidate(academyByIdProvider(academy.id));
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('تم حفظ الإعدادات بنجاح'),
+        backgroundColor: AppColors.success,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    Navigator.of(context).pop();
+  }
+
+  /// الصورة المعروضة: المختارة حديثاً إن وُجدت، وإلا الشعار المحفوظ، وإلا أيقونة.
+  Widget _buildLogoPreview() {
+    if (_logoPath != null) {
+      return kIsWeb
+          ? Image.network(_logoPath!, fit: BoxFit.cover)
+          : Image.file(File(_logoPath!), fit: BoxFit.cover);
+    }
+    final logoUrl = widget.academy.logoUrl;
+    if (logoUrl != null && logoUrl.isNotEmpty) {
+      return Image.network(
+        logoUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Icon(
+          Icons.sports_basketball,
+          color: AppColors.primary,
+          size: 44.sp,
         ),
       );
-      Navigator.of(context).pop();
     }
+    return Icon(Icons.sports_basketball, color: AppColors.primary, size: 44.sp);
   }
 
   @override
@@ -129,6 +188,83 @@ class _PlayerCardSettingsFormState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Text(
+              'شعار الأكاديمية',
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: AppColors.grey700,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            Gap(4.h),
+            Text(
+              'يظهر في بطاقة اللاعب وفي بيانات الأكاديمية.',
+              style: TextStyle(fontSize: 12.sp, color: AppColors.grey500),
+            ),
+            Gap(12.h),
+            Center(
+              child: GestureDetector(
+                onTap: _pickLogo,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      width: 100.w,
+                      height: 100.w,
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryContainer,
+                        borderRadius: BorderRadius.circular(20.r),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20.r),
+                        child: _buildLogoPreview(),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: -4.h,
+                      right: -4.w,
+                      child: Container(
+                        padding: EdgeInsets.all(6.r),
+                        decoration: const BoxDecoration(
+                          color: AppColors.primary,
+                          shape: BoxShape.circle,
+                          border: Border.fromBorderSide(
+                            BorderSide(color: AppColors.white, width: 2),
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.camera_alt,
+                          color: AppColors.white,
+                          size: 14.sp,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Gap(10.h),
+            Center(
+              child: TextButton.icon(
+                onPressed: _pickLogo,
+                icon: const Icon(Icons.image_outlined),
+                label: Text(
+                  _logoPath != null ? 'تغيير الصورة المختارة' : 'اختيار شعار جديد',
+                  style: TextStyle(fontSize: 13.sp),
+                ),
+              ),
+            ),
+            if (_logoPath != null)
+              Center(
+                child: TextButton.icon(
+                  onPressed: () => setState(() => _logoPath = null),
+                  icon: const Icon(Icons.undo, color: AppColors.error),
+                  label: Text(
+                    'التراجع عن الاختيار',
+                    style: TextStyle(fontSize: 13.sp, color: AppColors.error),
+                  ),
+                ),
+              ),
+            Gap(20.h),
             Text(
               'لون البطاقة',
               style: theme.textTheme.labelLarge?.copyWith(

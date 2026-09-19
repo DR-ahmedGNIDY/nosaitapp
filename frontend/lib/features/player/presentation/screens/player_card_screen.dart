@@ -141,7 +141,9 @@ class _ActionButtonsState extends State<_ActionButtons> {
     setState(() => _busy = true);
     try {
       final png = await PlayerCardExportService.capturePng(widget.cardKey);
-      final path = await PlayerCardExportService.writeTempFile(png, widget.fileName);
+      // كتابة ملف مؤقت غير مدعومة على الويب (لا نظام ملفات محلي) — يُستخدم
+      // زر المشاركة بدلاً من ذلك هناك، فلا حاجة لمسار مؤقت.
+      final path = kIsWeb ? null : await PlayerCardExportService.writeTempFile(png, widget.fileName);
       if (!mounted) return;
       setState(() {
         _png = png;
@@ -159,12 +161,13 @@ class _ActionButtonsState extends State<_ActionButtons> {
     if (png == null || _busy) return;
     setState(() => _busy = true);
     try {
-      if (kIsWeb) {
-        throw UnsupportedError('الحفظ المباشر غير مدعوم على الويب — استخدم زر المشاركة');
-      }
       final result = await PlayerCardExportService.saveToDevice(png, widget.fileName);
       _showSuccess(
-        result.savedToGallery ? 'تم حفظ البطاقة في معرض الصور' : 'تم حفظ البطاقة في: ${result.filePath}',
+        kIsWeb
+            ? 'جارٍ تنزيل البطاقة...'
+            : result.savedToGallery
+                ? 'تم حفظ البطاقة في معرض الصور'
+                : 'تم حفظ البطاقة في: ${result.filePath}',
       );
     } catch (e) {
       _showError(e);

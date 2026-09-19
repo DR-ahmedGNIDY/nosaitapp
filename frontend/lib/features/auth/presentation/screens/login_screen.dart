@@ -122,8 +122,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       if (st?.isAuthenticated == true) {
         debugPrint('[LOGIN] NAVIGATION START → going to home/players');
         final user = st?.user;
-        if (user?.isAdmin == true && user?.academyId != null) {
-          context.go(AppRoutes.playersList.replaceFirst(':id', user!.academyId!));
+        if (user?.isAdmin == true &&
+            user?.academyId != null &&
+            !user!.hasPermission('view_dashboard_revenue')) {
+          context.go(AppRoutes.playersList.replaceFirst(':id', user.academyId!));
         } else {
           context.go(AppRoutes.home);
         }

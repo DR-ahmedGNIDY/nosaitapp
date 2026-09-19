@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/di/injection_container.dart';
 import 'package:basketball_academy/features/academy/presentation/providers/academy_provider.dart';
 import 'package:basketball_academy/features/attendance/domain/entities/attendance_entity.dart';
 import 'package:basketball_academy/features/attendance/domain/usecases/delete_attendance_usecase.dart';
 import 'package:basketball_academy/features/attendance/presentation/providers/attendance_provider.dart';
+import 'package:basketball_academy/features/attendance/presentation/widgets/subscription_stats_banner.dart';
 import 'package:basketball_academy/features/auth/domain/entities/user_entity.dart';
 import 'package:basketball_academy/features/auth/presentation/providers/auth_provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -31,9 +34,23 @@ class AttendanceLogScreen extends ConsumerStatefulWidget {
 class _AttendanceLogScreenState extends ConsumerState<AttendanceLogScreen> {
   String? _date; // 'YYYY-MM-DD' أو null = كل التواريخ
   String? _sport; // null = الكل
-  String _playerQuery = ''; // فلترة محلية بالاسم/الكود (بدون طلب إضافي)
+  String _playerQuery = ''; // بحث لاعب على السيرفر (كارت لكل لاعب)
+  Timer? _debounce;
 
   String _two(int n) => n.toString().padLeft(2, '0');
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  void _onQueryChanged(String v) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), () {
+      if (mounted) setState(() => _playerQuery = v.trim());
+    });
+  }
 
   Future<void> _pickDate() async {
     final now = DateTime.now();
@@ -63,7 +80,6 @@ class _AttendanceLogScreenState extends ConsumerState<AttendanceLogScreen> {
       date: _date,
       sport: _sport,
     );
-    final logAsync = ref.watch(attendanceLogProvider(filter));
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -73,33 +89,35 @@ class _AttendanceLogScreenState extends ConsumerState<AttendanceLogScreen> {
       ),
       body: Column(
         children: [
-          // فلتر التاريخ + بحث اللاعب
-          Padding(
-            padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _pickDate,
-                    icon: const Icon(Icons.calendar_today_outlined, size: 18),
-                    label: Text(_date ?? 'كل التواريخ'),
+          // فلتر التاريخ (لا يظهر أثناء البحث عن لاعب)
+          if (_playerQuery.isEmpty)
+            Padding(
+              padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _pickDate,
+                      icon:
+                          const Icon(Icons.calendar_today_outlined, size: 18),
+                      label: Text(_date ?? 'كل التواريخ'),
+                    ),
                   ),
-                ),
-                if (_date != null) ...[
-                  Gap(8.w),
-                  IconButton(
-                    tooltip: 'مسح التاريخ',
-                    icon: const Icon(Icons.clear),
-                    onPressed: () => setState(() => _date = null),
-                  ),
+                  if (_date != null) ...[
+                    Gap(8.w),
+                    IconButton(
+                      tooltip: 'مسح التاريخ',
+                      icon: const Icon(Icons.clear),
+                      onPressed: () => setState(() => _date = null),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
           Padding(
             padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 0),
             child: TextField(
-              onChanged: (v) => setState(() => _playerQuery = v.trim()),
+              onChanged: _onQueryChanged,
               decoration: InputDecoration(
                 hintText: 'بحث باسم اللاعب أو الكود',
                 prefixIcon: const Icon(Icons.search, size: 20),
@@ -121,46 +139,298 @@ class _AttendanceLogScreenState extends ConsumerState<AttendanceLogScreen> {
               onSelected: (s) => setState(() => _sport = s),
             ),
           Expanded(
-            child: logAsync.when(
-              loading: () =>
-                  const Center(child: CircularProgressIndicator()),
-              error: (e, _) => _ErrorView(
-                onRetry: () => ref.invalidate(attendanceLogProvider(filter)),
-              ),
-              data: (data) {
-                var records = data.records;
-                if (_playerQuery.isNotEmpty) {
-                  final q = _playerQuery.toLowerCase();
-                  records = records
-                      .where((r) =>
-                          r.playerName.toLowerCase().contains(q) ||
-                          r.playerCode.toLowerCase().contains(q))
-                      .toList();
-                }
-                if (records.isEmpty) {
-                  return _EmptyView();
-                }
-                return RefreshIndicator(
-                  onRefresh: () async =>
-                      ref.invalidate(attendanceLogProvider(filter)),
-                  child: ListView.separated(
-                    padding: EdgeInsets.all(16.r),
-                    itemCount: records.length,
-                    separatorBuilder: (_, __) => Gap(10.h),
-                    itemBuilder: (_, i) => _LogTile(
-                      entry: records[i],
-                      canDelete: canDelete,
-                      onDeleted: () {
-                        ref.invalidate(attendanceLogProvider(filter));
-                        ref.invalidate(attendanceReportProvider);
-                      },
-                    ),
-                  ),
-                );
-              },
-            ),
+            child: _playerQuery.isNotEmpty
+                ? _PlayerSearchResults(
+                    academyId: widget.academyId,
+                    query: _playerQuery,
+                    sport: _sport,
+                    canDelete: canDelete,
+                  )
+                : PagedAttendanceLog(filter: filter, canDelete: canDelete),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// قائمة سجل الحضور بصفحات من 100 — زر "إظهار المزيد" يضيف 100 أخرى.
+/// كل صفحة طلب مستقل مخزّن عبر attendanceLogProvider(filter.copyWithPage(n)).
+class PagedAttendanceLog extends ConsumerStatefulWidget {
+  final AttendanceLogFilter filter;
+  final bool canDelete;
+  final Widget? header;
+
+  const PagedAttendanceLog({
+    super.key,
+    required this.filter,
+    required this.canDelete,
+    this.header,
+  });
+
+  @override
+  ConsumerState<PagedAttendanceLog> createState() => _PagedAttendanceLogState();
+}
+
+class _PagedAttendanceLogState extends ConsumerState<PagedAttendanceLog> {
+  int _pages = 1;
+
+  @override
+  void didUpdateWidget(covariant PagedAttendanceLog old) {
+    super.didUpdateWidget(old);
+    if (old.filter != widget.filter) _pages = 1;
+  }
+
+  void _refreshAll() {
+    for (var p = 1; p <= _pages; p++) {
+      ref.invalidate(attendanceLogProvider(widget.filter.copyWithPage(p)));
+    }
+    ref.invalidate(attendanceReportProvider);
+    if (widget.filter.playerId != null) {
+      ref.invalidate(attendancePlayerSummaryProvider(widget.filter.playerId!));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final first = ref.watch(attendanceLogProvider(widget.filter.copyWithPage(1)));
+    if (first.isLoading && !first.hasValue) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (first.hasError && !first.hasValue) {
+      return _ErrorView(onRetry: _refreshAll);
+    }
+
+    final records = <AttendanceLogEntry>[];
+    var total = 0;
+    var totalPages = 1;
+    var loadingMore = false;
+    var moreError = false;
+    for (var p = 1; p <= _pages; p++) {
+      final page = ref.watch(attendanceLogProvider(widget.filter.copyWithPage(p)));
+      final data = page.valueOrNull;
+      if (data != null) {
+        records.addAll(data.records);
+        total = data.total;
+        totalPages = data.totalPages;
+      } else if (page.hasError) {
+        moreError = true;
+      } else {
+        loadingMore = true;
+      }
+    }
+    final hasMore = _pages < totalPages;
+
+    final header = widget.header;
+    if (records.isEmpty) {
+      return Column(
+        children: [
+          if (header != null)
+            Padding(padding: EdgeInsets.all(16.r), child: header),
+          Expanded(child: _EmptyView()),
+        ],
+      );
+    }
+
+    final extra = header != null ? 1 : 0;
+    return RefreshIndicator(
+      onRefresh: () async => _refreshAll(),
+      child: ListView.separated(
+        padding: EdgeInsets.all(16.r),
+        itemCount: records.length + extra + 1,
+        separatorBuilder: (_, __) => Gap(10.h),
+        itemBuilder: (_, i) {
+          if (header != null && i == 0) return header;
+          final idx = i - extra;
+          if (idx < records.length) {
+            return _LogTile(
+              entry: records[idx],
+              canDelete: widget.canDelete,
+              onDeleted: _refreshAll,
+            );
+          }
+          // الذيل: عدّاد + إظهار المزيد
+          return Column(
+            children: [
+              Text(
+                'عرض ${records.length} من $total سجل',
+                style: TextStyle(fontSize: 11.sp, color: AppColors.grey500),
+              ),
+              if (loadingMore)
+                Padding(
+                  padding: EdgeInsets.all(12.r),
+                  child: const CircularProgressIndicator(),
+                )
+              else if (moreError)
+                TextButton.icon(
+                  onPressed: () => ref.invalidate(attendanceLogProvider(
+                      widget.filter.copyWithPage(_pages))),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('تعذّر التحميل — إعادة المحاولة'),
+                )
+              else if (hasMore)
+                Padding(
+                  padding: EdgeInsets.only(top: 8.h),
+                  child: OutlinedButton.icon(
+                    onPressed: () => setState(() => _pages++),
+                    icon: const Icon(Icons.expand_more),
+                    label: const Text('إظهار المزيد'),
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// نتائج البحث — كارت واحد لكل لاعب، الضغط يفتح سجل حضوره الكامل.
+class _PlayerSearchResults extends ConsumerWidget {
+  final String academyId;
+  final String query;
+  final String? sport;
+  final bool canDelete;
+
+  const _PlayerSearchResults({
+    required this.academyId,
+    required this.query,
+    required this.sport,
+    required this.canDelete,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final key = AttendancePlayerSearchKey(
+        academyId: academyId, query: query, sport: sport);
+    final async = ref.watch(attendancePlayerSearchProvider(key));
+    return async.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (_, __) => _ErrorView(
+          onRetry: () => ref.invalidate(attendancePlayerSearchProvider(key))),
+      data: (players) {
+        if (players.isEmpty) {
+          return Center(
+            child: Text('لا يوجد لاعب مطابق',
+                style: TextStyle(fontSize: 14.sp, color: AppColors.grey500)),
+          );
+        }
+        return ListView.separated(
+          padding: EdgeInsets.all(16.r),
+          itemCount: players.length,
+          separatorBuilder: (_, __) => Gap(10.h),
+          itemBuilder: (_, i) {
+            final p = players[i];
+            return Material(
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(14.r),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(14.r),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => AttendancePlayerLogScreen(
+                    academyId: academyId,
+                    player: p,
+                    canDelete: canDelete,
+                  ),
+                )),
+                child: Padding(
+                  padding: EdgeInsets.all(12.r),
+                  child: Row(
+                    children: [
+                      _Avatar(imageUrl: p.imageUrl),
+                      Gap(12.w),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(p.fullName,
+                                style: TextStyle(
+                                  fontSize: 14.sp,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.grey900,
+                                )),
+                            Gap(2.h),
+                            Text(
+                              [
+                                p.playerCode,
+                                if (p.sport != null && p.sport!.isNotEmpty)
+                                  p.sport!,
+                              ].join(' • '),
+                              style: TextStyle(
+                                  fontSize: 11.sp, color: AppColors.grey500),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(Icons.chevron_left, color: AppColors.grey500),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+/// سجل حضور لاعب واحد + ملخص حضوره في اشتراكه الأخير.
+class AttendancePlayerLogScreen extends ConsumerWidget {
+  final String academyId;
+  final AttendancePlayer player;
+  final bool canDelete;
+
+  const AttendancePlayerLogScreen({
+    super.key,
+    required this.academyId,
+    required this.player,
+    required this.canDelete,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final summary = ref.watch(attendancePlayerSummaryProvider(player.id));
+    final header = summary.when(
+      loading: () => const LinearProgressIndicator(),
+      error: (_, __) => Text('تعذّر تحميل ملخص الاشتراك',
+          style: TextStyle(fontSize: 12.sp, color: AppColors.error)),
+      data: (s) => SubscriptionStatsBanner(stats: s.stats),
+    );
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(title: Text(player.fullName), centerTitle: true),
+      body: PagedAttendanceLog(
+        filter: AttendanceLogFilter(academyId: academyId, playerId: player.id),
+        canDelete: canDelete,
+        header: header,
+      ),
+    );
+  }
+}
+
+class _Avatar extends StatelessWidget {
+  final String? imageUrl;
+  const _Avatar({this.imageUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 44.w,
+      height: 44.w,
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        color: AppColors.primaryContainer,
+      ),
+      child: ClipOval(
+        child: imageUrl != null && imageUrl!.isNotEmpty
+            ? CachedNetworkImage(
+                imageUrl: imageUrl!,
+                fit: BoxFit.cover,
+                errorWidget: (_, __, ___) =>
+                    Icon(Icons.person, color: AppColors.primary, size: 22.sp),
+              )
+            : Icon(Icons.person, color: AppColors.primary, size: 22.sp),
       ),
     );
   }

@@ -1,3 +1,4 @@
+import 'package:basketball_academy/core/ads/ad_banner_slot.dart';
 import 'dart:async';
 
 import 'package:basketball_academy/core/constants/app_colors.dart';
@@ -287,6 +288,8 @@ class _PlayersListScreenState extends ConsumerState<PlayersListScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      // بانر إعلاني — يختفي تلقائياً للمشترك ولأي حالة غير معروفة.
+      bottomNavigationBar: const AdBannerSlot(),
       appBar: AppBar(
         title: Row(
           mainAxisSize: MainAxisSize.min,
@@ -336,7 +339,7 @@ class _PlayersListScreenState extends ConsumerState<PlayersListScreen> {
           if (isAcademyAdmin || isSuperAdmin)
             IconButton(
               icon: const Icon(Icons.style_outlined),
-              tooltip: 'إعدادات بطاقة اللاعب',
+              tooltip: 'إعدادات الأكاديمية والبطاقة',
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) =>

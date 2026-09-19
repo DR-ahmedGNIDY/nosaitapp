@@ -1,3 +1,4 @@
+import 'package:basketball_academy/core/ads/ad_banner_slot.dart';
 import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/layout/desktop_scaffold.dart';
 import 'package:basketball_academy/core/layout/responsive.dart';
@@ -134,6 +135,8 @@ class _SubscriptionsListScreenState
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      // بانر إعلاني — يختفي تلقائياً للمشترك ولأي حالة غير معروفة.
+      bottomNavigationBar: const AdBannerSlot(),
       appBar: AppBar(title: const Text('الاشتراكات'), centerTitle: true),
       body: RefreshIndicator(
         onRefresh: () => ref

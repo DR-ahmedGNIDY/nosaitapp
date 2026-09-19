@@ -1,3 +1,4 @@
+import 'package:basketball_academy/core/errors/exceptions.dart';
 import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/di/injection_container.dart';
 import 'package:basketball_academy/core/utils/currency_utils.dart';
@@ -109,7 +110,7 @@ class PlayerStoreScreen extends ConsumerWidget {
       return _StoreMessage(
         icon: Icons.error_outline,
         color: AppColors.error,
-        title: 'تعذّر تحميل المتجر',
+        title: 'تعذّر تحميل المتجر — ${_errText(state.error)}',
         actionLabel: 'إعادة المحاولة',
         onAction: notifier.refresh,
       );
@@ -284,6 +285,14 @@ class _ProductDetailSheet extends StatelessWidget {
       ),
     );
   }
+}
+
+/// رسالة الخطأ الحقيقية القادمة من الخادم — أوضح للمستخدم وأسرع في التشخيص
+/// من رسالة عامة لا تقول شيئاً.
+String _errText(Object? e) {
+  if (e == null) return '';
+  if (e is AppException) return e.message;
+  return e.toString();
 }
 
 class _StoreMessage extends StatelessWidget {

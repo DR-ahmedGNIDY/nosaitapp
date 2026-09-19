@@ -11,6 +11,12 @@ class AttendanceReportRow extends Equatable {
   final int present; // عدد أيام الحضور المسجّلة
   final int absent; // الغياب = المتوقع − الحضور
   final int rate; // نسبة الالتزام %
+  final String subscriptionStatus; // 'active' | 'expired'
+  final String? subscriptionStart; // 'YYYY-MM-DD'
+  final String? subscriptionEnd;
+  final int expectedTotal; // أيام التدريب على كامل فترة الاشتراك (الدوائر)
+
+  bool get isActive => subscriptionStatus == 'active';
 
   const AttendanceReportRow({
     required this.playerId,
@@ -22,6 +28,10 @@ class AttendanceReportRow extends Equatable {
     required this.present,
     required this.absent,
     required this.rate,
+    this.subscriptionStatus = 'active',
+    this.subscriptionStart,
+    this.subscriptionEnd,
+    this.expectedTotal = 0,
   });
 
   @override
@@ -35,6 +45,10 @@ class AttendanceReportRow extends Equatable {
         present,
         absent,
         rate,
+        subscriptionStatus,
+        subscriptionStart,
+        subscriptionEnd,
+        expectedTotal,
       ];
 }
 

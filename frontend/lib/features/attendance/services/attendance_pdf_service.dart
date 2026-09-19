@@ -124,7 +124,7 @@ class AttendancePdfService {
                   children: [
                     _t(academyName,
                         bold: true, size: 12, color: PdfColors.white),
-                    _t('${report.startDate} - ${report.endDate}',
+                    _t('حتى ${report.endDate} — من بداية اشتراك كل لاعب',
                         size: 9, color: PdfColors.white),
                   ],
                 ),
@@ -174,9 +174,9 @@ class AttendancePdfService {
                     decoration: pw.BoxDecoration(
                         color: idx.isOdd ? altRow : PdfColors.white),
                     children: [
-                      _cell('${r.rate}%'),
-                      _cell('${r.absent}'),
-                      _cell('${r.present}'),
+                      _cell(r.isActive ? '${r.rate}%' : 'منتهي'),
+                      _cell(r.isActive ? '${r.absent}' : '-'),
+                      _cell(r.isActive ? '${r.present}' : '-'),
                       _cell(r.sport ?? '-'),
                       _cell(r.fullName, bold: true),
                       _cell(r.playerCode),

@@ -106,9 +106,43 @@ class _RouterNotifier extends ChangeNotifier {
 
   String? _adminHome(UserEntity? user) {
     if (user?.isAdmin == true && user?.academyId != null) {
-      return AppRoutes.playersList.replaceFirst(':id', user!.academyId!);
+      if (user!.hasPermission('view_dashboard_revenue')) return AppRoutes.home;
+      return AppRoutes.playersList.replaceFirst(':id', user.academyId!);
     }
     return AppRoutes.home;
+  }
+
+  /// مسارات دور admin المسموحة حسب الصلاحيات الدقيقة الممنوحة له
+  /// (بالإضافة إلى اللاعبين/المجموعات المتاحة دائماً).
+  List<String> _adminAllowedPrefixes(UserEntity user, String academyId) {
+    final prefixes = <String>[
+      '/academies/$academyId/players',
+      '/academies/$academyId/groups',
+      AppRoutes.notifications,
+      AppRoutes.accountSettings,
+    ];
+    // ملاحظة: لا نفتح شاشة قائمة الاشتراكات الكاملة (/subscriptions) لدور
+    // admin حتى مع صلاحية record_subscriptions — الـ backend يقيّد
+    // GET /subscriptions/academy/:id بـ super_admin/academy_admin فقط
+    // (backend/src/routes/subscription.routes.js:74)، فسيفشل الطلب بـ 403.
+    // تسجيل/تجديد اشتراك فردي للاعب يبقى متاحاً عبر مسار اللاعب نفسه.
+    if (user.hasPermission('add_matches')) {
+      prefixes.add('/academies/$academyId/matches');
+    }
+    if (user.hasPermission('use_album')) {
+      prefixes.add(AppRoutes.academyAlbum);
+    }
+    if (user.hasPermission('use_store')) {
+      prefixes.add(AppRoutes.academyStore);
+    }
+    if (user.hasPermission('view_reports')) {
+      prefixes.add(AppRoutes.reports);
+    }
+    if (user.hasPermission('view_dashboard_revenue')) {
+      prefixes.add(AppRoutes.home);
+      prefixes.add(AppRoutes.dashboard);
+    }
+    return prefixes;
   }
 
   String? redirect(BuildContext context, GoRouterState state) {
@@ -136,19 +170,17 @@ class _RouterNotifier extends ChangeNotifier {
       // على مسار عام → توجيه لواجهة المدير المناسبة.
       if (_publicRoutes.contains(loc)) return _adminHome(user);
 
-      // دور admin الفرعي مُقيَّد (كما كان) باللاعبين + الإشعارات + الإعدادات.
+      // دور admin مُقيَّد باللاعبين/المجموعات دائماً، بالإضافة إلى أي شاشة
+      // أخرى تتيحها الصلاحيات الدقيقة (permissions) الممنوحة له فعلياً.
       if (user?.isAdmin == true) {
         final academyId = user?.academyId;
-        final allowedPrefixes = [
-          '/academies/${academyId ?? ''}/players',
-          '/academies/${academyId ?? ''}/groups',
-          AppRoutes.notifications,
-          AppRoutes.accountSettings,
-        ];
-        final isAllowed = academyId != null &&
-            allowedPrefixes.any((prefix) => loc.startsWith(prefix));
-        if (!isAllowed && academyId != null) {
-          return AppRoutes.playersList.replaceFirst(':id', academyId);
+        if (academyId != null) {
+          final allowedPrefixes = _adminAllowedPrefixes(user!, academyId);
+          final isAllowed =
+              allowedPrefixes.any((prefix) => loc.startsWith(prefix));
+          if (!isAllowed) {
+            return AppRoutes.playersList.replaceFirst(':id', academyId);
+          }
         }
       }
 

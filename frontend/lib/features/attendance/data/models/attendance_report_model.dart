@@ -28,6 +28,12 @@ class AttendanceReportMapper {
       present: (json['present'] as num?)?.toInt() ?? 0,
       absent: (json['absent'] as num?)?.toInt() ?? 0,
       rate: (json['rate'] as num?)?.toInt() ?? 0,
+      subscriptionStatus: (json['subscriptionStatus'] ?? 'active').toString(),
+      subscriptionStart: json['subscriptionStart'] as String?,
+      subscriptionEnd: json['subscriptionEnd'] as String?,
+      expectedTotal: (json['expectedTotal'] as num?)?.toInt() ??
+          (json['expectedThisMonth'] as num?)?.toInt() ??
+          0,
     );
   }
 }

@@ -1,6 +1,7 @@
+import 'package:basketball_academy/core/ads/ad_banner_slot.dart';
+import 'package:basketball_academy/core/ads/ads_interstitial_helper.dart';
 import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/router/app_router.dart';
-import 'package:basketball_academy/features/academy/presentation/providers/academy_provider.dart';
 import 'package:basketball_academy/features/player_portal/presentation/providers/player_data_providers.dart';
 import 'package:basketball_academy/features/player_portal/presentation/providers/player_session_provider.dart';
 import 'package:basketball_academy/features/player_portal/presentation/widgets/player_photo_sheet.dart';
@@ -20,6 +21,10 @@ class PlayerDashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // تجهيز إعلان ملء الشاشة مسبقاً ليكون العرض التالي فورياً (لا يفعل شيئاً
+    // إذا كانت السياسة تمنع الإعلانات).
+    AdsInterstitial.preload(ref);
+
     final dashAsync = ref.watch(playerDashboardProvider);
     final data = dashAsync.valueOrNull;
     final unreadNotif =
@@ -27,6 +32,8 @@ class PlayerDashboardScreen extends ConsumerWidget {
     final unreadChat = ((data?['chat'] as Map?)?['unread'] as num?)?.toInt() ?? 0;
 
     return Scaffold(
+      // بانر إعلاني — يختفي تلقائياً للمشترك ولأي حالة غير معروفة.
+      bottomNavigationBar: const AdBannerSlot(),
       appBar: AppBar(
         title: const Text('لوحة اللاعب'),
         actions: [
@@ -36,7 +43,10 @@ class PlayerDashboardScreen extends ConsumerWidget {
             child: IconButton(
               tooltip: 'الإشعارات',
               icon: const Icon(Icons.notifications_outlined),
-              onPressed: () => context.push(AppRoutes.playerNotifications),
+              onPressed: () async {
+                await AdsInterstitial.maybeShow(ref);
+                if (context.mounted) context.push(AppRoutes.playerNotifications);
+              },
             ),
           ),
           Badge.count(
@@ -93,7 +103,7 @@ class PlayerDashboardScreen extends ConsumerWidget {
                 if (alert != null) ...[alert, Gap(16.h)],
                 _statsRow(sub, attendance, latestEval),
                 Gap(16.h),
-                _quickActions(context),
+                _quickActions(context, ref),
                 Gap(16.h),
                 _scheduleCard(data['schedule'] as Map<String, dynamic>?),
                 Gap(16.h),
@@ -110,19 +120,23 @@ class PlayerDashboardScreen extends ConsumerWidget {
 
   // ── روابط التواصل الاجتماعي للأكاديمية (تظهر فقط إن كانت مضبوطة) ──
   Widget _socialLinksCard(BuildContext context, WidgetRef ref) {
-    final sessionPlayer = ref.watch(playerSessionProvider).valueOrNull?.player;
-    final academyId = sessionPlayer?['academy_id'] as String?;
-    if (academyId == null || academyId.isEmpty) return const SizedBox.shrink();
-
-    final academyAsync = ref.watch(academyByIdProvider(academyId));
-    final academy = academyAsync.valueOrNull;
+    // ⚠️ كانت هذه البطاقة تجلب الأكاديمية من GET /academies/:id — وهو مسار
+    // محمي بـ protect (مدراء فقط)، فيردّ 401 لتوكن اللاعب. و_AuthInterceptor
+    // كان يمسح التوكن عند أي 401، فتسقط جلسة اللاعب صامتةً ويفشل كل ما بعدها
+    // (المتجر، الألبوم…) برسالة "يجب تسجيل الدخول". الروابط الآن تصل ضمن
+    // حمولة /player/dashboard نفسها، فلا نداء لمسار المدير إطلاقاً.
+    final academy =
+        ref.watch(playerDashboardProvider).valueOrNull?['academy'] as Map?;
     if (academy == null) return const SizedBox.shrink();
 
+    String v(String k) => (academy[k] as String?) ?? '';
+
     final links = <(IconData, String)>[
-      if ((academy.websiteUrl ?? '').isNotEmpty) (Icons.language, academy.websiteUrl!),
-      if ((academy.facebookUrl ?? '').isNotEmpty) (Icons.facebook, academy.facebookUrl!),
-      if ((academy.tiktokUrl ?? '').isNotEmpty) (Icons.music_note, academy.tiktokUrl!),
-      if ((academy.instagramUrl ?? '').isNotEmpty) (Icons.camera_alt_outlined, academy.instagramUrl!),
+      if (v('websiteUrl').isNotEmpty) (Icons.language, v('websiteUrl')),
+      if (v('facebookUrl').isNotEmpty) (Icons.facebook, v('facebookUrl')),
+      if (v('tiktokUrl').isNotEmpty) (Icons.music_note, v('tiktokUrl')),
+      if (v('instagramUrl').isNotEmpty)
+        (Icons.camera_alt_outlined, v('instagramUrl')),
     ];
     if (links.isEmpty) return const SizedBox.shrink();
 
@@ -420,7 +434,7 @@ class PlayerDashboardScreen extends ConsumerWidget {
   }
 
   // ── الإجراءات السريعة — مربّعان: المتجر والألبوم ──
-  Widget _quickActions(BuildContext context) {
+  Widget _quickActions(BuildContext context, WidgetRef ref) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -439,7 +453,10 @@ class PlayerDashboardScreen extends ConsumerWidget {
                   title: 'متجر الأكاديمية',
                   subtitle: 'تصفّح المنتجات واطلب عبر واتساب',
                   colors: const [AppColors.primary, AppColors.primaryLight],
-                  onTap: () => context.push(AppRoutes.playerStore),
+                  onTap: () async {
+                    await AdsInterstitial.maybeShow(ref);
+                    if (context.mounted) context.push(AppRoutes.playerStore);
+                  },
                 ),
               ),
               Gap(12.w),
@@ -449,7 +466,10 @@ class PlayerDashboardScreen extends ConsumerWidget {
                   title: 'ألبوم الأكاديمية',
                   subtitle: 'شاهد صور الأكاديمية وشاركها',
                   colors: const [AppColors.secondary, AppColors.secondaryLight],
-                  onTap: () => context.push(AppRoutes.playerAlbum),
+                  onTap: () async {
+                    await AdsInterstitial.maybeShow(ref);
+                    if (context.mounted) context.push(AppRoutes.playerAlbum);
+                  },
                 ),
               ),
             ],

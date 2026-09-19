@@ -96,6 +96,7 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
     String? startDate,
     String? endDate,
     String? sport,
+    String? subscription,
   }) async {
     try {
       final result = await _remoteDatasource.getAttendanceReport(
@@ -103,6 +104,7 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
         startDate: startDate,
         endDate: endDate,
         sport: sport,
+        subscription: subscription,
       );
       return Right(result);
     } on UnauthorizedException {
@@ -117,6 +119,38 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
       return const Left(UnknownFailure());
     }
   }
+
+  Future<Either<Failure, T>> _guard<T>(Future<T> Function() run) async {
+    try {
+      return Right(await run());
+    } on NotFoundException {
+      return const Left(NotFoundFailure(message: 'اللاعب غير موجود'));
+    } on UnauthorizedException {
+      return const Left(UnauthorizedFailure());
+    } on NetworkException {
+      return const Left(NetworkFailure());
+    } on TimeoutException {
+      return const Left(TimeoutFailure());
+    } on AppException catch (e) {
+      return Left(ServerFailure(message: e.message));
+    } catch (_) {
+      return const Left(UnknownFailure());
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<AttendancePlayer>>> searchPlayers({
+    String? academyId,
+    required String query,
+    String? sport,
+  }) =>
+      _guard(() => _remoteDatasource.searchPlayers(
+          academyId: academyId, query: query, sport: sport));
+
+  @override
+  Future<Either<Failure, AttendancePlayerSummary>> getPlayerSummary(
+          String playerId) =>
+      _guard(() => _remoteDatasource.getPlayerSummary(playerId));
 
   @override
   Future<Either<Failure, void>> deleteAttendance(String id) async {

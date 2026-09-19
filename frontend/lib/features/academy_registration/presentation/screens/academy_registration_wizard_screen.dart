@@ -38,7 +38,10 @@ class _AcademyRegistrationWizardScreenState
   final _email = TextEditingController();
   final _city = TextEditingController();
   final _password = TextEditingController();
-  String _sport = SportsConstants.defaultSports.first;
+  // الرياضات المختارة (متعددة) + رياضات مخصّصة يضيفها العميل.
+  final List<String> _sports = [SportsConstants.defaultSports.first];
+  final List<String> _customSports = [];
+  final _sportInput = TextEditingController();
   ArabCountry _country = arabCountryDefault; // يحدّد العملة وكود الأرقام
   bool _obscure = true;
   bool _acceptedTerms = false;
@@ -51,6 +54,7 @@ class _AcademyRegistrationWizardScreenState
     _phone.dispose();
     _email.dispose();
     _city.dispose();
+    _sportInput.dispose();
     _password.dispose();
     super.dispose();
   }
@@ -82,7 +86,79 @@ class _AcademyRegistrationWizardScreenState
     if (_step > 0) setState(() => _step -= 1);
   }
 
+  void _addCustomSport() {
+    final s = _sportInput.text.trim();
+    if (s.length < 2) return;
+    setState(() {
+      if (!SportsConstants.defaultSports.contains(s) && !_customSports.contains(s)) {
+        _customSports.add(s);
+      }
+      if (!_sports.contains(s)) _sports.add(s);
+      _sportInput.clear();
+    });
+  }
+
+  // اختيار رياضة أو أكثر من الافتراضيات + إضافة رياضة باسم مخصّص.
+  Widget _sportsPicker() {
+    final options = [...SportsConstants.defaultSports, ..._customSports];
+    return InputDecorator(
+      decoration: const InputDecoration(
+        labelText: 'الرياضات (اختر واحدة أو أكثر)',
+        prefixIcon: Icon(Icons.sports_outlined),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 6.w,
+            runSpacing: 6.h,
+            children: options.map((s) {
+              final sel = _sports.contains(s);
+              return FilterChip(
+                label: Text(s),
+                selected: sel,
+                onSelected: (v) => setState(() {
+                  if (v) {
+                    _sports.add(s);
+                  } else {
+                    _sports.remove(s);
+                  }
+                }),
+              );
+            }).toList(),
+          ),
+          Gap(8.h),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _sportInput,
+                  decoration: const InputDecoration(
+                    hintText: 'إضافة رياضة أخرى',
+                    isDense: true,
+                  ),
+                  onSubmitted: (_) => _addCustomSport(),
+                ),
+              ),
+              IconButton(
+                tooltip: 'إضافة',
+                icon: const Icon(Icons.add_circle_outline),
+                onPressed: _addCustomSport,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _submit() async {
+    if (_sports.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('اختر رياضة واحدة على الأقل')),
+      );
+      return;
+    }
     if (!_acceptedTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('يجب الموافقة على الشروط للمتابعة')),
@@ -98,7 +174,7 @@ class _AcademyRegistrationWizardScreenState
         phone: buildInternationalNumber(_country, _phone.text),
         email: _email.text.trim(),
         city: _city.text.trim(),
-        sport: _sport,
+        sports: List.of(_sports),
         password: _password.text,
         currency: _country.currencyCode, // العملة مشتقّة من الدولة
         logoPath: _logoPath,
@@ -106,12 +182,11 @@ class _AcademyRegistrationWizardScreenState
       // تسجيل الدخول تلقائياً تم داخل الخدمة — نعيد تحميل حالة المصادقة.
       await ref.read(authStateProvider.notifier).reload();
       if (!mounted) return;
-      final user = ref.read(authStateProvider).valueOrNull?.user;
-      if (user?.academyId != null) {
-        context.go(AppRoutes.playersList.replaceFirst(':id', user!.academyId!));
-      } else {
-        context.go(AppRoutes.home);
-      }
+      // نوجّه دائماً للداشبورد الرئيسية — مدير الأكاديمية الجديد لديه دور
+      // academy_admin الكامل (وليس admin المحدود)، فيجب أن يرى كل المميزات
+      // عبر الشريط الجانبي/التنقل الكامل، وليس صفحة اللاعبين المستقلة التي
+      // لا تحتوي على تنقل كامل عند فتحها مباشرة على الموبايل.
+      context.go(AppRoutes.home);
     } catch (e) {
       if (!mounted) return;
       final msg = e is AppException ? e.message : 'فشل إنشاء الأكاديمية';
@@ -185,17 +260,7 @@ class _AcademyRegistrationWizardScreenState
           Gap(12.h),
           _field(_city, 'المدينة', Icons.location_city_outlined),
           Gap(12.h),
-          DropdownButtonFormField<String>(
-            initialValue: _sport,
-            decoration: const InputDecoration(
-              labelText: 'نوع الرياضة',
-              prefixIcon: Icon(Icons.sports_outlined),
-            ),
-            items: SportsConstants.defaultSports
-                .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                .toList(),
-            onChanged: (v) => setState(() => _sport = v ?? _sport),
-          ),
+          _sportsPicker(),
           Gap(12.h),
           TextFormField(
             controller: _password,

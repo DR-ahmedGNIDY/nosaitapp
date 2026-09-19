@@ -1,5 +1,4 @@
 import 'package:basketball_academy/core/constants/app_colors.dart';
-import 'package:basketball_academy/features/auth/presentation/providers/auth_provider.dart';
 import 'package:basketball_academy/features/user/presentation/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -94,19 +93,9 @@ class _AddUserScreenState extends ConsumerState<AddUserScreen> {
   bool _isLoading = false;
   bool _obscurePassword = true;
   String _selectedRole = 'academy_admin';
-  final Set<String> _selectedPermissions = {};
-
-  @override
-  void initState() {
-    super.initState();
-    // مدير الأكاديمية يقدر يُنشئ حسابات "مشرف" (admin) فقط — أبداً حساب
-    // مدير أكاديمية آخر مكافئ له في الصلاحيات.
-    final callerIsAcademyAdmin =
-        ref.read(authStateProvider).valueOrNull?.user?.isAcademyAdmin ?? false;
-    if (callerIsAcademyAdmin) {
-      _selectedRole = 'admin';
-    }
-  }
+  // حساب "مشرف" يبدأ بكل الصلاحيات مفعَّلة — إلغاء التحديد اختياري. البداية
+  // الفارغة كانت تُنتج حساباً لا يرى غير صفحة اللاعبين.
+  final Set<String> _selectedPermissions = {..._kPermissionOptions.keys};
 
   @override
   void dispose() {
@@ -193,8 +182,6 @@ class _AddUserScreenState extends ConsumerState<AddUserScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final callerIsAcademyAdmin =
-        ref.watch(authStateProvider).valueOrNull?.user?.isAcademyAdmin ?? false;
 
     return Scaffold(
       appBar: AppBar(
@@ -310,49 +297,47 @@ class _AddUserScreenState extends ConsumerState<AddUserScreen> {
                 Gap(20.h),
 
                 // Role selector — بطاقات مخصصة بدلاً من SegmentedButton.
-                // مدير الأكاديمية يُنشئ حسابات "مشرف" فقط — الاختيار مخفي وثابت.
-                if (!callerIsAcademyAdmin) ...[
-                  Text(
-                    'الدور الوظيفي',
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      color: AppColors.grey700,
-                      fontWeight: FontWeight.w600,
+                // متاح للسوبر أدمن ولمدير الأكاديمية (داخل أكاديميته):
+                // "مدير أكاديمية" = كل الصفحات، "مشرف" = صلاحيات مُختارة.
+                Text(
+                  'الدور الوظيفي',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: AppColors.grey700,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Gap(8.h),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _RoleCard(
+                        value: 'academy_admin',
+                        label: 'مدير أكاديمية',
+                        icon: Icons.admin_panel_settings_outlined,
+                        selectedValue: _selectedRole,
+                        onTap: (v) => setState(() => _selectedRole = v),
+                      ),
                     ),
-                  ),
-                  Gap(8.h),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _RoleCard(
-                          value: 'academy_admin',
-                          label: 'مدير أكاديمية',
-                          icon: Icons.admin_panel_settings_outlined,
-                          selectedValue: _selectedRole,
-                          onTap: (v) => setState(() {
-                            _selectedRole = v;
-                            // ignore: avoid_print
-                            assert(() { print('[RoleCard] selected="$_selectedRole"'); return true; }());
-                          }),
-                        ),
+                    SizedBox(width: 12.w),
+                    Expanded(
+                      child: _RoleCard(
+                        value: 'admin',
+                        label: 'مشرف',
+                        icon: Icons.manage_accounts_outlined,
+                        selectedValue: _selectedRole,
+                        onTap: (v) => setState(() => _selectedRole = v),
                       ),
-                      SizedBox(width: 12.w),
-                      Expanded(
-                        child: _RoleCard(
-                          value: 'admin',
-                          label: 'مشرف',
-                          icon: Icons.manage_accounts_outlined,
-                          selectedValue: _selectedRole,
-                          onTap: (v) => setState(() {
-                            _selectedRole = v;
-                            // ignore: avoid_print
-                            assert(() { print('[RoleCard] selected="$_selectedRole"'); return true; }());
-                          }),
-                        ),
-                      ),
-                    ],
-                  ),
-                  Gap(20.h),
-                ],
+                    ),
+                  ],
+                ),
+                Gap(8.h),
+                Text(
+                  _selectedRole == 'academy_admin'
+                      ? 'حساب كامل الصلاحيات داخل الأكاديمية — يرى كل الصفحات ويقدر يدير الحسابات.'
+                      : 'حساب محدود — يرى اللاعبين والمجموعات، بالإضافة إلى ما تختاره من صلاحيات.',
+                  style: TextStyle(fontSize: 12.sp, color: AppColors.grey500),
+                ),
+                Gap(20.h),
 
                 // قسم الصلاحيات — يظهر فقط لحساب "مشرف" (admin).
                 if (_selectedRole == 'admin') ...[

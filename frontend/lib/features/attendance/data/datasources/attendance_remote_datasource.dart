@@ -35,7 +35,16 @@ abstract class AttendanceRemoteDatasource {
     String? startDate,
     String? endDate,
     String? sport,
+    String? subscription,
   });
+
+  Future<List<AttendancePlayer>> searchPlayers({
+    String? academyId,
+    required String query,
+    String? sport,
+  });
+
+  Future<AttendancePlayerSummary> getPlayerSummary(String playerId);
 
   Future<void> deleteAttendance(String id);
 }
@@ -116,17 +125,50 @@ class AttendanceRemoteDatasourceImpl implements AttendanceRemoteDatasource {
     String? startDate,
     String? endDate,
     String? sport,
+    String? subscription,
   }) async {
     final query = <String, dynamic>{
       if (academyId != null) 'academyId': academyId,
       if (startDate != null) 'startDate': startDate,
       if (endDate != null) 'endDate': endDate,
       if (sport != null && sport.isNotEmpty) 'sport': sport,
+      // 'active' = اللاعبون ذوو الاشتراك النشط حالياً، 'all' = الجميع.
+      if (subscription != null && subscription.isNotEmpty)
+        'subscription': subscription,
     };
     final response =
         await _apiClient.get('/attendance/report', queryParameters: query);
     final body = response.data as Map<String, dynamic>;
     return AttendanceReportMapper.fromJson(body['data'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<List<AttendancePlayer>> searchPlayers({
+    String? academyId,
+    required String query,
+    String? sport,
+  }) async {
+    final response = await _apiClient.get('/attendance/players', queryParameters: {
+      'search': query,
+      if (academyId != null) 'academyId': academyId,
+      if (sport != null && sport.isNotEmpty) 'sport': sport,
+    });
+    final body = response.data as Map<String, dynamic>;
+    return ((body['data'] as List<dynamic>?) ?? const [])
+        .map((e) => AttendancePlayer.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+  }
+
+  @override
+  Future<AttendancePlayerSummary> getPlayerSummary(String playerId) async {
+    final response = await _apiClient.get('/attendance/player/$playerId/summary');
+    final body = response.data as Map<String, dynamic>;
+    final data = Map<String, dynamic>.from(body['data'] as Map);
+    return AttendancePlayerSummary(
+      player: AttendancePlayer.fromJson(Map<String, dynamic>.from(data['player'] as Map)),
+      stats: AttendanceSubscriptionStats.fromJson(
+          Map<String, dynamic>.from(data['stats'] as Map)),
+    );
   }
 
   @override

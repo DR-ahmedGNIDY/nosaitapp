@@ -95,6 +95,25 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     );
   }
 
+  /// إعادة جلب المستخدم (ومعه حالة اشتراك أكاديميته) **بصمت**: لا تمرّ الحالة
+  /// بـ loading إطلاقاً، حتى لا يقرأها GoRouter كـ "غير مسجّل دخول" فيقذف
+  /// المستخدم إلى شاشة الدخول. تُستدعى عند عودة التطبيق للمقدمة لالتقاط
+  /// تجديد/انتهاء الاشتراك أثناء الاستخدام.
+  ///
+  /// عند الفشل (شبكة ضعيفة / خطأ API) نُبقي الحالة الحالية كما هي.
+  Future<void> refreshSilently() async {
+    final current = state.valueOrNull;
+    if (current?.isAuthenticated != true) return;
+
+    final result = await _getCurrentUserUsecase();
+    result.fold(
+      (_) {},
+      (user) => state = AsyncValue.data(
+        current!.copyWith(isAuthenticated: true, user: user),
+      ),
+    );
+  }
+
   Future<void> logout() async {
     state = const AsyncValue.loading();
     await _logoutUsecase();

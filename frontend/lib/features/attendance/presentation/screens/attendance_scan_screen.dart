@@ -8,6 +8,7 @@ import 'package:basketball_academy/features/attendance/domain/usecases/record_at
 import 'package:basketball_academy/features/attendance/presentation/widgets/web_qr_scanner.dart';
 import 'package:basketball_academy/features/attendance/utils/player_qr.dart';
 import 'package:basketball_academy/features/subscription/presentation/screens/renew_subscription_screen.dart';
+import 'package:basketball_academy/features/attendance/presentation/widgets/subscription_stats_banner.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -187,7 +188,17 @@ class _AttendanceScanScreenState extends State<AttendanceScanScreen> {
           borderRadius: BorderRadius.circular(16.r),
         ),
         title: const Text('اشتراك اللاعب منتهي'),
-        content: Text('اشتراك اللاعب ${res.playerName} منتهي. ماذا تريد أن تفعل؟'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('اشتراك اللاعب ${res.playerName} منتهي. ماذا تريد أن تفعل؟'),
+            if (res.stats != null) ...[
+              Gap(12.h),
+              SubscriptionStatsBanner(stats: res.stats!, compact: true),
+            ],
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop('cancel'),
@@ -512,6 +523,11 @@ class _ResultCard extends StatelessWidget {
               ),
             ],
           ),
+          // حضور/غياب اللاعب منذ بداية اشتراكه (أو الاشتراك السابق لو منتهي)
+          if (r.stats != null) ...[
+            Gap(12.h),
+            SubscriptionStatsBanner(stats: r.stats!, compact: true),
+          ],
         ],
       ),
     );

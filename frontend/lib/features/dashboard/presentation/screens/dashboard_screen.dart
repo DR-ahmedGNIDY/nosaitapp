@@ -1,3 +1,5 @@
+import 'package:basketball_academy/core/ads/ad_banner_slot.dart';
+import 'package:basketball_academy/core/ads/ads_interstitial_helper.dart';
 import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/constants/app_strings.dart';
 import 'package:basketball_academy/core/layout/desktop_shell.dart';
@@ -15,7 +17,7 @@ import 'package:basketball_academy/features/attendance/presentation/screens/atte
 import 'package:basketball_academy/features/dashboard/presentation/screens/sport_detail_screen.dart';
 import 'package:basketball_academy/features/chat/presentation/widgets/messages_chat_icon.dart';
 import 'package:basketball_academy/features/notification/presentation/screens/notifications_screen.dart';
-import 'package:basketball_academy/features/user/presentation/screens/add_user_screen.dart';
+import 'package:basketball_academy/features/user/presentation/screens/users_list_screen.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -40,14 +42,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       final authState = ref.read(authStateProvider).valueOrNull;
       final user = authState?.user;
       if (user == null) return;
-      // admin لا يملك صلاحية الـ dashboard — أعد توجيهه
-      if (user.isAdmin && user.academyId != null) {
+      // admin بلا صلاحية view_dashboard_revenue لا يملك صلاحية الـ dashboard
+      if (user.isAdmin &&
+          user.academyId != null &&
+          !user.hasPermission('view_dashboard_revenue')) {
         context.go(
           AppRoutes.playersList.replaceFirst(':id', user.academyId!),
         );
         return;
       }
-      if (user.isAcademyAdmin) {
+      if (user.isAcademyAdmin || user.isAdmin) {
         ref.read(dashboardProvider.notifier).refresh(academyId: user.academyId);
       } else {
         ref.read(dashboardProvider.notifier).refresh();
@@ -85,6 +89,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       onRefresh();
     }
 
+    // تجهيز إعلان ملء الشاشة مسبقاً (لا يفعل شيئاً للمشترك).
+    AdsInterstitial.preload(ref);
+
     final tier =
         kIsWeb ? screenTierOf(MediaQuery.sizeOf(context).width) : ScreenTier.mobile;
 
@@ -116,6 +123,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      // بانر إعلاني — يختفي تلقائياً للمشترك ولأي حالة غير معروفة.
+      bottomNavigationBar: const AdBannerSlot(),
       appBar: AppBar(
         backgroundColor: AppColors.secondary,
         foregroundColor: AppColors.white,
@@ -279,7 +288,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
 // ─── Quick Actions Grid (academy_admin only) ─────────────────────────────────
 
-class _QuickActionsGrid extends StatelessWidget {
+class _QuickActionsGrid extends ConsumerWidget {
   final String academyId;
   final bool showSystemSubscription;
   const _QuickActionsGrid({
@@ -288,7 +297,7 @@ class _QuickActionsGrid extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final items = [
       _QuickActionItem(
         icon: Icons.sports_basketball_outlined,
@@ -310,7 +319,10 @@ class _QuickActionsGrid extends StatelessWidget {
         icon: Icons.bar_chart_outlined,
         label: AppStrings.reports,
         color: AppColors.success,
-        onTap: () => context.push(AppRoutes.reports),
+        onTap: () async {
+          await AdsInterstitial.maybeShow(ref);
+          if (context.mounted) context.push(AppRoutes.reports);
+        },
       ),
       _QuickActionItem(
         icon: Icons.qr_code_scanner,
@@ -364,13 +376,19 @@ class _QuickActionsGrid extends StatelessWidget {
         icon: Icons.storefront_outlined,
         label: 'المتجر',
         color: AppColors.primary,
-        onTap: () => context.push(AppRoutes.academyStore),
+        onTap: () async {
+          await AdsInterstitial.maybeShow(ref);
+          if (context.mounted) context.push(AppRoutes.academyStore);
+        },
       ),
       _QuickActionItem(
         icon: Icons.photo_library_outlined,
         label: 'ألبوم الأكاديمية',
         color: AppColors.secondary,
-        onTap: () => context.push(AppRoutes.academyAlbum),
+        onTap: () async {
+          await AdsInterstitial.maybeShow(ref);
+          if (context.mounted) context.push(AppRoutes.academyAlbum);
+        },
       ),
       _QuickActionItem(
         icon: Icons.sports_basketball,
@@ -389,11 +407,11 @@ class _QuickActionsGrid extends StatelessWidget {
         ),
       _QuickActionItem(
         icon: Icons.admin_panel_settings_outlined,
-        label: 'إنشاء حسابات الإدارة',
+        label: 'الإدارة والمستخدمين',
         color: AppColors.secondary,
         onTap: () => Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => AddUserScreen(academyId: academyId),
+            builder: (_) => UsersListScreen(academyId: academyId),
           ),
         ),
       ),
@@ -1315,11 +1333,11 @@ class _DesktopQuickActions extends StatelessWidget {
         ),
         _DesktopQuickBtn(
           icon: Icons.admin_panel_settings_outlined,
-          label: 'إنشاء حسابات الإدارة',
+          label: 'الإدارة والمستخدمين',
           color: AppColors.secondary,
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => AddUserScreen(academyId: academyId),
+              builder: (_) => UsersListScreen(academyId: academyId),
             ),
           ),
         ),

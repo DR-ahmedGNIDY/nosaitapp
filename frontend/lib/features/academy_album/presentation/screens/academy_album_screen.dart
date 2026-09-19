@@ -1,3 +1,4 @@
+import 'package:basketball_academy/core/errors/exceptions.dart';
 import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/di/injection_container.dart';
 import 'package:basketball_academy/features/academy_album/data/academy_album_service.dart';
@@ -9,6 +10,13 @@ import 'package:basketball_academy/features/academy_album/presentation/widgets/a
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+
+/// رسالة الخطأ الحقيقية من الخادم — أوضح للمستخدم وأسرع في التشخيص.
+String _albumErrText(Object? e) {
+  if (e == null) return '';
+  if (e is AppException) return e.message;
+  return e.toString();
+}
 
 /// ألبوم الأكاديمية — جهة المدير: عرض + إضافة + تعديل + حذف.
 class AcademyAlbumScreen extends ConsumerWidget {
@@ -147,6 +155,14 @@ class _AlbumBody extends StatelessWidget {
             const Icon(Icons.error_outline, color: AppColors.error, size: 44),
             SizedBox(height: 12.h),
             const Text('تعذّر تحميل الألبوم'),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 6.h),
+              child: Text(
+                _albumErrText(state.error),
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12.sp, color: AppColors.grey400),
+              ),
+            ),
             SizedBox(height: 12.h),
             ElevatedButton(onPressed: onRetry, child: const Text('إعادة المحاولة')),
           ],

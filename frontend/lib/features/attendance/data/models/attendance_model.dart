@@ -49,6 +49,10 @@ class AttendanceRecordMapper {
       sport: player['sport'] as String?,
       imageUrl: player['image_url'] as String?,
       message: message,
+      stats: data['stats'] is Map
+          ? AttendanceSubscriptionStats.fromJson(
+              Map<String, dynamic>.from(data['stats'] as Map))
+          : null,
     );
   }
 }

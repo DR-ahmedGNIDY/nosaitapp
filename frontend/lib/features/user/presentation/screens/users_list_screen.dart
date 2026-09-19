@@ -32,7 +32,13 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider).valueOrNull;
-    final isSuperAdmin = authState?.user?.isSuperAdmin ?? false;
+    final currentUser = authState?.user;
+    final isSuperAdmin = currentUser?.isSuperAdmin ?? false;
+    // مدير الأكاديمية يدير حسابات أكاديميته فقط — نفس صلاحيات السوبر أدمن
+    // داخل نطاقه (الباك إند يفرض نفس القيد).
+    final canManage = isSuperAdmin ||
+        (currentUser?.isAcademyAdmin == true &&
+            currentUser?.academyId == widget.academyId);
     final usersAsync = ref.watch(usersProvider);
 
     return Scaffold(
@@ -65,20 +71,25 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
                   itemCount: users.length,
                   separatorBuilder: (_, __) => Gap(12.h),
                   itemBuilder: (context, index) {
+                    final user = users[index];
+                    // حساب المستخدم نفسه يُدار من "إعدادات الحساب"، وحساب
+                    // المدير العام لا يُمَس من هنا.
+                    final isManageable = canManage &&
+                        user.id != currentUser?.id &&
+                        user.role != 'super_admin';
                     return _UserCard(
-                      user: users[index],
-                      isSuperAdmin: isSuperAdmin,
-                      onEdit: () => _openEdit(context, users[index]),
-                      onActivate: () => _toggleActive(context, users[index]),
-                      onDelete: () => _confirmDelete(context, users[index]),
-                      onResetPassword: () =>
-                          _resetPassword(context, users[index]),
+                      user: user,
+                      canManage: isManageable,
+                      onEdit: () => _openEdit(context, user),
+                      onActivate: () => _toggleActive(context, user),
+                      onDelete: () => _confirmDelete(context, user),
+                      onResetPassword: () => _resetPassword(context, user),
                     );
                   },
                 ),
               ),
       ),
-      floatingActionButton: isSuperAdmin
+      floatingActionButton: canManage
           ? FloatingActionButton.extended(
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(
@@ -274,7 +285,7 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
 
 class _UserCard extends StatelessWidget {
   final UserManagementEntity user;
-  final bool isSuperAdmin;
+  final bool canManage;
   final VoidCallback onEdit;
   final VoidCallback onActivate;
   final VoidCallback onDelete;
@@ -282,7 +293,7 @@ class _UserCard extends StatelessWidget {
 
   const _UserCard({
     required this.user,
-    required this.isSuperAdmin,
+    required this.canManage,
     required this.onEdit,
     required this.onActivate,
     required this.onDelete,
@@ -296,7 +307,7 @@ class _UserCard extends StatelessWidget {
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(16.r),
-        onLongPress: isSuperAdmin ? () => _showOptions(context) : null,
+        onLongPress: canManage ? () => _showOptions(context) : null,
         child: Padding(
           padding: EdgeInsets.all(14.r),
           child: Row(
@@ -348,8 +359,8 @@ class _UserCard extends StatelessWidget {
                   ],
                 ),
               ),
-              // Options menu for super admin
-              if (isSuperAdmin)
+              // Options menu — super admin أو مدير الأكاديمية داخل نطاقه
+              if (canManage)
                 IconButton(
                   icon: Icon(Icons.more_vert,
                       color: AppColors.grey400, size: 20.sp),

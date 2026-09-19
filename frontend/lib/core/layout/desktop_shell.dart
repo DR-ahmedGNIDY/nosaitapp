@@ -80,7 +80,7 @@ class AppSidebar extends ConsumerWidget {
             AppStrings.appName)
         : AppStrings.appName;
 
-    final navItems = _buildNavItems(isSuperAdmin, isAcademyAdmin, academyId);
+    final navItems = _buildNavItems(isSuperAdmin, isAcademyAdmin, academyId, user);
 
     return Container(
       width: kSidebarWidth,
@@ -148,9 +148,17 @@ class AppSidebar extends ConsumerWidget {
     bool isSuperAdmin,
     bool isAcademyAdmin,
     String? academyId,
+    UserEntity? user,
   ) {
     if (user?.isAdmin == true) {
       return [
+        if (user!.hasPermission('view_dashboard_revenue'))
+          _NavItem(
+            icon: Icons.dashboard_outlined,
+            activeIcon: Icons.dashboard,
+            label: AppStrings.dashboard,
+            route: AppRoutes.home,
+          ),
         if (academyId != null) ...[
           _NavItem(
             icon: Icons.sports_basketball_outlined,
@@ -164,7 +172,35 @@ class AppSidebar extends ConsumerWidget {
             label: 'المجموعات',
             route: AppRoutes.groupsList.replaceFirst(':id', academyId),
           ),
+          if (user.hasPermission('add_matches'))
+            _NavItem(
+              icon: Icons.sports_outlined,
+              activeIcon: Icons.sports,
+              label: 'المباريات',
+              route: AppRoutes.matchesList.replaceFirst(':id', academyId),
+            ),
         ],
+        if (user.hasPermission('use_album'))
+          _NavItem(
+            icon: Icons.photo_library_outlined,
+            activeIcon: Icons.photo_library,
+            label: 'ألبوم الأكاديمية',
+            route: AppRoutes.academyAlbum,
+          ),
+        if (user.hasPermission('use_store'))
+          _NavItem(
+            icon: Icons.storefront_outlined,
+            activeIcon: Icons.storefront,
+            label: 'المتجر',
+            route: AppRoutes.academyStore,
+          ),
+        if (user.hasPermission('view_reports'))
+          _NavItem(
+            icon: Icons.bar_chart_outlined,
+            activeIcon: Icons.bar_chart,
+            label: AppStrings.reports,
+            route: AppRoutes.reports,
+          ),
         _NavItem(
           icon: Icons.manage_accounts_outlined,
           activeIcon: Icons.manage_accounts,

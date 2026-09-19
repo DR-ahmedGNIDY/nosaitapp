@@ -129,7 +129,8 @@ class UsersNotifier extends AsyncNotifier<List<UserManagementEntity>> {
     );
   }
 
-  /// super_admin only — reset another user's password. No list refresh needed.
+  /// super_admin، أو academy_admin داخل أكاديميته — تغيير كلمة مرور مستخدم آخر.
+  /// لا يحتاج تحديث القائمة.
   Future<String?> resetPassword(String id, String newPassword) async {
     final result = await _resetPasswordUsecase(
       ResetPasswordParams(id: id, newPassword: newPassword),

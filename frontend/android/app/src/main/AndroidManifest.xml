@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.CAMERA" />
@@ -9,6 +10,17 @@
          are declared by image_picker_android's own manifest either.
          Declaring them ourselves was unnecessary and triggered Google Play's
          media-permission policy review; removed. -->
+
+    <!-- open_filex (used only to open a PNG the app itself just exported —
+         the player-card image — via OpenFilex.open in
+         player_card_export_service.dart) unconditionally declares broad
+         media-read permissions in its own manifest. We never need
+         library-wide media access, so strip them from the merged manifest;
+         this is what Google Play flagged (READ_MEDIA_IMAGES/READ_MEDIA_VIDEO). -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove" />
 
     <!-- Package visibility (Android 11+) — required so url_launcher can open
          WhatsApp / browser / dialer via canLaunchUrl & launchUrl -->
@@ -65,6 +77,12 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- Google AdMob App ID. الـ SDK يقرؤه من هنا؛ غيابه يُسقط التطبيق
+             عند التهيئة. وحدات الإعلانات نفسها في lib/core/ads/ad_ids.dart. -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-6344883554405987~3739372322" />
 
     </application>
 </manifest>

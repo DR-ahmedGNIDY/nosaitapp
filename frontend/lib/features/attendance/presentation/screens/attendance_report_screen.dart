@@ -11,36 +11,6 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:printing/printing.dart';
 
-enum _Period { thisMonth, last3Months, thisYear }
-
-extension _PeriodExt on _Period {
-  String get label {
-    switch (this) {
-      case _Period.thisMonth:
-        return 'هذا الشهر';
-      case _Period.last3Months:
-        return 'آخر 3 أشهر';
-      case _Period.thisYear:
-        return 'هذه السنة';
-    }
-  }
-
-  ({String start, String end}) range() {
-    final now = DateTime.now();
-    String two(int n) => n.toString().padLeft(2, '0');
-    String fmt(DateTime d) => '${d.year}-${two(d.month)}-${two(d.day)}';
-    final end = fmt(now);
-    switch (this) {
-      case _Period.thisMonth:
-        return (start: fmt(DateTime(now.year, now.month, 1)), end: end);
-      case _Period.last3Months:
-        return (start: fmt(DateTime(now.year, now.month - 2, 1)), end: end);
-      case _Period.thisYear:
-        return (start: fmt(DateTime(now.year, 1, 1)), end: end);
-    }
-  }
-}
-
 class AttendanceReportScreen extends ConsumerStatefulWidget {
   final String academyId;
   const AttendanceReportScreen({super.key, required this.academyId});
@@ -52,8 +22,10 @@ class AttendanceReportScreen extends ConsumerStatefulWidget {
 
 class _AttendanceReportScreenState
     extends ConsumerState<AttendanceReportScreen> {
-  _Period _period = _Period.thisMonth;
   String? _sport;
+  String _query = ''; // بحث محلي بالاسم/الكود
+  /// يفتح التقرير على "اشتراك نشط" افتراضياً.
+  String _subscription = 'active';
   bool _exporting = false;
 
   @override
@@ -64,12 +36,10 @@ class _AttendanceReportScreenState
     final isMultiSport = academy?.isMultiSport ?? false;
     final sports = academy?.sports ?? const <String>[];
 
-    final range = _period.range();
     final filter = AttendanceReportFilter(
       academyId: widget.academyId,
-      startDate: range.start,
-      endDate: range.end,
       sport: _sport,
+      subscription: _subscription,
     );
     final reportAsync = ref.watch(attendanceReportProvider(filter));
 
@@ -81,19 +51,49 @@ class _AttendanceReportScreenState
       ),
       body: Column(
         children: [
-          // فلتر الفترة
-          Padding(
-            padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 0),
+          // توضيح أساس الحساب
+          Container(
+            width: double.infinity,
+            margin: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 0),
+            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+            decoration: BoxDecoration(
+              color: AppColors.primaryContainer,
+              borderRadius: BorderRadius.circular(10.r),
+            ),
             child: Row(
-              children: _Period.values.map((p) {
-                final isSel = p == _period;
+              children: [
+                Icon(Icons.info_outline, size: 16.sp, color: AppColors.primary),
+                Gap(6.w),
+                Expanded(
+                  child: Text(
+                    'الحساب من بداية الاشتراك النشط لكل لاعب حتى نهايته',
+                    style: TextStyle(
+                      fontSize: 11.sp,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.grey900,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // فلتر الاشتراك — "اشتراك نشط" (الافتراضي) أو "الكل"
+          Padding(
+            padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 0),
+            child: Row(
+              children: const [
+                ('active', 'اشتراك نشط'),
+                ('all', 'الكل'),
+              ].map((opt) {
+                final isSel = opt.$1 == _subscription;
                 return Expanded(
                   child: Padding(
                     padding: EdgeInsets.symmetric(horizontal: 4.w),
                     child: ChoiceChip(
-                      label: Text(p.label),
+                      label: Text(opt.$2),
                       selected: isSel,
-                      onSelected: (_) => setState(() => _period = p),
+                      onSelected: (_) =>
+                          setState(() => _subscription = opt.$1),
                       selectedColor: AppColors.primary,
                       labelStyle: TextStyle(
                         color: isSel ? AppColors.white : AppColors.grey700,
@@ -105,6 +105,24 @@ class _AttendanceReportScreenState
                   ),
                 );
               }).toList(),
+            ),
+          ),
+          // بحث بالاسم/الكود
+          Padding(
+            padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 0),
+            child: TextField(
+              onChanged: (v) => setState(() => _query = v.trim()),
+              decoration: InputDecoration(
+                hintText: 'بحث باسم اللاعب أو الكود',
+                prefixIcon: const Icon(Icons.search, size: 20),
+                filled: true,
+                fillColor: AppColors.white,
+                contentPadding:
+                    EdgeInsets.symmetric(vertical: 10.h, horizontal: 14.w),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+              ),
             ),
           ),
           // فلتر الرياضة
@@ -157,10 +175,7 @@ class _AttendanceReportScreenState
                   ],
                 ),
               ),
-              data: (report) => _ReportBody(
-                report: report,
-                showMonthlyDots: _period == _Period.thisMonth,
-              ),
+              data: (report) => _ReportBody(report: report, query: _query),
             ),
           ),
         ],
@@ -252,8 +267,8 @@ class _AttendanceReportScreenState
 
 class _ReportBody extends StatelessWidget {
   final AttendanceReport report;
-  final bool showMonthlyDots;
-  const _ReportBody({required this.report, required this.showMonthlyDots});
+  final String query;
+  const _ReportBody({required this.report, required this.query});
 
   @override
   Widget build(BuildContext context) {
@@ -261,6 +276,15 @@ class _ReportBody extends StatelessWidget {
     final overallRate = overallExpected > 0
         ? ((report.totalPresent / overallExpected) * 100).round()
         : 0;
+
+    final q = query.toLowerCase();
+    final rows = q.isEmpty
+        ? report.rows
+        : report.rows
+            .where((r) =>
+                r.fullName.toLowerCase().contains(q) ||
+                r.playerCode.toLowerCase().contains(q))
+            .toList();
 
     return ListView(
       padding: EdgeInsets.all(16.r),
@@ -294,17 +318,16 @@ class _ReportBody extends StatelessWidget {
           ],
         ),
         Gap(16.h),
-        if (report.rows.isEmpty)
+        if (rows.isEmpty)
           Padding(
             padding: EdgeInsets.symmetric(vertical: 40.h),
             child: Center(
-              child: Text('لا توجد بيانات لهذه الفترة',
+              child: Text(q.isEmpty ? 'لا توجد بيانات' : 'لا يوجد لاعب مطابق',
                   style: TextStyle(fontSize: 14.sp, color: AppColors.grey500)),
             ),
           )
         else
-          ...report.rows
-              .map((r) => _RowTile(row: r, showMonthlyDots: showMonthlyDots)),
+          ...rows.map((r) => _RowTile(row: r)),
       ],
     );
   }
@@ -348,8 +371,12 @@ class _SummaryCard extends StatelessWidget {
 
 class _RowTile extends StatelessWidget {
   final AttendanceReportRow row;
-  final bool showMonthlyDots;
-  const _RowTile({required this.row, required this.showMonthlyDots});
+  const _RowTile({required this.row});
+
+  static String _fmt(String? ymd) {
+    if (ymd == null || ymd.length < 10) return '—';
+    return '${ymd.substring(8, 10)}/${ymd.substring(5, 7)}/${ymd.substring(0, 4)}';
+  }
 
   Color get _rateColor {
     if (row.rate >= 75) return const Color(0xFF2D9748);
@@ -375,7 +402,19 @@ class _RowTile extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // دائرة النسبة
+          // دائرة النسبة (أو "منتهي")
+          if (!row.isActive)
+            Container(
+              width: 48.w,
+              height: 48.w,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.error.withValues(alpha: 0.12),
+              ),
+              child: Icon(Icons.block, color: AppColors.error, size: 20.sp),
+            )
+          else
           Container(
             width: 48.w,
             height: 48.w,
@@ -414,16 +453,40 @@ class _RowTile extends StatelessWidget {
                   ].join(' • '),
                   style: TextStyle(fontSize: 11.sp, color: AppColors.grey500),
                 ),
-                if (showMonthlyDots && row.expectedThisMonth > 0) ...[
-                  Gap(6.h),
-                  _AttendanceDots(
-                    expected: row.expectedThisMonth,
-                    present: row.present,
+                if (row.isActive) ...[
+                  Gap(2.h),
+                  Text(
+                    'الاشتراك: ${_fmt(row.subscriptionStart)} ← ${_fmt(row.subscriptionEnd)}',
+                    style: TextStyle(fontSize: 10.sp, color: AppColors.grey500),
                   ),
+                  if (row.expectedTotal > 0) ...[
+                    Gap(6.h),
+                    _AttendanceDots(
+                      expected: row.expectedTotal,
+                      present: row.present,
+                    ),
+                  ],
                 ],
               ],
             ),
           ),
+          if (!row.isActive)
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+              decoration: BoxDecoration(
+                color: AppColors.error,
+                borderRadius: BorderRadius.circular(20.r),
+              ),
+              child: Text(
+                'منتهي',
+                style: TextStyle(
+                  color: AppColors.white,
+                  fontSize: 11.sp,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            )
+          else
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -451,7 +514,7 @@ class _RowTile extends StatelessWidget {
   }
 }
 
-// دوائر صغيرة تمثّل أيام التدريب المتوقعة في الشهر — كل حضور يلوّن دائرة.
+// دوائر صغيرة تمثّل أيام التدريب المتوقعة على كامل فترة الاشتراك النشط — كل حضور يلوّن دائرة.
 class _AttendanceDots extends StatelessWidget {
   final int expected;
   final int present;

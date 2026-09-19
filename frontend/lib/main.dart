@@ -1,3 +1,4 @@
+import 'package:basketball_academy/core/ads/ads_lifecycle_refresher.dart';
 import 'package:basketball_academy/core/di/injection_container.dart';
 import 'package:basketball_academy/core/layout/responsive.dart';
 import 'package:basketball_academy/core/router/app_router.dart';
@@ -78,6 +79,8 @@ class BasketballAcademyApp extends ConsumerWidget {
       },
     );
 
-    return app;
+    // يعيد جلب حالة اشتراك الأكاديمية بصمت عند عودة التطبيق للمقدمة، حتى
+    // يتبع قرار الإعلانات أي تجديد/انتهاء حدث أثناء الاستخدام.
+    return AdsLifecycleRefresher(child: app);
   }
 }

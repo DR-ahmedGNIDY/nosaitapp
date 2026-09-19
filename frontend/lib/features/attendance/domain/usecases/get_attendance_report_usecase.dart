@@ -10,11 +10,15 @@ class GetAttendanceReportParams {
   final String? endDate;
   final String? sport;
 
+  /// فلتر الاشتراك: 'active' (اشتراك اللاعب الحالي نشط) أو 'all'.
+  final String? subscription;
+
   const GetAttendanceReportParams({
     this.academyId,
     this.startDate,
     this.endDate,
     this.sport,
+    this.subscription,
   });
 }
 
@@ -32,6 +36,7 @@ class GetAttendanceReportUsecase
       startDate: params.startDate,
       endDate: params.endDate,
       sport: params.sport,
+      subscription: params.subscription,
     );
   }
 }
