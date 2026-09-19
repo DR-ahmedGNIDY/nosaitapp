@@ -10,6 +10,8 @@ class RecordAttendanceParams {
   final String localDate;
   final String localTime;
   final bool allowExpired;
+  /// خيار الاشتراك المنتهي: pay_later | makeup | free (null = حضور عادي).
+  final String? mode;
 
   const RecordAttendanceParams({
     this.code,
@@ -17,6 +19,7 @@ class RecordAttendanceParams {
     required this.localDate,
     required this.localTime,
     this.allowExpired = false,
+    this.mode,
   });
 }
 
@@ -35,6 +38,7 @@ class RecordAttendanceUsecase
       localDate: params.localDate,
       localTime: params.localTime,
       allowExpired: params.allowExpired,
+      mode: params.mode,
     );
   }
 }

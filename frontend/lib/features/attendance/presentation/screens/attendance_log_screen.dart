@@ -6,6 +6,7 @@ import 'package:basketball_academy/features/academy/presentation/providers/acade
 import 'package:basketball_academy/features/attendance/domain/entities/attendance_entity.dart';
 import 'package:basketball_academy/features/attendance/domain/usecases/delete_attendance_usecase.dart';
 import 'package:basketball_academy/features/attendance/presentation/providers/attendance_provider.dart';
+import 'package:basketball_academy/features/attendance/presentation/widgets/attendance_kind_badge.dart';
 import 'package:basketball_academy/features/attendance/presentation/widgets/subscription_stats_banner.dart';
 import 'package:basketball_academy/features/auth/domain/entities/user_entity.dart';
 import 'package:basketball_academy/features/auth/presentation/providers/auth_provider.dart';
@@ -599,6 +600,10 @@ class _LogTile extends StatelessWidget {
                   ].join(' • '),
                   style: TextStyle(fontSize: 11.sp, color: AppColors.grey500),
                 ),
+                if (AttendanceKind.label(entry.kind) != null) ...[
+                  Gap(4.h),
+                  AttendanceKindBadge(kind: entry.kind),
+                ],
               ],
             ),
           ),

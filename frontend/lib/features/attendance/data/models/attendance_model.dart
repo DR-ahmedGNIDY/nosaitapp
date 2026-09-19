@@ -28,6 +28,11 @@ class AttendanceLogMapper {
       time: (json['time'] ?? '').toString(),
       timestamp: DateTime.tryParse((json['timestamp'] ?? '').toString()) ??
           DateTime.now(),
+      // السجلات القديمة بلا kind: "دفع لاحقاً" لو سُجّلت على اشتراك منتهي.
+      kind: (json['kind'] as String?) ??
+          (json['subscriptionExpiredAtCheckin'] == true
+              ? AttendanceKind.payLater
+              : AttendanceKind.regular),
     );
   }
 }
@@ -49,6 +54,7 @@ class AttendanceRecordMapper {
       sport: player['sport'] as String?,
       imageUrl: player['image_url'] as String?,
       message: message,
+      kind: (data['kind'] as String?) ?? AttendanceKind.regular,
       stats: data['stats'] is Map
           ? AttendanceSubscriptionStats.fromJson(
               Map<String, dynamic>.from(data['stats'] as Map))

@@ -8,6 +8,7 @@ import 'package:basketball_academy/features/attendance/domain/usecases/record_at
 import 'package:basketball_academy/features/attendance/presentation/widgets/web_qr_scanner.dart';
 import 'package:basketball_academy/features/attendance/utils/player_qr.dart';
 import 'package:basketball_academy/features/subscription/presentation/screens/renew_subscription_screen.dart';
+import 'package:basketball_academy/features/attendance/presentation/widgets/attendance_kind_badge.dart';
 import 'package:basketball_academy/features/attendance/presentation/widgets/subscription_stats_banner.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -125,8 +126,8 @@ class _AttendanceScanScreenState extends State<AttendanceScanScreen> {
   }
 
   // إرسال طلب تسجيل الحضور فعلياً — تُستخدم من المسح الأول ومن زر
-  // "حضور والدفع لاحقاً" (بإعادة الإرسال مع allowExpired: true).
-  Future<void> _submit(String code, {bool allowExpired = false}) async {
+  // خيارات الاشتراك المنتهي (دفع لاحقاً / تعويض غياب / حصة مجانية) عبر mode.
+  Future<void> _submit(String code, {String? mode}) async {
     setState(() {
       _processing = true;
       _error = null;
@@ -137,7 +138,7 @@ class _AttendanceScanScreenState extends State<AttendanceScanScreen> {
         code: code,
         localDate: _todayStr(),
         localTime: _nowTimeStr(),
-        allowExpired: allowExpired,
+        mode: mode,
       ),
     );
 
@@ -155,6 +156,16 @@ class _AttendanceScanScreenState extends State<AttendanceScanScreen> {
       (res) async {
         debugPrint(
             '[ATTENDANCE] search result: FOUND ${res.playerName} (${res.playerCode}) recorded=${res.recorded} alreadyToday=${res.alreadyToday} subscriptionExpired=${res.subscriptionExpired}');
+        // اختار المستخدم خياراً للاشتراك المنتهي والسيرفر ما زال يرفض ⇒
+        // السيرفر لا يدعم هذا الخيار (نسخة أقدم) — نُظهر خطأ بدل إعادة فتح الحوار.
+        if (res.subscriptionExpired && mode != null) {
+          setState(() {
+            _error = 'تعذّر تسجيل هذا النوع من الحضور — السيرفر يحتاج تحديثاً';
+            _result = null;
+            _processing = false;
+          });
+          return;
+        }
         if (res.subscriptionExpired) {
           setState(() {
             _result = null;
@@ -181,6 +192,58 @@ class _AttendanceScanScreenState extends State<AttendanceScanScreen> {
 
   Future<void> _showSubscriptionExpiredDialog(
       String code, AttendanceRecordResult res) async {
+    // تعويض الغياب متاح فقط لو يوجد اشتراك سابق فيه غياب فعلي.
+    final stats = res.stats;
+    final canMakeup = stats != null && stats.hasSubscription && stats.absent > 0;
+
+    Widget option(
+      BuildContext ctx, {
+      required String value,
+      required String label,
+      required String hint,
+      required IconData icon,
+      required Color color,
+      bool enabled = true,
+    }) {
+      return Padding(
+        padding: EdgeInsets.only(bottom: 8.h),
+        child: SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: color,
+              side: BorderSide(color: enabled ? color : AppColors.grey300),
+              padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+              alignment: AlignmentDirectional.centerStart,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12.r),
+              ),
+            ),
+            onPressed: enabled ? () => Navigator.of(ctx).pop(value) : null,
+            child: Row(
+              children: [
+                Icon(icon, size: 20.sp),
+                Gap(10.w),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(label,
+                          style: TextStyle(
+                              fontSize: 13.sp, fontWeight: FontWeight.w700)),
+                      Text(hint,
+                          style: TextStyle(
+                              fontSize: 10.sp, color: AppColors.grey500)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     final action = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -188,47 +251,64 @@ class _AttendanceScanScreenState extends State<AttendanceScanScreen> {
           borderRadius: BorderRadius.circular(16.r),
         ),
         title: const Text('اشتراك اللاعب منتهي'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('اشتراك اللاعب ${res.playerName} منتهي. ماذا تريد أن تفعل؟'),
-            if (res.stats != null) ...[
-              Gap(12.h),
-              SubscriptionStatsBanner(stats: res.stats!, compact: true),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('اشتراك اللاعب ${res.playerName} منتهي. ماذا تريد أن تفعل؟'),
+              if (stats != null) ...[
+                Gap(12.h),
+                SubscriptionStatsBanner(stats: stats, compact: true),
+              ],
+              Gap(14.h),
+              option(ctx,
+                  value: 'renew',
+                  label: 'تجديد',
+                  hint: 'فتح شاشة تجديد الاشتراك',
+                  icon: Icons.autorenew,
+                  color: AppColors.primary),
+              option(ctx,
+                  value: AttendanceKind.payLater,
+                  label: 'حضور والدفع لاحقاً',
+                  hint: 'يُحتسب من حصص الاشتراك الجديد عند التجديد',
+                  icon: Icons.schedule,
+                  color: AppColors.warning),
+              option(ctx,
+                  value: AttendanceKind.makeup,
+                  label: 'تعويض غياب سابق',
+                  hint: canMakeup
+                      ? 'يُضاف كحضور للاشتراك السابق (يقلّ الغياب يوماً)'
+                      : 'لا يوجد غياب في الاشتراك السابق لتعويضه',
+                  icon: Icons.event_repeat,
+                  color: AppColors.secondary,
+                  enabled: canMakeup),
+              option(ctx,
+                  value: AttendanceKind.free,
+                  label: 'حصة مجانية',
+                  hint: 'يُسجَّل الحضور ولا يُحتسب في عدد حصص أي اشتراك',
+                  icon: Icons.card_giftcard,
+                  color: const Color(0xFF2D9748)),
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: TextButton(
+                  onPressed: () => Navigator.of(ctx).pop('cancel'),
+                  child: const Text('إلغاء'),
+                ),
+              ),
             ],
-          ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop('cancel'),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.warning,
-              foregroundColor: AppColors.white,
-            ),
-            onPressed: () => Navigator.of(ctx).pop('attend'),
-            child: const Text('حضور والدفع لاحقاً'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.white,
-            ),
-            onPressed: () => Navigator.of(ctx).pop('renew'),
-            child: const Text('تجديد'),
-          ),
-        ],
       ),
     );
 
     if (!mounted) return;
 
     switch (action) {
-      case 'attend':
-        await _submit(code, allowExpired: true);
+      case AttendanceKind.payLater:
+      case AttendanceKind.makeup:
+      case AttendanceKind.free:
+        await _submit(code, mode: action);
         break;
       case 'renew':
         if (res.playerId != null) {
@@ -523,6 +603,13 @@ class _ResultCard extends StatelessWidget {
               ),
             ],
           ),
+          if (AttendanceKind.label(r.kind) != null) ...[
+            Gap(8.h),
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: AttendanceKindBadge(kind: r.kind),
+            ),
+          ],
           // حضور/غياب اللاعب منذ بداية اشتراكه (أو الاشتراك السابق لو منتهي)
           if (r.stats != null) ...[
             Gap(12.h),

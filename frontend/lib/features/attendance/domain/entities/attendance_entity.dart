@@ -99,6 +99,9 @@ class AttendanceRecordResult extends Equatable {
   /// حضور/غياب اللاعب في اشتراكه الأخير (null مع سيرفر قديم).
   final AttendanceSubscriptionStats? stats;
 
+  /// نوع الحضور المسجّل (AttendanceKind).
+  final String kind;
+
   const AttendanceRecordResult({
     required this.recorded,
     required this.alreadyToday,
@@ -110,11 +113,13 @@ class AttendanceRecordResult extends Equatable {
     this.imageUrl,
     required this.message,
     this.stats,
+    this.kind = AttendanceKind.regular,
   });
 
   @override
   List<Object?> get props => [
         stats,
+        kind,
         recorded,
         alreadyToday,
         subscriptionExpired,
@@ -125,6 +130,29 @@ class AttendanceRecordResult extends Equatable {
         imageUrl,
         message,
       ];
+}
+
+/// نوع الحضور: regular | pay_later | makeup | free.
+class AttendanceKind {
+  AttendanceKind._();
+  static const regular = 'regular';
+  static const payLater = 'pay_later';
+  static const makeup = 'makeup';
+  static const free = 'free';
+
+  /// عنوان الشارة المميزة (null للحضور العادي).
+  static String? label(String kind) {
+    switch (kind) {
+      case payLater:
+        return 'دفع لاحقاً';
+      case makeup:
+        return 'تعويض غياب';
+      case free:
+        return 'حصة مجانية';
+      default:
+        return null;
+    }
+  }
 }
 
 /// سطر في سجل الحضور القادم من GET /attendance.
@@ -138,6 +166,7 @@ class AttendanceLogEntry extends Equatable {
   final String date; // 'YYYY-MM-DD'
   final String time; // 'HH:mm'
   final DateTime timestamp;
+  final String kind; // AttendanceKind
 
   const AttendanceLogEntry({
     required this.id,
@@ -149,9 +178,20 @@ class AttendanceLogEntry extends Equatable {
     required this.date,
     required this.time,
     required this.timestamp,
+    this.kind = AttendanceKind.regular,
   });
 
   @override
-  List<Object?> get props =>
-      [id, playerId, playerName, playerCode, imageUrl, sport, date, time, timestamp];
+  List<Object?> get props => [
+        id,
+        playerId,
+        playerName,
+        playerCode,
+        imageUrl,
+        sport,
+        date,
+        time,
+        timestamp,
+        kind,
+      ];
 }
