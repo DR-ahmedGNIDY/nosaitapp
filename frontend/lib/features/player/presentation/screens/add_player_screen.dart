@@ -8,7 +8,7 @@ import 'package:basketball_academy/features/academy/presentation/providers/acade
 import 'package:basketball_academy/features/groups/presentation/providers/groups_provider.dart';
 import 'package:basketball_academy/features/player/data/created_account_buffer.dart';
 import 'package:basketball_academy/features/player/presentation/providers/player_provider.dart';
-import 'package:basketball_academy/features/player/presentation/widgets/player_account_dialog.dart';
+import 'package:basketball_academy/features/player/presentation/widgets/account_credentials_dialog.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -242,11 +242,14 @@ class _AddPlayerScreenState extends ConsumerState<AddPlayerScreen> {
       // إن أعاد الخادم بيانات حساب دخول اللاعب، نعرضها مرة واحدة قبل الرجوع.
       final account = CreatedAccountBuffer.take();
       if (account != null) {
-        await PlayerAccountDialog.show(
+        await AccountCredentialsDialog.show(
           context,
+          title: 'تم إنشاء حساب اللاعب',
           username: account['username'] as String? ?? '',
           password: account['password'] as String? ?? '',
           playerName: _fullNameController.text.trim(),
+          parentPhone: _parentPhoneController.text.trim(),
+          playerPhone: _playerPhoneController.text.trim(),
         );
       }
       if (!mounted) return;

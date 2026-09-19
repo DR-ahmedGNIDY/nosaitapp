@@ -520,6 +520,13 @@ class _PlayerDetailContent extends ConsumerWidget {
                     playerId: player.id,
                     playerName: player.fullName,
                     canEdit: canEdit,
+                    parentPhone: player.parentPhone,
+                    playerPhone: player.playerPhone,
+                    academyName: ref
+                            .watch(academyByIdProvider(academyId))
+                            .valueOrNull
+                            ?.name ??
+                        '',
                   ),
 
                   Gap(16.h),

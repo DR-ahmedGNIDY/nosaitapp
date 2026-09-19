@@ -2,12 +2,12 @@ import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/di/injection_container.dart';
 import 'package:basketball_academy/core/errors/exceptions.dart';
 import 'package:basketball_academy/features/player/data/player_account_service.dart';
+import 'package:basketball_academy/features/player/presentation/widgets/account_credentials_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
-import 'package:share_plus/share_plus.dart';
 
 /// حالة حساب اللاعب — تُجلب عند فتح صفحة اللاعب.
 /// { portalEnabled, hasAccount, account: {username, isActive}? }
@@ -26,12 +26,19 @@ class PlayerAccountSection extends ConsumerWidget {
   final String playerId;
   final String playerName;
   final bool canEdit;
+  /// أرقام إرسال بيانات الدخول على واتساب (اختيارية).
+  final String? parentPhone;
+  final String? playerPhone;
+  final String academyName;
 
   const PlayerAccountSection({
     super.key,
     required this.playerId,
     required this.playerName,
     required this.canEdit,
+    this.parentPhone,
+    this.playerPhone,
+    this.academyName = '',
   });
 
   @override
@@ -82,6 +89,9 @@ class PlayerAccountSection extends ConsumerWidget {
                   _NoAccountBody(
                     playerId: playerId,
                     playerName: playerName,
+                    parentPhone: parentPhone,
+                    playerPhone: playerPhone,
+                    academyName: academyName,
                   )
                 else if (account != null)
                   _AccountBody(
@@ -89,6 +99,9 @@ class PlayerAccountSection extends ConsumerWidget {
                     playerName: playerName,
                     username: account['username'] as String? ?? '',
                     isActive: account['isActive'] == true,
+                    parentPhone: parentPhone,
+                    playerPhone: playerPhone,
+                    academyName: academyName,
                   ),
               ],
             ),
@@ -104,7 +117,16 @@ class PlayerAccountSection extends ConsumerWidget {
 class _NoAccountBody extends ConsumerStatefulWidget {
   final String playerId;
   final String playerName;
-  const _NoAccountBody({required this.playerId, required this.playerName});
+  final String? parentPhone;
+  final String? playerPhone;
+  final String academyName;
+  const _NoAccountBody({
+    required this.playerId,
+    required this.playerName,
+    this.parentPhone,
+    this.playerPhone,
+    this.academyName = '',
+  });
 
   @override
   ConsumerState<_NoAccountBody> createState() => _NoAccountBodyState();
@@ -127,6 +149,9 @@ class _NoAccountBodyState extends ConsumerState<_NoAccountBody> {
         username: created['username'] as String? ?? '',
         password: created['password'] as String? ?? '',
         playerName: widget.playerName,
+        academyName: widget.academyName,
+        parentPhone: widget.parentPhone,
+        playerPhone: widget.playerPhone,
       );
     } catch (e) {
       if (mounted) _showError(context, e);
@@ -176,12 +201,18 @@ class _AccountBody extends ConsumerStatefulWidget {
   final String playerName;
   final String username;
   final bool isActive;
+  final String? parentPhone;
+  final String? playerPhone;
+  final String academyName;
 
   const _AccountBody({
     required this.playerId,
     required this.playerName,
     required this.username,
     required this.isActive,
+    this.parentPhone,
+    this.playerPhone,
+    this.academyName = '',
   });
 
   @override
@@ -252,6 +283,9 @@ class _AccountBodyState extends ConsumerState<_AccountBody> {
           username: data['username'] as String? ?? widget.username,
           password: data['password'] as String? ?? '',
           playerName: widget.playerName,
+          academyName: widget.academyName,
+          parentPhone: widget.parentPhone,
+          playerPhone: widget.playerPhone,
         );
       }
     });
@@ -485,131 +519,8 @@ class _ChangePasswordDialog {
   }
 }
 
-// ─── نافذة بيانات الدخول (إنشاء/إعادة إنشاء) ─────────────────────────────────
 
-/// تعرض username/password مرة واحدة مع أزرار:
-/// Copy Username / Copy Password / Share.
-class AccountCredentialsDialog {
-  AccountCredentialsDialog._();
-
-  static Future<void> show(
-    BuildContext context, {
-    required String title,
-    required String username,
-    required String password,
-    String playerName = '',
-  }) async {
-    final shareText =
-        'بيانات دخول اللاعب${playerName.isNotEmpty ? ' $playerName' : ''} '
-        'على تطبيق Nosait:\n'
-        'اسم المستخدم: $username\n'
-        'كلمة المرور: $password';
-
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
-        title: Row(
-          children: [
-            const Icon(Icons.check_circle, color: AppColors.success),
-            Gap(8.w),
-            Expanded(child: Text(title)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _credRow('اسم المستخدم', username),
-            Gap(10.h),
-            _credRow('كلمة المرور', password),
-            Gap(12.h),
-            Text('احفظ هذه البيانات — لن تظهر كلمة المرور مرة أخرى.',
-                style: TextStyle(fontSize: 12.sp, color: AppColors.grey500)),
-            Gap(12.h),
-            Wrap(
-              spacing: 8.w,
-              runSpacing: 4.h,
-              children: [
-                _actionChip(
-                  ctx,
-                  icon: Icons.copy,
-                  label: 'Copy Username',
-                  onTap: () => _copy(ctx, username, 'تم نسخ اسم المستخدم'),
-                ),
-                _actionChip(
-                  ctx,
-                  icon: Icons.copy,
-                  label: 'Copy Password',
-                  onTap: () => _copy(ctx, password, 'تم نسخ كلمة المرور'),
-                ),
-                _actionChip(
-                  ctx,
-                  icon: Icons.share,
-                  label: 'Share',
-                  onTap: () => Share.share(shareText),
-                ),
-              ],
-            ),
-          ],
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('تم'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  static Future<void> _copy(
-      BuildContext ctx, String value, String message) async {
-    await Clipboard.setData(ClipboardData(text: value));
-    if (ctx.mounted) {
-      ScaffoldMessenger.of(ctx)
-          .showSnackBar(SnackBar(content: Text(message)));
-    }
-  }
-
-  static Widget _actionChip(
-    BuildContext ctx, {
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return ActionChip(
-      avatar: Icon(icon, size: 16.sp, color: AppColors.primary),
-      label: Text(label, style: TextStyle(fontSize: 12.sp)),
-      onPressed: onTap,
-    );
-  }
-
-  static Widget _credRow(String label, String value) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(12.r),
-      decoration: BoxDecoration(
-        color: AppColors.grey50,
-        borderRadius: BorderRadius.circular(10.r),
-        border: Border.all(color: AppColors.grey200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: TextStyle(fontSize: 11.sp, color: AppColors.grey500)),
-          Gap(4.h),
-          SelectableText(value,
-              style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w800),
-              textDirection: TextDirection.ltr),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── عرض الأخطاء ─────────────────────────────────────────────────────────────
+// ─── مساعد عرض الأخطاء ───────────────────────────────────────────────────────
 
 void _showError(BuildContext context, Object e) {
   final msg = e is AppException ? e.message : 'حدث خطأ غير متوقع';
