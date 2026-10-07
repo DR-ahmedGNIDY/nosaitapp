@@ -56,3 +56,6 @@ backend/create-admin.js
 
 # Stray duplicate build copy (looks like an unsubstituted installer $dest path)
 /$dest/
+
+# Player data export (personal data — never commit)
+/players.xlsx
