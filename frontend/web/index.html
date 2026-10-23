@@ -77,8 +77,45 @@
       };
     })();
   </script>
+
+  <!-- شاشة تحميل فورية: تظهر أثناء تنزيل main.dart.js (~6MB) بدل الشاشة البيضاء،
+       وتختفي عند أول إطار يرسمه Flutter (حدث flutter-first-frame). -->
+  <style>
+    html, body { margin: 0; height: 100%; background: #1A2B4A; }
+    #app-loader {
+      position: fixed; inset: 0; z-index: 9999;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: linear-gradient(160deg, #2D3F63 0%, #1A2B4A 55%, #0D1A30 100%);
+      font-family: system-ui, -apple-system, "Segoe UI", Tahoma, sans-serif;
+      color: #FFFFFF; transition: opacity .35s ease;
+    }
+    #app-loader.hide { opacity: 0; pointer-events: none; }
+    #app-loader img { width: 88px; height: 88px; border-radius: 22px; box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+    #app-loader .name { margin-top: 18px; font-size: 22px; font-weight: 700; letter-spacing: .5px; }
+    #app-loader .spinner {
+      margin-top: 28px; width: 34px; height: 34px; border-radius: 50%;
+      border: 3px solid rgba(255,255,255,.18); border-top-color: #E85D04;
+      animation: app-loader-spin .9s linear infinite;
+    }
+    #app-loader .hint { margin-top: 14px; font-size: 13px; color: rgba(255,255,255,.65); }
+    @keyframes app-loader-spin { to { transform: rotate(360deg); } }
+  </style>
 </head>
 <body>
+  <div id="app-loader">
+    <img src="assets/assets/images/logo1.png" alt="Nosait">
+    <div class="name">Nosait</div>
+    <div class="spinner"></div>
+    <div class="hint">جاري التحميل...</div>
+  </div>
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      var el = document.getElementById('app-loader');
+      if (!el) return;
+      el.classList.add('hide');
+      setTimeout(function () { el.remove(); }, 400);
+    });
+  </script>
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader
