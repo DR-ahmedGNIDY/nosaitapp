@@ -213,10 +213,10 @@ class _SaasBlockInterceptor extends Interceptor {
         if (code == 'SUBSCRIPTION_EXPIRED') {
           PlatformBlockedDialog.show(
             ctx,
-            title: 'انتهت الفترة التجريبية',
+            title: 'انتهى اشتراك الأكاديمية',
             message: message.isNotEmpty
                 ? message
-                : 'انتهت الفترة التجريبية. يرجى التواصل مع إدارة Nosait لتفعيل الاشتراك.',
+                : 'انتهى اشتراك الأكاديمية. يرجى التواصل مع إدارة Nosait لتفعيل الاشتراك.',
           );
         } else if (code == 'PLAYER_LIMIT_REACHED') {
           PlatformBlockedDialog.show(

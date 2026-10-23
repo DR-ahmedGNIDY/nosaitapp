@@ -54,6 +54,46 @@ class UserEntity extends Equatable {
 
   String get fullName => name;
 
+  /// الحالة الفعلية لاشتراك الأكاديمية: اشتراك وصل trial/active لكن مرّ تاريخ
+  /// نهايته أثناء الجلسة يُعامَل منتهياً (نظير effectiveStatus() في الـ backend).
+  AcademySubscriptionStatus get effectiveAcademySubscriptionStatus {
+    final isLive = academySubscriptionStatus == AcademySubscriptionStatus.active ||
+        academySubscriptionStatus == AcademySubscriptionStatus.trial;
+    final end = academySubscriptionEndDate;
+    if (isLive && end != null && DateTime.now().isAfter(end)) {
+      return AcademySubscriptionStatus.expired;
+    }
+    return academySubscriptionStatus;
+  }
+
+  /// اشتراك الأكاديمية منتهٍ أو معلّق ⇒ تسجيل اشتراكات اللاعبين والحضور مقفول.
+  /// super_admin لا يُقيَّد، والحالة غير المعروفة لا تقفل شيئاً (fail-open كالخادم).
+  bool get isAcademyReadOnly {
+    if (isSuperAdmin) return false;
+    final s = effectiveAcademySubscriptionStatus;
+    return s == AcademySubscriptionStatus.expired ||
+        s == AcademySubscriptionStatus.suspended;
+  }
+
+  /// الأيام المتبقية في اشتراك الأكاديمية (null لو لا يوجد تاريخ نهاية).
+  int? get academySubscriptionDaysLeft {
+    final end = academySubscriptionEndDate;
+    if (end == null) return null;
+    final hours = end.difference(DateTime.now()).inHours;
+    return hours <= 0 ? 0 : (hours / 24).ceil();
+  }
+
+  /// تحذير "اشتراك الأكاديمية قرب ينتهي": اشتراك حي باقٍ عليه 7 أيام أو أقل.
+  bool get isAcademySubscriptionExpiringSoon {
+    if (isSuperAdmin) return false;
+    final s = effectiveAcademySubscriptionStatus;
+    final days = academySubscriptionDaysLeft;
+    return (s == AcademySubscriptionStatus.active ||
+            s == AcademySubscriptionStatus.trial) &&
+        days != null &&
+        days <= 7;
+  }
+
   @override
   List<Object?> get props => [
         id,

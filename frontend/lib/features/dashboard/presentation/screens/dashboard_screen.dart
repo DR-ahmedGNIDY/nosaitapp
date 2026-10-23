@@ -21,6 +21,7 @@ import 'package:basketball_academy/features/user/presentation/screens/users_list
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:basketball_academy/features/training_rating/presentation/screens/training_ratings_screen.dart';
+import 'package:basketball_academy/core/widgets/academy_subscription_banner.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -203,6 +204,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     Gap(12.h),
                   ],
                 ],
+
+                // تحذير قرب انتهاء/انتهاء اشتراك الأكاديمية
+                const AcademySubscriptionBanner(),
 
                 // Recent notifications widget
                 RecentNotificationsWidget(
@@ -768,6 +772,8 @@ class _DesktopDashboardContent extends ConsumerWidget {
                     currencyLabel: currencyLabel,
                     columns: columns),
                 const SizedBox(height: 16),
+
+                const AcademySubscriptionBanner(),
 
                 // Player accounts card (Player Portal) — تختفي إن كانت الميزة معطّلة
                 PlayerAccountsStatsCard(academyId: academyId),

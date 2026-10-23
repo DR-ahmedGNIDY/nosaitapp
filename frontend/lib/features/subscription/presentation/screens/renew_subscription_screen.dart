@@ -2,6 +2,7 @@ import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/constants/app_strings.dart';
 import 'package:basketball_academy/features/academy/presentation/providers/currency_provider.dart';
 import 'package:basketball_academy/features/subscription/presentation/providers/subscription_provider.dart';
+import 'package:basketball_academy/core/widgets/platform_blocked_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -40,6 +41,13 @@ class _RenewSubscriptionScreenState
   bool _isLoading = false;
 
   final DateFormat _dateFormat = DateFormat('dd/MM/yyyy', 'ar');
+
+  @override
+  void initState() {
+    super.initState();
+    // اشتراك الأكاديمية منتهٍ ⇒ حوار التواصل مع الإدارة وإغلاق الشاشة.
+    closeIfAcademyReadOnly(this);
+  }
 
   @override
   void dispose() {

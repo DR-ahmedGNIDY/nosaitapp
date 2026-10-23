@@ -58,8 +58,6 @@ const _packages = <_Package>[
   ),
 ];
 
-// السعر السنوي لخدمة تفعيل حسابات اللاعبين.
-const int _playerAccountsPrice = 1000;
 // سعر شراء التطبيق الخاص بالأكاديمية.
 const int _appPurchasePrice = 9500;
 
@@ -82,7 +80,6 @@ const _notes = <String>[
   'يتم التفعيل بعد التواصل مع الدعم.',
   'يمكن ترقية الباقة في أي وقت.',
   'عند تجاوز الحد الأقصى للاعبين يمكن الترقية للباقة التالية.',
-  'خدمة حسابات اللاعبين اختيارية ويمكن إضافتها مع أي باقة.',
   'التطبيق الخاص بالأكاديمية يُسلَّم باسم وشعار الأكاديمية ويشمل إمكانية إضافة أي تطويرات مستقبلية حسب الاتفاق.',
 ];
 
@@ -288,7 +285,6 @@ class _PackageCard extends StatefulWidget {
 
 class _PackageCardState extends State<_PackageCard> {
   int _selected = 3; // افتراضياً السنة الكاملة (الأفضل)
-  bool _addPlayerAccounts = false;
 
   @override
   Widget build(BuildContext context) {
@@ -436,44 +432,6 @@ class _PackageCardState extends State<_PackageCard> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                // خيار إضافة حسابات اللاعبين
-                InkWell(
-                  onTap: () => setState(
-                      () => _addPlayerAccounts = !_addPlayerAccounts),
-                  borderRadius: BorderRadius.circular(10),
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppColors.grey50,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppColors.grey200),
-                    ),
-                    child: Row(
-                      children: [
-                        Checkbox(
-                          value: _addPlayerAccounts,
-                          activeColor: pkg.color,
-                          visualDensity: VisualDensity.compact,
-                          materialTapTargetSize:
-                              MaterialTapTargetSize.shrinkWrap,
-                          onChanged: (v) => setState(
-                              () => _addPlayerAccounts = v ?? false),
-                        ),
-                        const SizedBox(width: 4),
-                        const Expanded(
-                          child: Text(
-                            'إضافة تفعيل حسابات اللاعبين (+1000 جنيه/سنة)',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.grey700,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
                 // زر الاشتراك
                 SizedBox(
                   height: 48,
@@ -485,7 +443,6 @@ class _PackageCardState extends State<_PackageCard> {
                         packageTitle: pkg.title,
                         duration: duration.label,
                         price: price,
-                        addPlayerAccounts: _addPlayerAccounts,
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
@@ -530,22 +487,6 @@ class _AdditionalServicesSection extends StatelessWidget {
           builder: (context, constraints) {
             final isWide = constraints.maxWidth >= 820;
             final cards = [
-              _ServiceCard(
-                icon: Icons.manage_accounts_outlined,
-                color: const Color(0xFF2D9748),
-                title: 'تفعيل حسابات اللاعبين',
-                price: '1000 جنيه سنوياً',
-                description:
-                    'تفعيل إمكانية دخول اللاعبين وأولياء الأمور إلى تطبيق Nosait '
-                    'باستخدام اسم المستخدم وكلمة المرور، مع الاستفادة من لوحة اللاعب، '
-                    'الحضور، التقييمات، الإشعارات، وجدول التدريب.',
-                note: 'يمكن إضافة هذه الخدمة مع أي باقة من الباقات السابقة.',
-                buttonLabel: 'اطلب الخدمة',
-                onPressed: () => _openWhatsApp(
-                  context,
-                  _playerAccountsMessage(academyName),
-                ),
-              ),
               _ServiceCard(
                 icon: Icons.smartphone_outlined,
                 color: const Color(0xFFE85D04),
@@ -922,29 +863,14 @@ String _subscribeMessage({
   required String packageTitle,
   required String duration,
   required int price,
-  required bool addPlayerAccounts,
 }) {
-  final services = addPlayerAccounts
-      ? '✔ تفعيل حسابات اللاعبين ($_playerAccountsPrice جنيه سنوياً)'
-      : 'لا يوجد';
   return 'السلام عليكم\n\n'
       'أرغب في الاشتراك في منصة Nosait.\n\n'
       'اسم الأكاديمية:\n$academyName\n\n'
       'الباقة:\n$packageTitle\n\n'
       'المدة:\n$duration\n\n'
       'السعر:\n$price جنيه\n\n'
-      'الخدمات الإضافية المختارة:\n$services\n\n'
       'أرجو التواصل معي لإتمام الاشتراك.';
-}
-
-String _playerAccountsMessage(String academyName) {
-  return 'السلام عليكم\n\n'
-      'أرغب في تفعيل حسابات اللاعبين على منصة Nosait.\n\n'
-      'اسم الأكاديمية:\n$academyName\n\n'
-      'الخدمة المطلوبة:\nتفعيل حسابات اللاعبين وأولياء الأمور\n\n'
-      'السعر:\n$_playerAccountsPrice جنيه سنوياً\n\n'
-      'ملاحظة:\nهذه الخدمة إضافة على الباقة الحالية.\n\n'
-      'أرجو التواصل معي.';
 }
 
 String _appPurchaseMessage(String academyName) {

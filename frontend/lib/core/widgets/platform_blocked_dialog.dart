@@ -1,6 +1,30 @@
 import 'package:basketball_academy/core/constants/app_constants.dart';
+import 'package:basketball_academy/features/auth/presentation/providers/auth_provider.dart';
 import 'package:basketball_academy/features/whatsapp/utils/whatsapp_utils.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+/// لشاشات التسجيل المقفولة بعد انتهاء اشتراك الأكاديمية (إضافة/تجديد اشتراك لاعب،
+/// مسح الحضور): يُستدعى من initState — لو الاشتراك منتهٍ يظهر حوار التواصل مع
+/// الإدارة ثم تُغلق الشاشة، بنفس حوار الحظر الذي يظهر في باقي الصفحات.
+void closeIfAcademyReadOnly(State state) {
+  final context = state.context;
+  final user = ProviderScope.containerOf(context, listen: false)
+      .read(authStateProvider)
+      .valueOrNull
+      ?.user;
+  if (user == null || !user.isAcademyReadOnly) return;
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    if (!state.mounted) return;
+    await PlatformBlockedDialog.show(
+      context,
+      title: 'انتهى اشتراك الأكاديمية',
+      message: 'انتهى اشتراك الأكاديمية، فلا يمكن تسجيل اشتراكات أو حضور جديد. '
+          'يرجى التواصل مع إدارة Nosait لتجديد الاشتراك.',
+    );
+    if (state.mounted) Navigator.of(context).maybePop();
+  });
+}
 
 /// حوار موحّد لحالات حظر منصة Nosait:
 /// - انتهاء/تعليق الاشتراك (SUBSCRIPTION_EXPIRED)

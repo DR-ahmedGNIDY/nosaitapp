@@ -14,6 +14,7 @@ import 'package:basketball_academy/features/attendance/presentation/widgets/atte
 import 'package:basketball_academy/features/attendance/presentation/widgets/subscription_stats_banner.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:basketball_academy/core/widgets/platform_blocked_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
@@ -48,6 +49,8 @@ class _AttendanceScanScreenState extends State<AttendanceScanScreen> {
   @override
   void initState() {
     super.initState();
+    // اشتراك الأكاديمية منتهٍ ⇒ لا تسجيل حضور جديد (السجل والتقارير متاحة).
+    closeIfAcademyReadOnly(this);
     if (!_canUseCamera) {
       // تركيز تلقائي ليستقبل قارئ USB (يكتب الكود + Enter).
       WidgetsBinding.instance.addPostFrameCallback((_) {
