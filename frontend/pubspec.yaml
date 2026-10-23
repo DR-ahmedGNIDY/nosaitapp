@@ -113,16 +113,10 @@ flutter:
     - assets/images/
     - assets/fonts/
 
+  # Cairo خط متغيّر (محور wght من 200 إلى 1000) — ملفات Medium/SemiBold/Bold/ExtraBold
+  # نسخ مطابقة بايت ببايت لنفس الملف، فتسجيله مرة واحدة يغني عن تنزيل 5 نسخ (3MB) عند
+  # فتح نسخة الويب. الملفات الأخرى باقية في assets/fonts/ لأن خدمات PDF تحمّلها بالاسم.
   fonts:
     - family: Cairo
       fonts:
         - asset: assets/fonts/Cairo-Regular.ttf
-          weight: 400
-        - asset: assets/fonts/Cairo-Medium.ttf
-          weight: 500
-        - asset: assets/fonts/Cairo-SemiBold.ttf
-          weight: 600
-        - asset: assets/fonts/Cairo-Bold.ttf
-          weight: 700
-        - asset: assets/fonts/Cairo-ExtraBold.ttf
-          weight: 800

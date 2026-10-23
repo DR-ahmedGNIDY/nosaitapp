@@ -39,34 +39,43 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     _navigate();
   }
 
-  void _navigate() {
-    debugPrint('[SPLASH] _navigate() → waiting 2 seconds...');
-    Future.delayed(const Duration(seconds: 2), () {
-      if (!mounted) return;
-      // جلسة اللاعب لها الأولوية إن كانت فعّالة.
-      final player = ref.read(playerSessionProvider).valueOrNull;
-      if (player?.isAuthenticated == true) {
-        context.go(AppRoutes.playerDashboard);
-        return;
-      }
+  // بدل انتظار ثابت 2 ثانية: ننتقل فور جاهزية فحص الجلسة (المدير واللاعب)،
+  // مع حد أدنى قصير لإكمال أنيميشن الشعار وحد أقصى لو تأخّر الفحص.
+  Future<void> _navigate() async {
+    final minDelay = Future<void>.delayed(const Duration(milliseconds: 800));
+    try {
+      await Future.wait([
+        ref.read(authStateProvider.future),
+        ref.read(playerSessionProvider.future),
+      ]).timeout(const Duration(seconds: 5));
+    } catch (_) {
+      // فشل/تأخّر الفحص ⇒ نكمل بالحالة المتاحة (غير مسجّل → شاشة الترحيب).
+    }
+    await minDelay;
+    if (!mounted) return;
+    // جلسة اللاعب لها الأولوية إن كانت فعّالة.
+    final player = ref.read(playerSessionProvider).valueOrNull;
+    if (player?.isAuthenticated == true) {
+      context.go(AppRoutes.playerDashboard);
+      return;
+    }
 
-      final authAsync = ref.read(authStateProvider);
-      debugPrint('[SPLASH] _navigate() → authAsync: isLoading=${authAsync.isLoading} isAuthenticated=${authAsync.valueOrNull?.isAuthenticated}');
-      final auth = authAsync.valueOrNull;
-      if (auth?.isAuthenticated == true) {
-        final user = auth?.user;
-        if (user?.isAdmin == true &&
-            user?.academyId != null &&
-            !user!.hasPermission('view_dashboard_revenue')) {
-          context.go(AppRoutes.playersList.replaceFirst(':id', user.academyId!));
-        } else {
-          context.go(AppRoutes.home);
-        }
+    final authAsync = ref.read(authStateProvider);
+    debugPrint('[SPLASH] _navigate() → authAsync: isLoading=${authAsync.isLoading} isAuthenticated=${authAsync.valueOrNull?.isAuthenticated}');
+    final auth = authAsync.valueOrNull;
+    if (auth?.isAuthenticated == true) {
+      final user = auth?.user;
+      if (user?.isAdmin == true &&
+          user?.academyId != null &&
+          !user!.hasPermission('view_dashboard_revenue')) {
+        context.go(AppRoutes.playersList.replaceFirst(':id', user.academyId!));
       } else {
-        // غير مسجّل → شاشة الترحيب (Nosait).
-        context.go(AppRoutes.welcome);
+        context.go(AppRoutes.home);
       }
-    });
+    } else {
+      // غير مسجّل → شاشة الترحيب (Nosait).
+      context.go(AppRoutes.welcome);
+    }
   }
 
   @override
@@ -93,7 +102,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Image.asset(
-                        'assets/images/logo1.png',
+                        'assets/images/logo1.jpg',
                         width: 180.w,
                         height: 180.w,
                         fit: BoxFit.contain,
