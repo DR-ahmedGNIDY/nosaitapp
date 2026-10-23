@@ -631,7 +631,7 @@ class PdfReportService {
                       _cell(e.basicSkills.toStringAsFixed(1)),
                       _cell(e.fitness.toStringAsFixed(1)),
                       _cell(_fmtDate(e.evaluationDate)),
-                      _cell(e.evaluatorName ?? e.playerId, bold: true),
+                      _cell(e.playerLabel, bold: true),
                     ],
                   );
                 }),

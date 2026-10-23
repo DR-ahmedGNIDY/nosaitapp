@@ -92,6 +92,15 @@ class PlayerApiService {
     return '${d.year}-${two(d.month)}-${two(d.day)}';
   }
 
+  /// مباريات اللاعب: {upcoming, past, upcomingCount}.
+  Future<Map<String, dynamic>> playerMatches() async {
+    final res = await _api.get<Map<String, dynamic>>(
+      '/player/matches',
+      queryParameters: {'today': _today()},
+    );
+    return (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>;
+  }
+
   /// تمارين أمس واليوم غير المقيّمة: [{attendanceId, date, time, isToday}].
   Future<List<Map<String, dynamic>>> pendingTrainingRatings() async {
     final res = await _api.get<Map<String, dynamic>>(

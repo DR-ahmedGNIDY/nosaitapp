@@ -4,6 +4,7 @@ import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/router/app_router.dart';
 import 'package:basketball_academy/features/player_portal/presentation/providers/player_data_providers.dart';
 import 'package:basketball_academy/features/player_portal/presentation/providers/player_session_provider.dart';
+import 'package:basketball_academy/features/player_portal/presentation/screens/player_matches_screen.dart';
 import 'package:basketball_academy/features/player_portal/presentation/screens/player_training_rating_screen.dart';
 import 'package:basketball_academy/features/player_portal/presentation/widgets/player_photo_sheet.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -439,6 +440,8 @@ class PlayerDashboardScreen extends ConsumerWidget {
     // "تقييم التمرين" يظهر يوم التمرين فقط وما دام لم يُقيَّم بعد.
     final pending = ref.watch(playerPendingTrainingRatingsProvider).valueOrNull ?? const [];
     final todayTraining = pending.where((p) => p['isToday'] == true).firstOrNull;
+    final upcomingMatches =
+        (ref.watch(playerMatchesProvider).valueOrNull?['upcomingCount'] as num?)?.toInt() ?? 0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -493,6 +496,50 @@ class PlayerDashboardScreen extends ConsumerWidget {
               ),
             ],
           ),
+        ),
+        Gap(12.h),
+        // المباريات — رقم أحمر بعدد المباريات القادمة المسجّل فيها اللاعب.
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            SizedBox(
+              width: double.infinity,
+              child: _actionTile(
+                icon: Icons.sports_basketball,
+              title: 'المباريات',
+              subtitle: upcomingMatches > 0
+                  ? 'لديك مباريات قادمة — اعرض التفاصيل'
+                  : 'مبارياتك القادمة والسابقة',
+              colors: const [AppColors.secondaryDark, AppColors.secondary],
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => const PlayerMatchesScreen(),
+                )),
+              ),
+            ),
+            if (upcomingMatches > 0)
+              PositionedDirectional(
+                top: -6,
+                end: -6,
+                child: Container(
+                  constraints: BoxConstraints(minWidth: 24.r, minHeight: 24.r),
+                  padding: EdgeInsets.symmetric(horizontal: 6.r),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.error,
+                    borderRadius: BorderRadius.circular(12.r),
+                    border: Border.all(color: AppColors.white, width: 2),
+                  ),
+                  child: Text(
+                    upcomingMatches > 99 ? '99+' : '$upcomingMatches',
+                    style: TextStyle(
+                      color: AppColors.white,
+                      fontSize: 11.sp,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
       ],
     );

@@ -9,6 +9,9 @@ class EvaluationModel {
   final String id;
   final String academyId;
   final String playerId;
+  // اسم/كود اللاعب — يصلان فقط من قوائم الأكاديمية (populate)، وإلا null.
+  final String? playerName;
+  final String? playerCode;
   @JsonKey(name: 'evaluatorId')
   final dynamic evaluatorRaw;
   final DateTime evaluationDate;
@@ -28,6 +31,8 @@ class EvaluationModel {
     required this.id,
     required this.academyId,
     required this.playerId,
+    this.playerName,
+    this.playerCode,
     required this.evaluatorRaw,
     required this.evaluationDate,
     required this.fitness,
@@ -58,6 +63,8 @@ class EvaluationModel {
         id: id,
         academyId: academyId,
         playerId: playerId,
+        playerName: playerName,
+        playerCode: playerCode,
         evaluatorId: evaluatorId,
         evaluatorName: evaluatorName,
         evaluationDate: evaluationDate,

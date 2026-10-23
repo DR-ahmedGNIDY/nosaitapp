@@ -33,3 +33,10 @@ final playerPendingTrainingRatingsProvider =
   _autoRefresh(ref);
   return sl<PlayerApiService>().pendingTrainingRatings();
 });
+
+/// مباريات اللاعب المسجّل فيها — عدد القادمة يظهر رقماً على مربع "المباريات".
+final playerMatchesProvider =
+    FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
+  _autoRefresh(ref);
+  return sl<PlayerApiService>().playerMatches();
+});

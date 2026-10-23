@@ -334,7 +334,7 @@ class ExcelReportService {
       final row = i + 1;
       final style = row.isOdd ? null : _altRowStyle();
 
-      _setCell(sheet, row, 0, e.evaluatorName ?? e.playerId, style: style);
+      _setCell(sheet, row, 0, e.playerLabel, style: style);
       _setCell(sheet, row, 1, _fmtDate(e.evaluationDate), style: style);
       _setCell(sheet, row, 2, e.fitness, style: style);
       _setCell(sheet, row, 3, e.basicSkills, style: style);

@@ -2,6 +2,7 @@ import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/di/injection_container.dart';
 import 'package:basketball_academy/features/player_portal/data/player_api_service.dart';
 import 'package:basketball_academy/features/player_portal/presentation/providers/player_data_providers.dart';
+import 'package:basketball_academy/features/player_portal/presentation/screens/player_matches_screen.dart';
 import 'package:basketball_academy/features/player_portal/presentation/screens/player_training_rating_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,6 +24,8 @@ class PlayerNotificationsScreen extends ConsumerWidget {
         return Icons.star_outline;
       case 'TRAINING_RATING_REQUEST':
         return Icons.star_rate_rounded;
+      case 'MATCH_ADDED':
+        return Icons.sports_basketball;
       case 'SUBSCRIPTION_RENEWED':
         return Icons.card_membership_outlined;
       case 'SUBSCRIPTION_EXPIRING':
@@ -90,7 +93,19 @@ class PlayerNotificationsScreen extends ConsumerWidget {
                       : null,
                   onTap: n['type'] == 'TRAINING_RATING_REQUEST'
                       ? () => _openRating(context, ref, n)
-                      : isRead
+                      : n['type'] == 'MATCH_ADDED'
+                          ? () async {
+                              if (!isRead) {
+                                await sl<PlayerApiService>()
+                                    .markNotificationRead(n['_id'] as String);
+                                ref.invalidate(playerNotificationsProvider);
+                              }
+                              if (!context.mounted) return;
+                              await Navigator.of(context).push(MaterialPageRoute(
+                                builder: (_) => const PlayerMatchesScreen(),
+                              ));
+                            }
+                          : isRead
                           ? null
                           : () async {
                               await sl<PlayerApiService>()

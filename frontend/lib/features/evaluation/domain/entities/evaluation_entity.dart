@@ -4,6 +4,8 @@ class EvaluationEntity extends Equatable {
   final String id;
   final String academyId;
   final String playerId;
+  final String? playerName;
+  final String? playerCode;
   final String evaluatorId;
   final String? evaluatorName;
   final DateTime evaluationDate;
@@ -21,6 +23,8 @@ class EvaluationEntity extends Equatable {
     required this.id,
     required this.academyId,
     required this.playerId,
+    this.playerName,
+    this.playerCode,
     required this.evaluatorId,
     this.evaluatorName,
     required this.evaluationDate,
@@ -35,6 +39,9 @@ class EvaluationEntity extends Equatable {
     this.updatedAt,
   });
 
+  /// الاسم المعروض في التقارير: اسم اللاعب، ثم كوده، ثم معرّفه كحل أخير.
+  String get playerLabel => playerName ?? playerCode ?? playerId;
+
   String get gradeLabel {
     if (average >= 8) return 'ممتاز';
     if (average >= 6) return 'جيد';
@@ -46,6 +53,8 @@ class EvaluationEntity extends Equatable {
         id,
         academyId,
         playerId,
+        playerName,
+        playerCode,
         evaluatorId,
         evaluatorName,
         evaluationDate,
