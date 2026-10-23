@@ -11,6 +11,7 @@ class CreateSubscriptionParams {
   final DateTime startDate;
   final DateTime endDate;
   final String? notes;
+  final int? sessionsLimit;
   final String? academyId;
 
   const CreateSubscriptionParams({
@@ -20,6 +21,7 @@ class CreateSubscriptionParams {
     required this.startDate,
     required this.endDate,
     this.notes,
+    this.sessionsLimit,
     this.academyId,
   });
 }
@@ -40,6 +42,7 @@ class CreateSubscriptionUsecase
       startDate: params.startDate,
       endDate: params.endDate,
       notes: params.notes,
+      sessionsLimit: params.sessionsLimit,
       academyId: params.academyId,
     );
   }

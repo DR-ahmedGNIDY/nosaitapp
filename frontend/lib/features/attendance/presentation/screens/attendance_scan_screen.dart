@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:barcode_scan2/barcode_scan2.dart';
 import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/di/injection_container.dart';
 import 'package:basketball_academy/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:basketball_academy/features/attendance/domain/repositories/attendance_repository.dart';
 import 'package:basketball_academy/features/attendance/domain/usecases/record_attendance_usecase.dart';
 import 'package:basketball_academy/features/attendance/presentation/widgets/web_qr_scanner.dart';
 import 'package:basketball_academy/features/attendance/utils/player_qr.dart';
@@ -31,6 +33,12 @@ class _AttendanceScanScreenState extends State<AttendanceScanScreen> {
   final TextEditingController _manualController = TextEditingController();
   final FocusNode _manualFocus = FocusNode();
 
+  // البحث بالاسم: السيرفر يطابق أ/إ/آ/ا و ة/ه و ى/ي، فـ"احمد" تُظهر "أحمد" أيضاً.
+  final TextEditingController _nameController = TextEditingController();
+  Timer? _nameDebounce;
+  List<AttendancePlayer> _nameMatches = const [];
+  bool _nameSearching = false;
+
   bool _processing = false;
   String? _lastCode;
   DateTime? _lastAt;
@@ -52,6 +60,8 @@ class _AttendanceScanScreenState extends State<AttendanceScanScreen> {
   void dispose() {
     _manualController.dispose();
     _manualFocus.dispose();
+    _nameController.dispose();
+    _nameDebounce?.cancel();
     super.dispose();
   }
 
@@ -103,6 +113,41 @@ class _AttendanceScanScreenState extends State<AttendanceScanScreen> {
         _error = 'تعذّر فتح الكاميرا — استخدم الإدخال اليدوي';
       });
     }
+  }
+
+  void _onNameChanged(String value) {
+    _nameDebounce?.cancel();
+    final q = value.trim();
+    if (q.isEmpty) {
+      setState(() {
+        _nameMatches = const [];
+        _nameSearching = false;
+      });
+      return;
+    }
+    setState(() => _nameSearching = true);
+    _nameDebounce = Timer(const Duration(milliseconds: 350), () async {
+      final result = await sl<AttendanceRepository>()
+          .searchPlayers(academyId: widget.academyId, query: q);
+      // تجاهل نتيجة بحث قديم لو تغيّر النص أثناء الطلب.
+      if (!mounted || _nameController.text.trim() != q) return;
+      setState(() {
+        _nameSearching = false;
+        _nameMatches = result.fold((_) => const [], (list) => list);
+      });
+    });
+  }
+
+  Future<void> _selectPlayer(AttendancePlayer p) async {
+    if (_processing) return;
+    FocusScope.of(context).unfocus();
+    _nameDebounce?.cancel();
+    setState(() {
+      _nameController.clear();
+      _nameMatches = const [];
+      _nameSearching = false;
+    });
+    await _submit(p.playerCode);
   }
 
   Future<void> _handleCode(String raw) async {
@@ -377,6 +422,78 @@ class _AttendanceScanScreenState extends State<AttendanceScanScreen> {
                 ),
               ),
             ),
+
+            Gap(12.h),
+
+            // البحث عن اللاعب بالاسم — الضغط على النتيجة يسجّل حضوره.
+            TextField(
+              controller: _nameController,
+              onChanged: _onNameChanged,
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                labelText: 'البحث عن اللاعب بالاسم',
+                hintText: 'مثال: احمد',
+                filled: true,
+                fillColor: AppColors.white,
+                prefixIcon: const Icon(Icons.person_search_outlined),
+                suffixIcon: _nameController.text.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () {
+                          _nameController.clear();
+                          _onNameChanged('');
+                        },
+                      ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+              ),
+            ),
+            if (_nameSearching)
+              Padding(
+                padding: EdgeInsets.only(top: 8.h),
+                child: const LinearProgressIndicator(),
+              )
+            else if (_nameController.text.trim().isNotEmpty) ...[
+              Gap(8.h),
+              if (_nameMatches.isEmpty)
+                Text(
+                  'لا يوجد لاعب بهذا الاسم',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12.sp, color: AppColors.grey500),
+                )
+              else
+                Card(
+                  margin: EdgeInsets.zero,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  child: Column(
+                    children: [
+                      for (final p in _nameMatches)
+                        ListTile(
+                          dense: true,
+                          leading: CircleAvatar(
+                            backgroundColor: AppColors.primaryContainer,
+                            backgroundImage: (p.imageUrl ?? '').isNotEmpty
+                                ? CachedNetworkImageProvider(p.imageUrl!)
+                                : null,
+                            child: (p.imageUrl ?? '').isEmpty
+                                ? const Icon(Icons.person,
+                                    color: AppColors.primary)
+                                : null,
+                          ),
+                          title: Text(p.fullName),
+                          subtitle: Text(p.playerCode),
+                          trailing: const Icon(Icons.how_to_reg_outlined,
+                              color: AppColors.primary),
+                          onTap: _processing ? null : () => _selectPlayer(p),
+                        ),
+                    ],
+                  ),
+                ),
+            ],
 
             Gap(20.h),
 

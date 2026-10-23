@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'dart:io';
 
 import 'package:basketball_academy/core/constants/app_colors.dart';
@@ -39,6 +40,7 @@ class _EditPlayerScreenState extends ConsumerState<EditPlayerScreen> {
   late final TextEditingController _parentPhoneController;
   late final TextEditingController _playerPhoneController;
   late final TextEditingController _notesController;
+  late final TextEditingController _sessionsController;
 
   DateTime? _birthDate;
   String? _selectedRelationship;
@@ -79,6 +81,8 @@ class _EditPlayerScreenState extends ConsumerState<EditPlayerScreen> {
         TextEditingController(text: widget.player.playerPhone ?? '');
     _notesController =
         TextEditingController(text: widget.player.notes ?? '');
+    _sessionsController = TextEditingController(
+        text: widget.player.sessionsLimit?.toString() ?? '');
     _birthDate = widget.player.birthDate;
     _selectedRelationship = widget.player.parentRelationship;
     _selectedSport = widget.player.sport;
@@ -94,6 +98,7 @@ class _EditPlayerScreenState extends ConsumerState<EditPlayerScreen> {
     _parentPhoneController.dispose();
     _playerPhoneController.dispose();
     _notesController.dispose();
+    _sessionsController.dispose();
     super.dispose();
   }
 
@@ -237,6 +242,8 @@ class _EditPlayerScreenState extends ConsumerState<EditPlayerScreen> {
               : _notesController.text.trim(),
           sport: isMultiSport ? _selectedSport : null,
           attendanceDays: _selectedAttendanceDays,
+          // 0 = إلغاء الحد (يُرسل دائماً حتى يُحفظ المسح).
+          sessionsLimit: int.tryParse(_sessionsController.text.trim()) ?? 0,
           imagePath: _pickedImage?.path,
           groupId: _selectedGroupId ?? '',
         );
@@ -517,6 +524,25 @@ class _EditPlayerScreenState extends ConsumerState<EditPlayerScreen> {
                 selected: _selectedAttendanceDays,
                 onChanged: (days) =>
                     setState(() => _selectedAttendanceDays = days),
+              ),
+
+              Gap(16.h),
+
+              // عدد الحصص (اختياري) — عند استهلاكها ينتهي الاشتراك حتى لو لم ينتهِ تاريخه.
+              _buildLabel('عدد الحصص في الاشتراك (اختياري)'),
+              Gap(6.h),
+              TextFormField(
+                controller: _sessionsController,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: _inputDecoration(hint: 'مثال: 8 — اتركه فارغاً للاشتراك بالتاريخ فقط'),
+                validator: (v) {
+                  final t = v?.trim() ?? '';
+                  if (t.isEmpty) return null;
+                  final n = int.tryParse(t);
+                  if (n == null || n < 1 || n > 365) return 'عدد الحصص غير صحيح';
+                  return null;
+                },
               ),
 
               Gap(16.h),

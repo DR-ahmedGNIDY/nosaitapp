@@ -31,6 +31,7 @@ abstract class SubscriptionRemoteDatasource {
     required DateTime startDate,
     required DateTime endDate,
     String? notes,
+    int? sessionsLimit,
     String? academyId,
   });
 
@@ -42,6 +43,10 @@ abstract class SubscriptionRemoteDatasource {
   Future<void> deleteSubscription(String id);
 
   Future<Map<String, dynamic>> getRevenueSummary(String academyId);
+
+  /// خريطة playerId → 'active' | 'expired' — تُحسب على السيرفر بـ aggregation
+  /// واحدة (أحدث endDate لكل لاعب)، فلا pagination ولا سجلات خام.
+  Future<Map<String, String>> getAcademyPlayerStatusMap(String academyId);
 }
 
 class SubscriptionRemoteDatasourceImpl implements SubscriptionRemoteDatasource {
@@ -122,6 +127,7 @@ class SubscriptionRemoteDatasourceImpl implements SubscriptionRemoteDatasource {
     required DateTime startDate,
     required DateTime endDate,
     String? notes,
+    int? sessionsLimit,
     String? academyId,
   }) async {
     final data = <String, dynamic>{
@@ -131,6 +137,7 @@ class SubscriptionRemoteDatasourceImpl implements SubscriptionRemoteDatasource {
       'startDate': startDate.toIso8601String(),
       'endDate': endDate.toIso8601String(),
       if (notes != null) 'notes': notes,
+      if (sessionsLimit != null) 'sessionsLimit': sessionsLimit,
       if (academyId != null) 'academyId': academyId,
     };
     final response = await _apiClient.post('/subscriptions', data: data);
@@ -154,6 +161,15 @@ class SubscriptionRemoteDatasourceImpl implements SubscriptionRemoteDatasource {
   @override
   Future<void> deleteSubscription(String id) async {
     await _apiClient.delete('/subscriptions/$id');
+  }
+
+  @override
+  Future<Map<String, String>> getAcademyPlayerStatusMap(String academyId) async {
+    final response = await _apiClient
+        .get('/subscriptions/academy/$academyId/player-status');
+    final body = response.data as Map<String, dynamic>;
+    final data = body['data'] as Map<String, dynamic>;
+    return data.map((k, v) => MapEntry(k, v as String));
   }
 
   @override

@@ -4,6 +4,7 @@ import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/router/app_router.dart';
 import 'package:basketball_academy/features/player_portal/presentation/providers/player_data_providers.dart';
 import 'package:basketball_academy/features/player_portal/presentation/providers/player_session_provider.dart';
+import 'package:basketball_academy/features/player_portal/presentation/screens/player_training_rating_screen.dart';
 import 'package:basketball_academy/features/player_portal/presentation/widgets/player_photo_sheet.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -435,6 +436,9 @@ class PlayerDashboardScreen extends ConsumerWidget {
 
   // ── الإجراءات السريعة — مربّعان: المتجر والألبوم ──
   Widget _quickActions(BuildContext context, WidgetRef ref) {
+    // "تقييم التمرين" يظهر يوم التمرين فقط وما دام لم يُقيَّم بعد.
+    final pending = ref.watch(playerPendingTrainingRatingsProvider).valueOrNull ?? const [];
+    final todayTraining = pending.where((p) => p['isToday'] == true).firstOrNull;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -443,6 +447,21 @@ class PlayerDashboardScreen extends ConsumerWidget {
           child: Text('الإجراءات السريعة',
               style: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.w700)),
         ),
+        if (todayTraining != null) ...[
+          _actionTile(
+            icon: Icons.star_rate_rounded,
+            title: 'تقييم التمرين',
+            subtitle: 'قيّم تمرين اليوم بالنجوم وشاركنا ملاحظاتك',
+            colors: const [AppColors.warning, AppColors.primaryLight],
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => PlayerTrainingRatingScreen(
+                attendanceId: todayTraining['attendanceId'] as String,
+                date: todayTraining['date'] as String?,
+              ),
+            )),
+          ),
+          Gap(12.h),
+        ],
         IntrinsicHeight(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,

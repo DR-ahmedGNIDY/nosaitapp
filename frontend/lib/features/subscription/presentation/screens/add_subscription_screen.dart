@@ -31,6 +31,7 @@ class _AddSubscriptionScreenState
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
   final _notesController = TextEditingController();
+  final _sessionsController = TextEditingController();
 
   DateTime _startDate = DateTime.now();
   DateTime _endDate =
@@ -44,6 +45,7 @@ class _AddSubscriptionScreenState
   void dispose() {
     _amountController.dispose();
     _notesController.dispose();
+    _sessionsController.dispose();
     super.dispose();
   }
 
@@ -94,6 +96,8 @@ class _AddSubscriptionScreenState
           notes: _notesController.text.trim().isEmpty
               ? null
               : _notesController.text.trim(),
+          // فارغ ⇒ يُستخدم عدد الحصص الافتراضي المحفوظ على اللاعب (إن وُجد).
+          sessionsLimit: int.tryParse(_sessionsController.text.trim()),
           academyId: widget.academyId,
         );
 
@@ -277,6 +281,36 @@ class _AddSubscriptionScreenState
                 ),
               ),
               Gap(20.h),
+
+              // عدد الحصص (اختياري)
+              Text(
+                'عدد الحصص (اختياري)',
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: AppColors.grey700,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Gap(8.h),
+              TextFormField(
+                controller: _sessionsController,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: InputDecoration(
+                  hintText: 'فارغ = عدد حصص اللاعب الافتراضي أو بالتاريخ فقط',
+                  prefixIcon: const Icon(Icons.confirmation_number_outlined),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                ),
+                validator: (v) {
+                  final t = v?.trim() ?? '';
+                  if (t.isEmpty) return null;
+                  final n = int.tryParse(t);
+                  if (n == null || n < 1 || n > 365) return 'عدد الحصص غير صحيح';
+                  return null;
+                },
+              ),
+              Gap(16.h),
 
               // Notes field
               Text(

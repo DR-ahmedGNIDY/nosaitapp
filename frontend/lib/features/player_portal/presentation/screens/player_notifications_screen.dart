@@ -2,6 +2,7 @@ import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/di/injection_container.dart';
 import 'package:basketball_academy/features/player_portal/data/player_api_service.dart';
 import 'package:basketball_academy/features/player_portal/presentation/providers/player_data_providers.dart';
+import 'package:basketball_academy/features/player_portal/presentation/screens/player_training_rating_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -20,9 +21,12 @@ class PlayerNotificationsScreen extends ConsumerWidget {
         return Icons.how_to_reg_outlined;
       case 'EVALUATION_ADDED':
         return Icons.star_outline;
+      case 'TRAINING_RATING_REQUEST':
+        return Icons.star_rate_rounded;
       case 'SUBSCRIPTION_RENEWED':
         return Icons.card_membership_outlined;
       case 'SUBSCRIPTION_EXPIRING':
+      case 'SESSIONS_EXHAUSTED':
         return Icons.timer_outlined;
       default:
         return Icons.notifications_outlined;
@@ -84,13 +88,15 @@ class PlayerNotificationsScreen extends ConsumerWidget {
                       ? Text(DateFormat('MM/dd HH:mm').format(createdAt),
                           style: TextStyle(fontSize: 11.sp, color: AppColors.grey500))
                       : null,
-                  onTap: isRead
-                      ? null
-                      : () async {
-                          await sl<PlayerApiService>()
-                              .markNotificationRead(n['_id'] as String);
-                          ref.invalidate(playerNotificationsProvider);
-                        },
+                  onTap: n['type'] == 'TRAINING_RATING_REQUEST'
+                      ? () => _openRating(context, ref, n)
+                      : isRead
+                          ? null
+                          : () async {
+                              await sl<PlayerApiService>()
+                                  .markNotificationRead(n['_id'] as String);
+                              ref.invalidate(playerNotificationsProvider);
+                            },
                 );
               },
             ),
@@ -98,5 +104,34 @@ class PlayerNotificationsScreen extends ConsumerWidget {
         },
       ),
     );
+  }
+
+  // إشعار "قيّم تمرينك" يفتح شاشة التقييم — متاحة لحد آخر اليوم التالي للتمرين،
+  // والسيرفر يرفض إن انتهت المهلة أو سبق التقييم.
+  Future<void> _openRating(
+      BuildContext context, WidgetRef ref, Map<String, dynamic> n) async {
+    final meta = (n['meta'] as Map?) ?? const {};
+    final attendanceId = meta['attendanceId']?.toString();
+    if (n['isRead'] != true) {
+      await sl<PlayerApiService>().markNotificationRead(n['_id'] as String);
+      ref.invalidate(playerNotificationsProvider);
+    }
+    if (attendanceId == null || !context.mounted) return;
+    final pending =
+        await ref.read(playerPendingTrainingRatingsProvider.future).catchError((_) => <Map<String, dynamic>>[]);
+    if (!context.mounted) return;
+    if (!pending.any((p) => p['attendanceId'] == attendanceId)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('تم تقييم هذا التمرين أو انتهت مهلة تقييمه'),
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => PlayerTrainingRatingScreen(
+        attendanceId: attendanceId,
+        date: meta['date']?.toString(),
+      ),
+    ));
   }
 }

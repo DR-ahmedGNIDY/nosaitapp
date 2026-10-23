@@ -19,6 +19,8 @@ class SubscriptionModel {
   final DateTime startDate;
   final DateTime endDate;
   final String? notes;
+  final int? sessionsLimit;
+  final DateTime? exhaustedAt;
   @JsonKey(name: 'created_at')
   final DateTime createdAt;
   @JsonKey(name: 'updated_at')
@@ -37,6 +39,8 @@ class SubscriptionModel {
     required this.startDate,
     required this.endDate,
     this.notes,
+    this.sessionsLimit,
+    this.exhaustedAt,
     required this.createdAt,
     this.updatedAt,
   });
@@ -79,6 +83,10 @@ class SubscriptionModel {
       startDate: DateTime.parse(json['startDate'] as String),
       endDate:   DateTime.parse(json['endDate']   as String),
       notes:     json['notes'] as String?,
+      sessionsLimit: (json['sessionsLimit'] as num?)?.toInt(),
+      exhaustedAt: json['exhaustedAt'] == null
+          ? null
+          : DateTime.parse(json['exhaustedAt'] as String),
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: json['updated_at'] == null
           ? null
@@ -103,6 +111,8 @@ class SubscriptionModel {
         startDate: startDate,
         endDate: endDate,
         notes: notes,
+        sessionsLimit: sessionsLimit,
+        exhaustedAt: exhaustedAt,
         createdAt: createdAt,
         updatedAt: updatedAt,
       );

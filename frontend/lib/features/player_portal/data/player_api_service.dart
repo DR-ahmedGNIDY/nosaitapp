@@ -85,6 +85,39 @@ class PlayerApiService {
     await _api.patch('/player/notifications/read-all');
   }
 
+  // ── تقييم التمرين ──
+  static String _today() {
+    final d = DateTime.now();
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${d.year}-${two(d.month)}-${two(d.day)}';
+  }
+
+  /// تمارين أمس واليوم غير المقيّمة: [{attendanceId, date, time, isToday}].
+  Future<List<Map<String, dynamic>>> pendingTrainingRatings() async {
+    final res = await _api.get<Map<String, dynamic>>(
+      '/player/training-ratings/pending',
+      queryParameters: {'today': _today()},
+    );
+    return ((res.data as Map<String, dynamic>)['data'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+  }
+
+  Future<void> submitTrainingRating({
+    required String attendanceId,
+    required int stars,
+    String notes = '',
+  }) async {
+    await _api.post<Map<String, dynamic>>(
+      '/player/training-ratings',
+      data: {
+        'attendanceId': attendanceId,
+        'stars': stars,
+        'notes': notes,
+        'today': _today(),
+      },
+    );
+  }
+
   Future<void> logout() async {
     await _tokenManager.clearToken();
   }

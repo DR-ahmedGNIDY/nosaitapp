@@ -11,6 +11,8 @@ class AttendanceSubscriptionStats extends Equatable {
   final int absent;
   final int expected; // المتوقع حتى اليوم (أو كامل الفترة لو منتهي)
   final int expectedTotal; // المتوقع على كامل فترة الاشتراك
+  final int? sessionsLimit; // عدد حصص الاشتراك (null = بلا حدّ)
+  final bool exhausted; // انتهى الاشتراك باستهلاك حصصه
 
   const AttendanceSubscriptionStats({
     required this.status,
@@ -20,6 +22,8 @@ class AttendanceSubscriptionStats extends Equatable {
     required this.absent,
     required this.expected,
     required this.expectedTotal,
+    this.sessionsLimit,
+    this.exhausted = false,
   });
 
   bool get isActive => status == 'active';
@@ -36,12 +40,17 @@ class AttendanceSubscriptionStats extends Equatable {
       absent: n('absent'),
       expected: n('expected'),
       expectedTotal: n('expectedTotal'),
+      sessionsLimit: (json['sessionsLimit'] as num?)?.toInt(),
+      exhausted: json['exhausted'] == true,
     );
   }
 
   @override
   List<Object?> get props =>
-      [status, startDate, endDate, present, absent, expected, expectedTotal];
+      [
+        status, startDate, endDate, present, absent, expected, expectedTotal,
+        sessionsLimit, exhausted,
+      ];
 }
 
 /// لاعب في نتائج بحث سجل الحضور (GET /attendance/players).

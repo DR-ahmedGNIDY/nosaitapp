@@ -15,6 +15,7 @@ class CreatePlayerParams {
   final String? notes;
   final String? sport;
   final List<String> attendanceDays;
+  final int? sessionsLimit;
   final String? academyId;
   final String? imagePath;
   final String? groupId;
@@ -30,6 +31,7 @@ class CreatePlayerParams {
     this.notes,
     this.sport,
     this.attendanceDays = const [],
+    this.sessionsLimit,
     this.academyId,
     this.imagePath,
     this.groupId,
@@ -54,6 +56,7 @@ class CreatePlayerUsecase extends UseCase<PlayerEntity, CreatePlayerParams> {
       notes: params.notes,
       sport: params.sport,
       attendanceDays: params.attendanceDays,
+      sessionsLimit: params.sessionsLimit,
       academyId: params.academyId,
       imagePath: params.imagePath,
       groupId: params.groupId,

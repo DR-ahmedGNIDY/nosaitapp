@@ -26,3 +26,10 @@ final playerNotificationsProvider =
   _autoRefresh(ref);
   return sl<PlayerApiService>().notifications();
 });
+
+/// تمارين اللاعب غير المقيّمة (أمس + اليوم). الإجراء السريع يعرض تمرين اليوم فقط.
+final playerPendingTrainingRatingsProvider =
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  _autoRefresh(ref);
+  return sl<PlayerApiService>().pendingTrainingRatings();
+});

@@ -106,6 +106,7 @@ class SubscriptionRepositoryImpl implements SubscriptionRepository {
     required DateTime startDate,
     required DateTime endDate,
     String? notes,
+    int? sessionsLimit,
     String? academyId,
   }) async {
     try {
@@ -116,6 +117,7 @@ class SubscriptionRepositoryImpl implements SubscriptionRepository {
         startDate: startDate,
         endDate: endDate,
         notes: notes,
+        sessionsLimit: sessionsLimit,
         academyId: academyId,
       );
       return Right(model.toEntity());
@@ -178,6 +180,25 @@ class SubscriptionRepositoryImpl implements SubscriptionRepository {
       String academyId) async {
     try {
       final data = await _remoteDatasource.getRevenueSummary(academyId);
+      return Right(data);
+    } on UnauthorizedException {
+      return const Left(UnauthorizedFailure());
+    } on NetworkException {
+      return const Left(NetworkFailure());
+    } on TimeoutException {
+      return const Left(TimeoutFailure());
+    } on AppException catch (e) {
+      return Left(ServerFailure(message: e.message));
+    } catch (_) {
+      return const Left(UnknownFailure());
+    }
+  }
+
+  @override
+  Future<Either<Failure, Map<String, String>>> getAcademyPlayerStatusMap(
+      String academyId) async {
+    try {
+      final data = await _remoteDatasource.getAcademyPlayerStatusMap(academyId);
       return Right(data);
     } on UnauthorizedException {
       return const Left(UnauthorizedFailure());

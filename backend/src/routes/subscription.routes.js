@@ -7,6 +7,7 @@ const {
   getSubscriptionById,
   getSubscriptionsByPlayer,
   getSubscriptionsByAcademy,
+  getAcademyPlayerStatusMap,
   getRevenueSummary,
 } = require('../controllers/subscription.controller');
 const { protect, restrictTo, requirePermission } = require('../middleware/auth.middleware');
@@ -51,6 +52,9 @@ const createValidators = [
   body('notes')
     .optional()
     .isLength({ max: 500 }).withMessage('الملاحظات لا يمكن أن تتجاوز 500 حرف'),
+  body('sessionsLimit')
+    .optional({ nullable: true, checkFalsy: true })
+    .isInt({ min: 1, max: 365 }).withMessage('عدد الحصص غير صحيح'),
   body('academyId')
     .optional()
     .isMongoId().withMessage('معرّف الأكاديمية غير صحيح'),
@@ -66,6 +70,9 @@ const notesValidators = [
 
 // GET  /subscriptions/player/:playerId
 router.get('/player/:playerId', getSubscriptionsByPlayer);
+
+// GET  /subscriptions/academy/:academyId/player-status — خريطة playerId → active/expired
+router.get('/academy/:academyId/player-status', restrictTo('super_admin', 'academy_admin'), getAcademyPlayerStatusMap);
 
 // GET  /subscriptions/academy/:academyId/revenue — admin needs view_dashboard_revenue permission
 router.get('/academy/:academyId/revenue', requirePermission('view_dashboard_revenue'), getRevenueSummary);

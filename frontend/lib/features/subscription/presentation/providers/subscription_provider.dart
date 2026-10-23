@@ -2,6 +2,7 @@ import 'package:basketball_academy/core/di/injection_container.dart';
 import 'package:basketball_academy/features/subscription/domain/entities/subscription_entity.dart';
 import 'package:basketball_academy/features/subscription/domain/usecases/create_subscription_usecase.dart';
 import 'package:basketball_academy/features/subscription/domain/usecases/delete_subscription_usecase.dart';
+import 'package:basketball_academy/features/subscription/domain/usecases/get_academy_player_status_map_usecase.dart';
 import 'package:basketball_academy/features/subscription/domain/usecases/get_revenue_summary_usecase.dart';
 import 'package:basketball_academy/features/subscription/domain/usecases/get_subscriptions_by_academy_usecase.dart';
 import 'package:basketball_academy/features/subscription/domain/usecases/get_subscriptions_by_player_usecase.dart';
@@ -62,6 +63,7 @@ class PlayerSubscriptionsNotifier
     required DateTime startDate,
     required DateTime endDate,
     String? notes,
+    int? sessionsLimit,
     String? academyId,
   }) async {
     final result = await _createSubscriptionUsecase(
@@ -72,6 +74,7 @@ class PlayerSubscriptionsNotifier
         startDate: startDate,
         endDate: endDate,
         notes: notes,
+        sessionsLimit: sessionsLimit,
         academyId: academyId,
       ),
     );
@@ -141,34 +144,26 @@ final playerStatusProvider =
 // Academy-wide player status map — single request, no per-player loops
 // ---------------------------------------------------------------------------
 
-/// Fetches ALL subscriptions for the academy in one request (limit=500) and
-/// returns a map of playerId → 'نشط' | 'منتهي' | 'جديد'.
+/// Fetches the academy-wide player subscription status in ONE request and
+/// returns a map of playerId → 'نشط' | 'منتهي'.
 /// Players not in the map default to 'جديد' at the call site.
+///
+/// The server computes this from the latest endDate per player, so a renewal
+/// never leaves a player looking expired because of an older record. It used
+/// to page through the raw subscription records instead, which silently
+/// dropped every player whose records fell past the first page.
 final academyPlayerStatusMapProvider =
     FutureProvider.family<Map<String, String>, String>((ref, academyId) async {
-  final usecase = sl<GetSubscriptionsByAcademyUsecase>();
+  final usecase = sl<GetAcademyPlayerStatusMapUsecase>();
   final result = await usecase(
-    GetSubscriptionsByAcademyParams(academyId: academyId, limit: 500, page: 1),
+    GetAcademyPlayerStatusMapParams(academyId: academyId),
   );
   return result.fold(
     (f) => throw Exception(f.message),
-    (data) {
-      final now = DateTime.now();
-      final map = <String, String>{};
-      for (final sub in data.subscriptions) {
-        final pid = sub.playerId;
-        if (!map.containsKey(pid)) {
-          map[pid] = sub.endDate.isAfter(now) ? 'نشط' : 'منتهي';
-        } else {
-          // Keep 'نشط' over 'منتهي' — the player has at least one active sub
-          final existing = map[pid]!;
-          if (existing == 'منتهي' && sub.endDate.isAfter(now)) {
-            map[pid] = 'نشط';
-          }
-        }
-      }
-      return map;
-    },
+    (data) => data.map(
+      (playerId, status) =>
+          MapEntry(playerId, status == 'active' ? 'نشط' : 'منتهي'),
+    ),
   );
 });
 

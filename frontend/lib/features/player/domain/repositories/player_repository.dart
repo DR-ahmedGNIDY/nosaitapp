@@ -38,6 +38,7 @@ abstract class PlayerRepository {
     String? notes,
     String? sport,
     List<String> attendanceDays,
+    int? sessionsLimit,
     String? academyId,
     String? imagePath,
     String? groupId,
@@ -55,6 +56,7 @@ abstract class PlayerRepository {
     String? notes,
     String? sport,
     List<String>? attendanceDays,
+    int? sessionsLimit,
     String? imagePath,
     String? groupId,
   });

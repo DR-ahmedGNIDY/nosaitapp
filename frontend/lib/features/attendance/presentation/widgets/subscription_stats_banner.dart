@@ -77,6 +77,19 @@ class SubscriptionStatsBanner extends StatelessWidget {
             '${fmtDate(stats.startDate)} ← ${fmtDate(stats.endDate)}',
             style: TextStyle(fontSize: 11.sp, color: AppColors.grey500),
           ),
+          if (stats.sessionsLimit != null) ...[
+            Gap(2.h),
+            Text(
+              stats.exhausted
+                  ? 'انتهت الحصص: ${stats.present} من ${stats.sessionsLimit}'
+                  : 'الحصص: ${stats.present} من ${stats.sessionsLimit}',
+              style: TextStyle(
+                fontSize: 11.sp,
+                fontWeight: FontWeight.w700,
+                color: stats.exhausted ? AppColors.error : AppColors.grey700,
+              ),
+            ),
+          ],
           Gap(compact ? 6.h : 10.h),
           Row(
             children: [

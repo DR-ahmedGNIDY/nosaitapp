@@ -15,6 +15,7 @@ class PlayerEntity extends Equatable {
   final String? notes;
   final String? sport;
   final List<String> attendanceDays;
+  final int? sessionsLimit;
   final String? groupId;
   final DateTime createdAt;
   final DateTime? updatedAt;
@@ -34,6 +35,7 @@ class PlayerEntity extends Equatable {
     this.notes,
     this.sport,
     this.attendanceDays = const [],
+    this.sessionsLimit,
     this.groupId,
     required this.createdAt,
     this.updatedAt,
@@ -58,6 +60,7 @@ class PlayerEntity extends Equatable {
         notes,
         sport,
         attendanceDays,
+        sessionsLimit,
         groupId,
         createdAt,
         updatedAt,

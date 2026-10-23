@@ -34,6 +34,7 @@ abstract class SubscriptionRepository {
     required DateTime startDate,
     required DateTime endDate,
     String? notes,
+    int? sessionsLimit,
     String? academyId,
   });
 
@@ -45,5 +46,9 @@ abstract class SubscriptionRepository {
   Future<Either<Failure, void>> deleteSubscription(String id);
 
   Future<Either<Failure, Map<String, dynamic>>> getRevenueSummary(
+      String academyId);
+
+  /// خريطة playerId → 'active' | 'expired' لكل لاعبي الأكاديمية.
+  Future<Either<Failure, Map<String, String>>> getAcademyPlayerStatusMap(
       String academyId);
 }

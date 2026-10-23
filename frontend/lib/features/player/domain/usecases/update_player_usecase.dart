@@ -16,6 +16,7 @@ class UpdatePlayerParams {
   final String? notes;
   final String? sport;
   final List<String>? attendanceDays;
+  final int? sessionsLimit;
   final String? imagePath;
   final String? groupId;
 
@@ -31,6 +32,7 @@ class UpdatePlayerParams {
     this.notes,
     this.sport,
     this.attendanceDays,
+    this.sessionsLimit,
     this.imagePath,
     this.groupId,
   });
@@ -55,6 +57,7 @@ class UpdatePlayerUsecase extends UseCase<PlayerEntity, UpdatePlayerParams> {
       notes: params.notes,
       sport: params.sport,
       attendanceDays: params.attendanceDays,
+      sessionsLimit: params.sessionsLimit,
       imagePath: params.imagePath,
       groupId: params.groupId,
     );

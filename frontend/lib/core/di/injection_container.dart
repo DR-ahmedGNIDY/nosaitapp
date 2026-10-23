@@ -24,6 +24,7 @@ import 'package:basketball_academy/features/subscription/data/repositories/subsc
 import 'package:basketball_academy/features/subscription/domain/repositories/subscription_repository.dart';
 import 'package:basketball_academy/features/subscription/domain/usecases/create_subscription_usecase.dart';
 import 'package:basketball_academy/features/subscription/domain/usecases/delete_subscription_usecase.dart';
+import 'package:basketball_academy/features/subscription/domain/usecases/get_academy_player_status_map_usecase.dart';
 import 'package:basketball_academy/features/subscription/domain/usecases/get_revenue_summary_usecase.dart';
 import 'package:basketball_academy/features/subscription/domain/usecases/get_subscription_usecase.dart';
 import 'package:basketball_academy/features/subscription/domain/usecases/get_subscriptions_by_academy_usecase.dart';
@@ -278,6 +279,9 @@ Future<void> initDependencies() async {
   );
   sl.registerLazySingleton<GetRevenueSummaryUsecase>(
     () => GetRevenueSummaryUsecase(sl<SubscriptionRepository>()),
+  );
+  sl.registerLazySingleton<GetAcademyPlayerStatusMapUsecase>(
+    () => GetAcademyPlayerStatusMapUsecase(sl<SubscriptionRepository>()),
   );
 
   // Evaluation

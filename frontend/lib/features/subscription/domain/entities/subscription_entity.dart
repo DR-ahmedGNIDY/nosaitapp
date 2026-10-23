@@ -18,6 +18,10 @@ class SubscriptionEntity extends Equatable {
   final DateTime startDate;
   final DateTime endDate;
   final String? notes;
+  /// عدد حصص الاشتراك (null = بلا حدّ).
+  final int? sessionsLimit;
+  /// لحظة استهلاك آخر حصة — الاشتراك منتهٍ منذها حتى لو لم ينتهِ تاريخه.
+  final DateTime? exhaustedAt;
   final DateTime createdAt;
   final DateTime? updatedAt;
 
@@ -34,13 +38,16 @@ class SubscriptionEntity extends Equatable {
     required this.startDate,
     required this.endDate,
     this.notes,
+    this.sessionsLimit,
+    this.exhaustedAt,
     required this.createdAt,
     this.updatedAt,
   });
 
+  bool get isExhausted => exhaustedAt != null;
+
   SubscriptionStatus get status =>
-      DateTime.now().isBefore(endDate) ||
-              DateTime.now().isAtSameMomentAs(endDate)
+      !isExhausted && !DateTime.now().isAfter(endDate)
           ? SubscriptionStatus.active
           : SubscriptionStatus.expired;
 
@@ -77,6 +84,8 @@ class SubscriptionEntity extends Equatable {
         startDate,
         endDate,
         notes,
+        sessionsLimit,
+        exhaustedAt,
         createdAt,
         updatedAt,
       ];

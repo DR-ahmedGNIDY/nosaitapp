@@ -20,6 +20,7 @@ import 'package:basketball_academy/features/notification/presentation/screens/no
 import 'package:basketball_academy/features/user/presentation/screens/users_list_screen.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:basketball_academy/features/training_rating/presentation/screens/training_ratings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -396,6 +397,14 @@ class _QuickActionsGrid extends ConsumerWidget {
         color: AppColors.primaryDark,
         onTap: () => context.push(
           AppRoutes.matchesList.replaceFirst(':id', academyId),
+        ),
+      ),
+      _QuickActionItem(
+        icon: Icons.star_rate_rounded,
+        label: 'تقييم التمرين',
+        color: AppColors.warning,
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const TrainingRatingsScreen()),
         ),
       ),
       if (showSystemSubscription)
@@ -1329,6 +1338,14 @@ class _DesktopQuickActions extends StatelessWidget {
           color: AppColors.primaryDark,
           onTap: () => context.push(
             AppRoutes.matchesList.replaceFirst(':id', academyId),
+          ),
+        ),
+        _DesktopQuickBtn(
+          icon: Icons.star_rate_rounded,
+          label: 'تقييم التمرين',
+          color: AppColors.warning,
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const TrainingRatingsScreen()),
           ),
         ),
         _DesktopQuickBtn(
