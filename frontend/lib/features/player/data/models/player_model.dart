@@ -24,6 +24,7 @@ class PlayerModel {
   @JsonKey(defaultValue: <String>[])
   final List<String> attendanceDays;
   final int? sessionsLimit;
+  final Map<String, String>? trainingTimes;
   final String? groupId;
   @JsonKey(name: 'created_at')
   final DateTime createdAt;
@@ -46,6 +47,7 @@ class PlayerModel {
     this.sport,
     this.attendanceDays = const [],
     this.sessionsLimit,
+    this.trainingTimes,
     this.groupId,
     required this.createdAt,
     this.updatedAt,
@@ -72,6 +74,7 @@ class PlayerModel {
         sport: sport,
         attendanceDays: attendanceDays,
         sessionsLimit: sessionsLimit,
+        trainingTimes: trainingTimes,
         groupId: groupId,
         createdAt: createdAt,
         updatedAt: updatedAt,

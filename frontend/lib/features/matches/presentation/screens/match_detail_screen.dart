@@ -3,6 +3,7 @@ import 'package:basketball_academy/features/auth/presentation/providers/auth_pro
 import 'package:basketball_academy/features/matches/data/match_model.dart';
 import 'package:basketball_academy/features/matches/presentation/providers/matches_providers.dart';
 import 'package:basketball_academy/features/matches/presentation/screens/select_match_players_screen.dart';
+import 'package:basketball_academy/features/matches/presentation/widgets/match_settings_section.dart';
 import 'package:basketball_academy/features/whatsapp/utils/whatsapp_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -83,6 +84,65 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
     }
   }
 
+  void _snack(String? error, String ok) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(error ?? ok),
+      backgroundColor: error == null ? AppColors.success : AppColors.error,
+    ));
+  }
+
+  Future<void> _togglePaid(MatchPlayer player, bool paid) async {
+    final err = await ref
+        .read(matchDetailProvider(widget.matchId).notifier)
+        .setPaid(player.id, paid);
+    _snack(err, paid ? 'تم تسجيل دفع ${player.fullName}' : 'تم إلغاء الدفع');
+  }
+
+  // تعديل إعدادات المباراة (وكتابة قيمة الاشتراك بعد الإنشاء).
+  Future<void> _editSettings(MatchModel match) async {
+    var settings = MatchSettings(
+      countsAsSession: match.countsAsSession,
+      hasFee: match.hasFee,
+      addToRevenue: match.addToRevenue,
+    );
+    final feeCtrl = TextEditingController(
+      text: match.feeAmount == null ? '' : match.feeAmount!.toStringAsFixed(match.feeAmount! % 1 == 0 ? 0 : 2),
+    );
+    final save = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Padding(
+          padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, MediaQuery.of(ctx).viewInsets.bottom + 16.h),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                MatchSettingsSection(
+                  value: settings,
+                  feeController: feeCtrl,
+                  onChanged: (v) => setSheet(() => settings = v),
+                ),
+                Gap(12.h),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(ctx).pop(true),
+                  child: const Text('حفظ الإعدادات'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    final body = settings.toBody(feeCtrl.text);
+    feeCtrl.dispose();
+    if (save != true) return;
+    final err = await ref.read(matchDetailProvider(widget.matchId).notifier).updateSettings(body);
+    _snack(err, 'تم حفظ إعدادات المباراة');
+  }
+
   Future<void> _removePlayer(MatchPlayer player) async {
     final ok = await ref.read(matchDetailProvider(widget.matchId).notifier).removePlayer(player.id);
     if (!mounted) return;
@@ -138,6 +198,12 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
         padding: EdgeInsets.fromLTRB(14.w, 14.h, 14.w, 30.h),
         children: [
           _InfoCard(match: match),
+          Gap(10.h),
+          _SettingsCard(
+            match: match,
+            canManage: canManage,
+            onEdit: () => _editSettings(match),
+          ),
           Gap(16.h),
           Row(
             children: [
@@ -180,6 +246,9 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                     player: p,
                     canManage: canManage,
                     sending: _sending.contains(p.id),
+                    hasFee: match.hasFee,
+                    paid: match.isPaid(p.id),
+                    onTogglePaid: () => _togglePaid(p, !match.isPaid(p.id)),
                     onRemind: () => _sendOne(match, p),
                     onRemove: () => _removePlayer(p),
                   ),
@@ -257,10 +326,66 @@ class _InfoCard extends StatelessWidget {
   }
 }
 
+/// ملخص إعدادات المباراة + المدفوعات، وزر تعديلها.
+class _SettingsCard extends StatelessWidget {
+  final MatchModel match;
+  final bool canManage;
+  final VoidCallback onEdit;
+  const _SettingsCard({required this.match, required this.canManage, required this.onEdit});
+
+  String _money(double v) => v.toStringAsFixed(v % 1 == 0 ? 0 : 2);
+
+  @override
+  Widget build(BuildContext context) {
+    final fee = match.feeAmount;
+    final lines = <String>[
+      match.countsAsSession ? 'الحضور يُحسب ضمن حصص الاشتراك' : 'الحضور لا يُحسب ضمن الحصص',
+      if (!match.hasFee) 'بدون اشتراك للمباراة',
+      if (match.hasFee) fee == null ? 'اشتراك المباراة: لم تُحدَّد القيمة بعد' : 'اشتراك المباراة: ${_money(fee)}',
+      if (match.hasFee) match.addToRevenue ? 'يُضاف إلى الإيرادات' : 'لا يُضاف إلى الإيرادات',
+      if (match.hasFee) 'دفع ${match.paidCount} من ${match.playersCount} — الإجمالي ${_money(match.paidTotal)}',
+    ];
+    return Container(
+      padding: EdgeInsets.all(14.r),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(color: AppColors.grey200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text('إعدادات المباراة',
+                  style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w800)),
+              const Spacer(),
+              if (canManage)
+                TextButton.icon(
+                  onPressed: onEdit,
+                  icon: const Icon(Icons.tune, size: 18),
+                  label: const Text('تعديل الإعدادات'),
+                ),
+            ],
+          ),
+          for (final l in lines)
+            Padding(
+              padding: EdgeInsets.only(top: 4.h),
+              child: Text('• $l', style: TextStyle(fontSize: 13.sp, color: AppColors.grey700)),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PlayerTile extends StatelessWidget {
   final MatchPlayer player;
   final bool canManage;
   final bool sending;
+  final bool hasFee;
+  final bool paid;
+  final VoidCallback onTogglePaid;
   final VoidCallback onRemind;
   final VoidCallback onRemove;
 
@@ -268,6 +393,9 @@ class _PlayerTile extends StatelessWidget {
     required this.player,
     required this.canManage,
     required this.sending,
+    required this.hasFee,
+    required this.paid,
+    required this.onTogglePaid,
     required this.onRemind,
     required this.onRemove,
   });
@@ -295,6 +423,22 @@ class _PlayerTile extends StatelessWidget {
               ],
             ),
           ),
+          if (hasFee) ...[
+            canManage
+                ? FilterChip(
+                    label: Text(paid ? 'دفع ✓' : 'لم يدفع'),
+                    selected: paid,
+                    selectedColor: AppColors.successLight,
+                    checkmarkColor: AppColors.success,
+                    showCheckmark: false,
+                    onSelected: (_) => onTogglePaid(),
+                  )
+                : Text(paid ? 'دفع ✓' : 'لم يدفع',
+                    style: TextStyle(
+                        fontSize: 12.sp,
+                        color: paid ? AppColors.success : AppColors.grey500)),
+            Gap(4.w),
+          ],
           if (canManage) ...[
             sending
                 ? SizedBox(

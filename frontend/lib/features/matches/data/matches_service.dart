@@ -65,10 +65,12 @@ class MatchesService {
     String? notes,
     String? sport,
     String? academyId,
+    Map<String, dynamic> settings = const {},
   }) async {
     final res = await _api.post<Map<String, dynamic>>(
       '/matches',
       data: {
+        ...settings,
         'name': name,
         'location': location,
         'date': date,
@@ -91,10 +93,12 @@ class MatchesService {
     String? time,
     String? notes,
     String? sport,
+    Map<String, dynamic> settings = const {},
   }) async {
     final res = await _api.put<Map<String, dynamic>>(
       '/matches/$id',
       data: {
+        ...settings,
         if (name != null) 'name': name,
         if (location != null) 'location': location,
         if (date != null) 'date': date,
@@ -124,6 +128,17 @@ class MatchesService {
 
   Future<void> removePlayer(String matchId, String playerId) async {
     await _api.delete('/matches/$matchId/players/$playerId');
+  }
+
+  /// تسجيل/إلغاء دفع اللاعب لاشتراك المباراة.
+  Future<MatchModel> setPaid(String matchId, String playerId, bool paid) async {
+    final path = '/matches/$matchId/payments/$playerId';
+    final res = paid
+        ? await _api.post<Map<String, dynamic>>(path)
+        : await _api.delete<Map<String, dynamic>>(path);
+    return MatchModel.fromJson(
+      (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>,
+    );
   }
 
   Future<MatchModel> logReminder(String matchId, String playerId) async {

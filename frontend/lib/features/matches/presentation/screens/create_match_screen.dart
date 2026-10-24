@@ -3,6 +3,7 @@ import 'package:basketball_academy/core/di/injection_container.dart';
 import 'package:basketball_academy/features/academy/presentation/providers/academy_provider.dart';
 import 'package:basketball_academy/features/matches/data/matches_service.dart';
 import 'package:basketball_academy/features/matches/presentation/screens/match_detail_screen.dart';
+import 'package:basketball_academy/features/matches/presentation/widgets/match_settings_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -23,6 +24,8 @@ class _CreateMatchScreenState extends ConsumerState<CreateMatchScreen> {
   final _nameCtrl = TextEditingController();
   final _locationCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
+  final _feeCtrl = TextEditingController();
+  MatchSettings _settings = const MatchSettings();
   DateTime? _date;
   TimeOfDay? _time;
   String? _selectedSport;
@@ -36,6 +39,7 @@ class _CreateMatchScreenState extends ConsumerState<CreateMatchScreen> {
     _nameCtrl.dispose();
     _locationCtrl.dispose();
     _notesCtrl.dispose();
+    _feeCtrl.dispose();
     super.dispose();
   }
 
@@ -100,6 +104,7 @@ class _CreateMatchScreenState extends ConsumerState<CreateMatchScreen> {
         notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
         sport: isMultiSport ? _selectedSport : null,
         academyId: widget.academyId,
+        settings: _settings.toBody(_feeCtrl.text),
       );
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
@@ -190,6 +195,12 @@ class _CreateMatchScreenState extends ConsumerState<CreateMatchScreen> {
               maxLines: 3,
               maxLength: 1000,
               decoration: _decoration(hint: 'أي تفاصيل إضافية'),
+            ),
+            Gap(8.h),
+            MatchSettingsSection(
+              value: _settings,
+              feeController: _feeCtrl,
+              onChanged: (v) => setState(() => _settings = v),
             ),
             if (_error != null) ...[
               Gap(8.h),

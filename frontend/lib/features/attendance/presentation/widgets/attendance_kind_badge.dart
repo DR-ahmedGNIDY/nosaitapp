@@ -17,6 +17,8 @@ class AttendanceKindBadge extends StatelessWidget {
         return AppColors.secondary;
       case AttendanceKind.free:
         return const Color(0xFF2D9748);
+      case AttendanceKind.match:
+        return AppColors.primary;
       default:
         return AppColors.grey500;
     }
@@ -30,6 +32,8 @@ class AttendanceKindBadge extends StatelessWidget {
         return Icons.event_repeat;
       case AttendanceKind.free:
         return Icons.card_giftcard;
+      case AttendanceKind.match:
+        return Icons.sports_basketball;
       default:
         return Icons.check;
     }

@@ -12,6 +12,20 @@ class ReminderLogEntry {
   }
 }
 
+/// دفع لاعب لاشتراك المباراة.
+class MatchPayment {
+  final String playerId;
+  final double amount;
+  final DateTime? paidAt;
+  const MatchPayment({required this.playerId, required this.amount, this.paidAt});
+
+  factory MatchPayment.fromJson(Map<String, dynamic> json) => MatchPayment(
+        playerId: json['playerId']?.toString() ?? '',
+        amount: (json['amount'] as num?)?.toDouble() ?? 0,
+        paidAt: DateTime.tryParse(json['paidAt']?.toString() ?? ''),
+      );
+}
+
 /// مباراة — نموذج بيانات مطابق لاستجابة /api/v1/matches. الحقول المحسوبة
 /// (عدد اللاعبين/عدد التذكيرات/آخر تذكير) تُشتق محلياً من playerIds/reminderLog.
 class MatchModel {
@@ -25,6 +39,12 @@ class MatchModel {
   final String? notes;
   final List<String> playerIds;
   final List<ReminderLogEntry> reminderLog;
+  // إعدادات المباراة: احتساب الحضور ضمن الحصص، الاشتراك وقيمته، والإيرادات.
+  final bool countsAsSession;
+  final bool hasFee;
+  final double? feeAmount;
+  final bool addToRevenue;
+  final List<MatchPayment> payments;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -39,12 +59,21 @@ class MatchModel {
     this.notes,
     this.playerIds = const [],
     this.reminderLog = const [],
+    this.countsAsSession = false,
+    this.hasFee = false,
+    this.feeAmount,
+    this.addToRevenue = false,
+    this.payments = const [],
     this.createdAt,
     this.updatedAt,
   });
 
   int get playersCount => playerIds.length;
   int get reminderCount => reminderLog.length;
+
+  bool isPaid(String playerId) => payments.any((p) => p.playerId == playerId);
+  int get paidCount => payments.length;
+  double get paidTotal => payments.fold(0, (sum, p) => sum + p.amount);
 
   DateTime? get lastReminderAt {
     if (reminderLog.isEmpty) return null;
@@ -68,6 +97,13 @@ class MatchModel {
           .toList(),
       reminderLog: (json['reminderLog'] as List<dynamic>? ?? [])
           .map((e) => ReminderLogEntry.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      countsAsSession: json['countsAsSession'] == true,
+      hasFee: json['hasFee'] == true,
+      feeAmount: (json['feeAmount'] as num?)?.toDouble(),
+      addToRevenue: json['addToRevenue'] == true,
+      payments: (json['payments'] as List<dynamic>? ?? [])
+          .map((e) => MatchPayment.fromJson(e as Map<String, dynamic>))
           .toList(),
       createdAt: DateTime.tryParse(json['createdAt'] as String? ?? ''),
       updatedAt: DateTime.tryParse(json['updatedAt'] as String? ?? ''),

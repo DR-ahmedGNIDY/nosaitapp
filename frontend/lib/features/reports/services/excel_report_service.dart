@@ -223,6 +223,7 @@ class ExcelReportService {
 
     double totalRevenue;
     double monthlyRevenue;
+    double matchRevenue;
     int newSubs;
     int renewals;
     int activeCount;
@@ -250,6 +251,10 @@ class ExcelReportService {
       renewals = subs.where((s) => s.type == SubscriptionType.renewal).length;
       activeCount = subs.where((s) => s.isActive).length;
       expiredCount = subs.where((s) => !s.isActive).length;
+      final mr = await matchRevenueForReport(filter.academyId, filter.sport);
+      matchRevenue = mr.total;
+      totalRevenue += mr.total;
+      monthlyRevenue += mr.month;
     } else {
       final getRevenue = sl<GetRevenueSummaryUsecase>();
       final result = await getRevenue(
@@ -262,6 +267,7 @@ class ExcelReportService {
       renewals = (data['renewalsCount'] as num?)?.toInt() ?? 0;
       activeCount = (data['activeCount'] as num?)?.toInt() ?? 0;
       expiredCount = (data['expiredCount'] as num?)?.toInt() ?? 0;
+      matchRevenue = (data['matchRevenue'] as num?)?.toDouble() ?? 0;
     }
 
     final excel = Excel.createExcel();
@@ -275,6 +281,7 @@ class ExcelReportService {
     final rows = [
       ['إجمالي الإيرادات (${filter.currencyLabel})', totalRevenue],
       ['إيرادات الشهر الحالي (${filter.currencyLabel})', monthlyRevenue],
+      ['منها اشتراكات المباريات (${filter.currencyLabel})', matchRevenue],
       ['عدد الاشتراكات الجديدة', newSubs],
       ['عدد التجديدات', renewals],
       ['الاشتراكات النشطة', activeCount],

@@ -11,6 +11,7 @@ import 'package:basketball_academy/features/player/domain/entities/player_entity
 import 'package:basketball_academy/features/player/presentation/providers/player_provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:basketball_academy/features/player/presentation/widgets/training_times_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -47,6 +48,8 @@ class _EditPlayerScreenState extends ConsumerState<EditPlayerScreen> {
   String? _selectedSport;
   String? _selectedGroupId;
   late List<String> _selectedAttendanceDays;
+  late bool _withTrainingTimes;
+  late Map<String, String> _trainingTimes;
   XFile? _pickedImage;
   bool _isLoading = false;
 
@@ -88,6 +91,8 @@ class _EditPlayerScreenState extends ConsumerState<EditPlayerScreen> {
     _selectedSport = widget.player.sport;
     _selectedGroupId = widget.player.groupId;
     _selectedAttendanceDays = List<String>.from(widget.player.attendanceDays);
+    _trainingTimes = Map<String, String>.from(widget.player.trainingTimes ?? const {});
+    _withTrainingTimes = _trainingTimes.isNotEmpty;
   }
 
   @override
@@ -242,6 +247,7 @@ class _EditPlayerScreenState extends ConsumerState<EditPlayerScreen> {
               : _notesController.text.trim(),
           sport: isMultiSport ? _selectedSport : null,
           attendanceDays: _selectedAttendanceDays,
+          trainingTimes: TrainingTimesSection.payload(_withTrainingTimes, _selectedAttendanceDays, _trainingTimes),
           // 0 = إلغاء الحد (يُرسل دائماً حتى يُحفظ المسح).
           sessionsLimit: int.tryParse(_sessionsController.text.trim()) ?? 0,
           imagePath: _pickedImage?.path,
@@ -524,6 +530,16 @@ class _EditPlayerScreenState extends ConsumerState<EditPlayerScreen> {
                 selected: _selectedAttendanceDays,
                 onChanged: (days) =>
                     setState(() => _selectedAttendanceDays = days),
+              ),
+
+              Gap(8.h),
+              TrainingTimesSection(
+                selectedDays: _selectedAttendanceDays,
+                enabled: _withTrainingTimes,
+                times: _trainingTimes,
+                onEnabledChanged: (v) => setState(() => _withTrainingTimes = v),
+                onTimeChanged: (day, t) =>
+                    setState(() => _trainingTimes = {..._trainingTimes, day: t}),
               ),
 
               Gap(16.h),

@@ -25,6 +25,7 @@ PlayerModel _$PlayerModelFromJson(Map<String, dynamic> json) => PlayerModel(
               .toList() ??
           [],
       sessionsLimit: (json['sessionsLimit'] as num?)?.toInt(),
+      trainingTimes: (json['trainingTimes'] as Map<String, dynamic>?)?.map((k, v) => MapEntry(k, v.toString())),
       groupId: json['groupId'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: json['updated_at'] == null
@@ -49,6 +50,7 @@ Map<String, dynamic> _$PlayerModelToJson(PlayerModel instance) =>
       'sport': instance.sport,
       'attendanceDays': instance.attendanceDays,
       'sessionsLimit': instance.sessionsLimit,
+      'trainingTimes': instance.trainingTimes,
       'groupId': instance.groupId,
       'created_at': instance.createdAt.toIso8601String(),
       'updated_at': instance.updatedAt?.toIso8601String(),

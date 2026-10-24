@@ -642,6 +642,16 @@ class PlayerDashboardScreen extends ConsumerWidget {
 
   Widget _scheduleCard(Map<String, dynamic>? schedule) {
     final days = (schedule?['attendanceDays'] as List<dynamic>?)?.cast<String>() ?? [];
+    final times = (schedule?['trainingTimes'] as Map?)?.cast<String, dynamic>() ?? const {};
+    String label(String d) {
+      final t = times[d]?.toString();
+      if (t == null || t.isEmpty) return d;
+      final parts = t.split(':');
+      final h = int.tryParse(parts[0]) ?? 0;
+      final m = parts.length > 1 ? parts[1] : '00';
+      final h12 = h % 12 == 0 ? 12 : h % 12;
+      return '$d • $h12:$m ${h < 12 ? 'ص' : 'م'}';
+    }
     final today = _arabicToday();
     return _card(
       title: 'جدول التدريب',
@@ -667,7 +677,7 @@ class PlayerDashboardScreen extends ConsumerWidget {
                         Gap(4.w),
                       ],
                       Text(
-                        isToday ? '$d • اليوم' : d,
+                        isToday ? '${label(d)} • اليوم' : label(d),
                         style: TextStyle(
                           fontSize: 12.5.sp,
                           fontWeight: isToday ? FontWeight.w800 : FontWeight.w500,
@@ -716,10 +726,16 @@ class PlayerDashboardScreen extends ConsumerWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.check_circle,
-                              size: 13.sp, color: AppColors.success),
+                          Icon(
+                              m['kind'] == 'match'
+                                  ? Icons.sports_basketball
+                                  : Icons.check_circle,
+                              size: 13.sp,
+                              color: m['kind'] == 'match'
+                                  ? AppColors.primary
+                                  : AppColors.success),
                           Gap(5.w),
-                          Text('${m['date'] ?? ''}',
+                          Text(m['kind'] == 'match' ? '${m['date'] ?? ''} • مباراة' : '${m['date'] ?? ''}',
                               style: TextStyle(
                                   fontSize: 11.sp,
                                   color: AppColors.grey700)),
@@ -802,8 +818,86 @@ class PlayerDashboardScreen extends ConsumerWidget {
               }).toList(),
             ),
           ),
+          Gap(16.h),
+          const Divider(height: 1),
+          Gap(12.h),
+          _evaluationDetails(evals.first as Map),
         ],
       ),
+    );
+  }
+
+  // تفاصيل آخر تقييم: درجة كل عنصر من 10 + ملاحظات المدرب.
+  Widget _evaluationDetails(Map e) {
+    double v(String k) => (e[k] as num?)?.toDouble() ?? 0;
+    final items = <(String, double)>[
+      ('اللياقة', v('fitness')),
+      ('المهارات الأساسية', v('basicSkills')),
+      ('الهجوم', v('attack')),
+      ('الدفاع', v('defense')),
+      ('الالتزام', v('commitment')),
+    ];
+    final notes = (e['notes'] as String?)?.trim() ?? '';
+    final date = DateTime.tryParse(e['evaluationDate']?.toString() ?? '');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          date == null
+              ? 'تفاصيل آخر تقييم'
+              : 'تفاصيل آخر تقييم (${date.day}/${date.month}/${date.year})',
+          style: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w800),
+        ),
+        Gap(10.h),
+        for (final (label, score) in items)
+          Padding(
+            padding: EdgeInsets.only(bottom: 8.h),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 110.w,
+                  child: Text(label,
+                      style: TextStyle(fontSize: 12.5.sp, color: AppColors.grey700)),
+                ),
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(6.r),
+                    child: LinearProgressIndicator(
+                      value: (score / 10).clamp(0.0, 1.0),
+                      minHeight: 8.h,
+                      backgroundColor: AppColors.grey100,
+                      color: score >= 8
+                          ? AppColors.success
+                          : score >= 6
+                              ? AppColors.primary
+                              : AppColors.warning,
+                    ),
+                  ),
+                ),
+                Gap(8.w),
+                SizedBox(
+                  width: 34.w,
+                  child: Text(score.toStringAsFixed(1),
+                      textAlign: TextAlign.end,
+                      style: TextStyle(fontSize: 12.5.sp, fontWeight: FontWeight.w700)),
+                ),
+              ],
+            ),
+          ),
+        if (notes.isNotEmpty) ...[
+          Gap(4.h),
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(10.r),
+            decoration: BoxDecoration(
+              color: AppColors.grey50,
+              borderRadius: BorderRadius.circular(10.r),
+            ),
+            child: Text('ملاحظات المدرب: $notes',
+                style: TextStyle(fontSize: 12.5.sp, color: AppColors.grey700, height: 1.5)),
+          ),
+        ],
+      ],
     );
   }
 }

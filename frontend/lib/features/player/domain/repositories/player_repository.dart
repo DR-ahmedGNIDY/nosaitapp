@@ -39,6 +39,7 @@ abstract class PlayerRepository {
     String? sport,
     List<String> attendanceDays,
     int? sessionsLimit,
+    Map<String, String>? trainingTimes,
     String? academyId,
     String? imagePath,
     String? groupId,
@@ -57,6 +58,7 @@ abstract class PlayerRepository {
     String? sport,
     List<String>? attendanceDays,
     int? sessionsLimit,
+    Map<String, String>? trainingTimes,
     String? imagePath,
     String? groupId,
   });

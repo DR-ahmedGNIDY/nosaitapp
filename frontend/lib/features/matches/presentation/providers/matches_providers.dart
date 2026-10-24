@@ -211,6 +211,30 @@ class MatchDetailNotifier extends StateNotifier<MatchDetailState> {
     }
   }
 
+  /// تعديل إعدادات المباراة (الحصص/الاشتراك/الإيرادات). يعيد رسالة الخطأ أو null.
+  Future<String?> updateSettings(Map<String, dynamic> settings) async {
+    state = state.copyWith(mutating: true);
+    try {
+      final updated = await _service.updateMatch(id: matchId, settings: settings);
+      state = state.copyWith(match: updated, mutating: false);
+      return null;
+    } catch (e) {
+      state = state.copyWith(mutating: false);
+      return 'تعذّر حفظ الإعدادات';
+    }
+  }
+
+  /// تسجيل/إلغاء دفع لاعب. يعيد رسالة الخطأ أو null.
+  Future<String?> setPaid(String playerId, bool paid) async {
+    try {
+      final updated = await _service.setPaid(matchId, playerId, paid);
+      state = state.copyWith(match: updated);
+      return null;
+    } catch (e) {
+      return paid ? 'تعذّر تسجيل الدفع — تأكد من كتابة قيمة الاشتراك' : 'تعذّر إلغاء الدفع';
+    }
+  }
+
   Future<bool> delete() async {
     try {
       await _service.deleteMatch(matchId);

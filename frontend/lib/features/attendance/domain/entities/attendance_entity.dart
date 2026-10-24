@@ -141,13 +141,14 @@ class AttendanceRecordResult extends Equatable {
       ];
 }
 
-/// نوع الحضور: regular | pay_later | makeup | free.
+/// نوع الحضور: regular | pay_later | makeup | free | match (يوم مباراة).
 class AttendanceKind {
   AttendanceKind._();
   static const regular = 'regular';
   static const payLater = 'pay_later';
   static const makeup = 'makeup';
   static const free = 'free';
+  static const match = 'match';
 
   /// عنوان الشارة المميزة (null للحضور العادي).
   static String? label(String kind) {
@@ -158,6 +159,8 @@ class AttendanceKind {
         return 'تعويض غياب';
       case free:
         return 'حصة مجانية';
+      case match:
+        return 'مباراة';
       default:
         return null;
     }

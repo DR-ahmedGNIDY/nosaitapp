@@ -110,6 +110,7 @@ class PlayerRepositoryImpl implements PlayerRepository {
     String? sport,
     List<String> attendanceDays = const [],
     int? sessionsLimit,
+    Map<String, String>? trainingTimes,
     String? academyId,
     String? imagePath,
     String? groupId,
@@ -127,6 +128,7 @@ class PlayerRepositoryImpl implements PlayerRepository {
         sport: sport,
         attendanceDays: attendanceDays,
         sessionsLimit: sessionsLimit,
+        trainingTimes: trainingTimes,
         academyId: academyId,
         imagePath: imagePath,
         groupId: groupId,
@@ -161,6 +163,7 @@ class PlayerRepositoryImpl implements PlayerRepository {
     String? sport,
     List<String>? attendanceDays,
     int? sessionsLimit,
+    Map<String, String>? trainingTimes,
     String? imagePath,
     String? groupId,
   }) async {
@@ -178,6 +181,7 @@ class PlayerRepositoryImpl implements PlayerRepository {
         sport: sport,
         attendanceDays: attendanceDays,
         sessionsLimit: sessionsLimit,
+        trainingTimes: trainingTimes,
         imagePath: imagePath,
         groupId: groupId,
       );

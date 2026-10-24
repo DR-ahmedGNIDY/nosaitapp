@@ -389,6 +389,7 @@ class PdfReportService {
 
     double totalRevenue;
     double monthlyRevenue;
+    double matchRevenue;
     int newSubs;
     int renewals;
     int activeCount;
@@ -420,6 +421,10 @@ class PdfReportService {
           subs.where((s) => s.type == SubscriptionType.renewal).length;
       activeCount = subs.where((s) => s.isActive).length;
       expiredCount = subs.where((s) => !s.isActive).length;
+      final mr = await matchRevenueForReport(academyId, filter.sport);
+      matchRevenue = mr.total;
+      totalRevenue += mr.total;
+      monthlyRevenue += mr.month;
     } else {
       // All sports: use the pre-aggregated revenue summary (single query).
       final revenueUC = sl<GetRevenueSummaryUsecase>();
@@ -433,6 +438,7 @@ class PdfReportService {
       renewals = (data['renewalsCount'] as num?)?.toInt() ?? 0;
       activeCount = (data['activeCount'] as num?)?.toInt() ?? 0;
       expiredCount = (data['expiredCount'] as num?)?.toInt() ?? 0;
+      matchRevenue = (data['matchRevenue'] as num?)?.toDouble() ?? 0;
     }
 
     final pdf = pw.Document();
@@ -465,6 +471,14 @@ class PdfReportService {
                 ),
               ],
             ),
+            if (matchRevenue > 0) ...[
+              pw.SizedBox(height: 12),
+              _statBox(
+                label: 'منها اشتراكات المباريات',
+                value: '${matchRevenue.toStringAsFixed(0)} ${filter.currencyLabel}',
+                color: PdfColor.fromHex('#C44D00'),
+              ),
+            ],
             pw.SizedBox(height: 12),
             pw.Row(
               children: [

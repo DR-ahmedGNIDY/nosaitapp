@@ -42,6 +42,7 @@ abstract class PlayerRemoteDatasource {
     String? sport,
     List<String> attendanceDays,
     int? sessionsLimit,
+    Map<String, String>? trainingTimes,
     String? academyId,
     String? imagePath,
     String? groupId,
@@ -60,6 +61,7 @@ abstract class PlayerRemoteDatasource {
     String? sport,
     List<String>? attendanceDays,
     int? sessionsLimit,
+    Map<String, String>? trainingTimes,
     String? imagePath,
     String? groupId,
   });
@@ -153,6 +155,7 @@ class PlayerRemoteDatasourceImpl implements PlayerRemoteDatasource {
     String? sport,
     List<String> attendanceDays = const [],
     int? sessionsLimit,
+    Map<String, String>? trainingTimes,
     String? academyId,
     String? imagePath,
     String? groupId,
@@ -170,6 +173,7 @@ class PlayerRemoteDatasourceImpl implements PlayerRemoteDatasource {
         if (sport != null && sport.isNotEmpty) 'sport': sport,
         'attendanceDays': jsonEncode(attendanceDays),
         if (sessionsLimit != null) 'sessionsLimit': sessionsLimit.toString(),
+        if (trainingTimes != null) 'trainingTimes': jsonEncode(trainingTimes),
         if (academyId != null) 'academyId': academyId,
         if (groupId != null) 'groupId': groupId,
         'image': await buildImageMultipart(imagePath, filename: 'player_image.jpg'),
@@ -194,6 +198,7 @@ class PlayerRemoteDatasourceImpl implements PlayerRemoteDatasource {
         if (sport != null && sport.isNotEmpty) 'sport': sport,
         'attendanceDays': attendanceDays,
         if (sessionsLimit != null) 'sessionsLimit': sessionsLimit,
+        if (trainingTimes != null) 'trainingTimes': trainingTimes,
         if (academyId != null) 'academyId': academyId,
         if (groupId != null) 'groupId': groupId,
       };
@@ -218,6 +223,7 @@ class PlayerRemoteDatasourceImpl implements PlayerRemoteDatasource {
     String? sport,
     List<String>? attendanceDays,
     int? sessionsLimit,
+    Map<String, String>? trainingTimes,
     String? imagePath,
     String? groupId,
   }) async {
@@ -234,6 +240,7 @@ class PlayerRemoteDatasourceImpl implements PlayerRemoteDatasource {
         if (sport != null && sport.isNotEmpty) 'sport': sport,
         if (attendanceDays != null) 'attendanceDays': jsonEncode(attendanceDays),
         if (sessionsLimit != null) 'sessionsLimit': sessionsLimit.toString(),
+        if (trainingTimes != null) 'trainingTimes': jsonEncode(trainingTimes),
         if (groupId != null) 'groupId': groupId,
         'image': await buildImageMultipart(imagePath, filename: 'player_image.jpg'),
       };
@@ -257,6 +264,7 @@ class PlayerRemoteDatasourceImpl implements PlayerRemoteDatasource {
         if (sport != null && sport.isNotEmpty) 'sport': sport,
         if (attendanceDays != null) 'attendanceDays': attendanceDays,
         if (sessionsLimit != null) 'sessionsLimit': sessionsLimit,
+        if (trainingTimes != null) 'trainingTimes': trainingTimes,
         if (groupId != null) 'groupId': groupId,
       };
       final response = await _apiClient.put('/players/$id', data: data);

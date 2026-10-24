@@ -11,6 +11,7 @@ import 'package:basketball_academy/features/player/data/created_account_buffer.d
 import 'package:basketball_academy/features/player/presentation/providers/player_provider.dart';
 import 'package:basketball_academy/features/player/presentation/widgets/account_credentials_dialog.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:basketball_academy/features/player/presentation/widgets/training_times_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -42,6 +43,8 @@ class _AddPlayerScreenState extends ConsumerState<AddPlayerScreen> {
   String? _selectedSport;
   String? _selectedGroupId;
   List<String> _selectedAttendanceDays = const [];
+  bool _withTrainingTimes = false;
+  Map<String, String> _trainingTimes = const {};
   XFile? _pickedImage;
   bool _isLoading = false;
 
@@ -218,6 +221,9 @@ class _AddPlayerScreenState extends ConsumerState<AddPlayerScreen> {
           // Single-sport academies leave this null; the backend auto-assigns.
           sport: isMultiSport ? _selectedSport : null,
           attendanceDays: _selectedAttendanceDays,
+          trainingTimes: _withTrainingTimes
+              ? TrainingTimesSection.payload(true, _selectedAttendanceDays, _trainingTimes)
+              : null,
           sessionsLimit: int.tryParse(_sessionsController.text.trim()),
           academyId: widget.academyId,
           imagePath: _pickedImage?.path,
@@ -503,6 +509,16 @@ class _AddPlayerScreenState extends ConsumerState<AddPlayerScreen> {
                 selected: _selectedAttendanceDays,
                 onChanged: (days) =>
                     setState(() => _selectedAttendanceDays = days),
+              ),
+
+              Gap(8.h),
+              TrainingTimesSection(
+                selectedDays: _selectedAttendanceDays,
+                enabled: _withTrainingTimes,
+                times: _trainingTimes,
+                onEnabledChanged: (v) => setState(() => _withTrainingTimes = v),
+                onTimeChanged: (day, t) =>
+                    setState(() => _trainingTimes = {..._trainingTimes, day: t}),
               ),
 
               Gap(16.h),
