@@ -97,6 +97,7 @@ import 'package:basketball_academy/features/chat/data/chat_api_service.dart';
 import 'package:basketball_academy/features/academy_album/data/academy_album_service.dart';
 import 'package:basketball_academy/features/store/data/store_service.dart';
 import 'package:basketball_academy/features/matches/data/matches_service.dart';
+import 'package:basketball_academy/features/tournaments/data/tournaments_service.dart';
 import 'package:basketball_academy/features/platform_subscription/data/platform_subscription_service.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
@@ -400,6 +401,9 @@ Future<void> initDependencies() async {
   );
   sl.registerLazySingleton<StoreService>(
     () => StoreService(sl<ApiClient>()),
+  );
+  sl.registerLazySingleton<TournamentsService>(
+    () => TournamentsService(sl<ApiClient>()),
   );
   sl.registerLazySingleton<MatchesService>(
     () => MatchesService(sl<ApiClient>()),

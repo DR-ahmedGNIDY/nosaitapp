@@ -13,6 +13,7 @@ import 'package:basketball_academy/features/academy_album/presentation/screens/a
 import 'package:basketball_academy/features/academy_album/presentation/screens/player_album_screen.dart';
 import 'package:basketball_academy/features/store/presentation/screens/store_management_screen.dart';
 import 'package:basketball_academy/features/matches/presentation/screens/matches_list_screen.dart';
+import 'package:basketball_academy/features/tournaments/presentation/screens/tournaments_list_screen.dart';
 import 'package:basketball_academy/features/store/presentation/screens/player_store_screen.dart';
 import 'package:basketball_academy/features/platform_subscription/presentation/screens/platform_subscriptions_screen.dart';
 import 'package:basketball_academy/features/player_portal/presentation/providers/player_session_provider.dart';
@@ -62,6 +63,7 @@ class AppRoutes {
   static const String playersList = '/academies/:id/players';
   static const String groupsList = '/academies/:id/groups';
   static const String matchesList = '/academies/:id/matches';
+  static const String tournamentsList = '/academies/:id/tournaments';
   static const String subscriptionsList = '/academies/:id/subscriptions';
   static const String playerDetail = '/academies/:id/players/:playerId';
   static const String playerSubscriptions =
@@ -128,6 +130,9 @@ class _RouterNotifier extends ChangeNotifier {
     // تسجيل/تجديد اشتراك فردي للاعب يبقى متاحاً عبر مسار اللاعب نفسه.
     if (user.hasPermission('add_matches')) {
       prefixes.add('/academies/$academyId/matches');
+    }
+    if (user.hasPermission('manage_tournaments')) {
+      prefixes.add('/academies/$academyId/tournaments');
     }
     if (user.hasPermission('use_album')) {
       prefixes.add(AppRoutes.academyAlbum);
@@ -303,6 +308,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final academyId = state.pathParameters['id']!;
           return GroupsListScreen(academyId: academyId);
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.tournamentsList,
+        builder: (context, state) {
+          final academyId = state.pathParameters['id']!;
+          return TournamentsListScreen(academyId: academyId);
         },
       ),
       GoRoute(

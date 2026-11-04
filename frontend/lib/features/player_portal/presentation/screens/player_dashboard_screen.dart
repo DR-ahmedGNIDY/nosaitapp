@@ -5,6 +5,7 @@ import 'package:basketball_academy/core/router/app_router.dart';
 import 'package:basketball_academy/features/player_portal/presentation/providers/player_data_providers.dart';
 import 'package:basketball_academy/features/player_portal/presentation/providers/player_session_provider.dart';
 import 'package:basketball_academy/features/player_portal/presentation/screens/player_matches_screen.dart';
+import 'package:basketball_academy/features/tournaments/presentation/screens/player_tournaments_screen.dart';
 import 'package:basketball_academy/features/player_portal/presentation/screens/player_training_rating_screen.dart';
 import 'package:basketball_academy/features/player_portal/presentation/widgets/player_photo_sheet.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -540,6 +541,19 @@ class PlayerDashboardScreen extends ConsumerWidget {
                 ),
               ),
           ],
+        ),
+        Gap(12.h),
+        SizedBox(
+          width: double.infinity,
+          child: _actionTile(
+            icon: Icons.emoji_events_outlined,
+            title: 'البطولات',
+            subtitle: 'جدول بطولات الأكاديمية ونتائج مبارياتك',
+            colors: const [AppColors.warning, AppColors.primary],
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => const PlayerTournamentsScreen(),
+            )),
+          ),
         ),
       ],
     );

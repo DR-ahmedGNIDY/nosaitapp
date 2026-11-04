@@ -12,6 +12,7 @@ const _kPermissionOptions = <String, String>{
   'record_subscriptions': 'تسجيل اشتراكات',
   'record_evaluations': 'تسجيل تقييمات',
   'add_matches': 'إضافة مباريات',
+  'manage_tournaments': 'إدارة البطولات',
   'use_album': 'استخدام الألبوم',
   'use_store': 'استخدام المتجر',
   'view_reports': 'رؤية التقارير',

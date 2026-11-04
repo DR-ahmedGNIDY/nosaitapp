@@ -404,6 +404,14 @@ class _QuickActionsGrid extends ConsumerWidget {
         ),
       ),
       _QuickActionItem(
+        icon: Icons.emoji_events_rounded,
+        label: 'البطولات',
+        color: AppColors.warning,
+        onTap: () => context.push(
+          AppRoutes.tournamentsList.replaceFirst(':id', academyId),
+        ),
+      ),
+      _QuickActionItem(
         icon: Icons.star_rate_rounded,
         label: 'تقييم التمرين',
         color: AppColors.warning,
@@ -1344,6 +1352,14 @@ class _DesktopQuickActions extends StatelessWidget {
           color: AppColors.primaryDark,
           onTap: () => context.push(
             AppRoutes.matchesList.replaceFirst(':id', academyId),
+          ),
+        ),
+        _DesktopQuickBtn(
+          icon: Icons.emoji_events_rounded,
+          label: 'البطولات',
+          color: AppColors.warning,
+          onTap: () => context.push(
+            AppRoutes.tournamentsList.replaceFirst(':id', academyId),
           ),
         ),
         _DesktopQuickBtn(

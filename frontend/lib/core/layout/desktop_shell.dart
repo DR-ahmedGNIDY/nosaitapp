@@ -179,6 +179,13 @@ class AppSidebar extends ConsumerWidget {
               label: 'المباريات',
               route: AppRoutes.matchesList.replaceFirst(':id', academyId),
             ),
+          if (user.hasPermission('manage_tournaments'))
+            _NavItem(
+              icon: Icons.emoji_events_outlined,
+              activeIcon: Icons.emoji_events,
+              label: 'البطولات',
+              route: AppRoutes.tournamentsList.replaceFirst(':id', academyId),
+            ),
         ],
         if (user.hasPermission('use_album'))
           _NavItem(

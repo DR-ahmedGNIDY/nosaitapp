@@ -4,6 +4,7 @@ import 'package:basketball_academy/features/player_portal/data/player_api_servic
 import 'package:basketball_academy/features/player_portal/presentation/providers/player_data_providers.dart';
 import 'package:basketball_academy/features/player_portal/presentation/screens/player_matches_screen.dart';
 import 'package:basketball_academy/features/player_portal/presentation/screens/player_training_rating_screen.dart';
+import 'package:basketball_academy/features/tournaments/presentation/screens/player_tournaments_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -26,6 +27,9 @@ class PlayerNotificationsScreen extends ConsumerWidget {
         return Icons.star_rate_rounded;
       case 'MATCH_ADDED':
         return Icons.sports_basketball;
+      case 'TOURNAMENT_SCHEDULED':
+      case 'TOURNAMENT_RESULT':
+        return Icons.emoji_events_outlined;
       case 'SUBSCRIPTION_RENEWED':
         return Icons.card_membership_outlined;
       case 'SUBSCRIPTION_EXPIRING':
@@ -93,6 +97,18 @@ class PlayerNotificationsScreen extends ConsumerWidget {
                       : null,
                   onTap: n['type'] == 'TRAINING_RATING_REQUEST'
                       ? () => _openRating(context, ref, n)
+                      : (n['type'] == 'TOURNAMENT_SCHEDULED' || n['type'] == 'TOURNAMENT_RESULT')
+                          ? () async {
+                              if (!isRead) {
+                                await sl<PlayerApiService>()
+                                    .markNotificationRead(n['_id'] as String);
+                                ref.invalidate(playerNotificationsProvider);
+                              }
+                              if (!context.mounted) return;
+                              await Navigator.of(context).push(MaterialPageRoute(
+                                builder: (_) => const PlayerTournamentsScreen(),
+                              ));
+                            }
                       : n['type'] == 'MATCH_ADDED'
                           ? () async {
                               if (!isRead) {
