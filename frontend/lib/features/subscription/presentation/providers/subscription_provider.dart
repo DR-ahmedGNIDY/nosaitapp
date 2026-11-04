@@ -82,6 +82,7 @@ class PlayerSubscriptionsNotifier
       (failure) => failure.message,
       (_) {
         ref.invalidateSelf();
+        _invalidateSubscriptionViews(ref);
         return null;
       },
     );
@@ -98,6 +99,7 @@ class PlayerSubscriptionsNotifier
       (failure) => failure.message,
       (_) {
         ref.invalidateSelf();
+        _invalidateSubscriptionViews(ref);
         return null;
       },
     );
@@ -111,6 +113,7 @@ class PlayerSubscriptionsNotifier
       (failure) => failure.message,
       (_) {
         ref.invalidateSelf();
+        _invalidateSubscriptionViews(ref);
         return null;
       },
     );
@@ -130,7 +133,7 @@ final playerSubscriptionsProvider = AsyncNotifierProvider.family<
 
 /// Returns one of: 'جديد' | 'نشط' | 'منتهي'
 final playerStatusProvider =
-    FutureProvider.family<String, String>((ref, playerId) async {
+    FutureProvider.autoDispose.family<String, String>((ref, playerId) async {
   final subsAsync =
       await ref.watch(playerSubscriptionsProvider(playerId).future);
   if (subsAsync.isEmpty) return 'جديد';
@@ -204,6 +207,7 @@ class AcademySubscriptionsNotifier
       (failure) => failure.message,
       (_) {
         ref.invalidateSelf();
+        _invalidateSubscriptionViews(ref);
         return null;
       },
     );
@@ -230,3 +234,17 @@ final revenueSummaryProvider =
     (data) => data,
   );
 });
+
+// ---------------------------------------------------------------------------
+// Cross-screen refresh after a subscription is created / edited / deleted
+// ---------------------------------------------------------------------------
+
+/// Marks every subscription-derived view as stale so the next screen that
+/// shows it fetches fresh data. Lazy: a provider nobody is watching is only
+/// re-fetched when its screen is opened, so this adds no requests by itself.
+void _invalidateSubscriptionViews(Ref ref) {
+  ref.invalidate(playerSubscriptionsProvider);
+  ref.invalidate(academySubscriptionsProvider);
+  ref.invalidate(academyPlayerStatusMapProvider);
+  ref.invalidate(revenueSummaryProvider);
+}

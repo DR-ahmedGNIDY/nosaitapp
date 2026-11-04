@@ -100,6 +100,7 @@ class AcademiesNotifier extends AsyncNotifier<List<AcademyEntity>> {
       (failure) => failure.message,
       (_) {
         refresh();
+        ref.invalidate(academyByIdProvider(id));
         return null;
       },
     );

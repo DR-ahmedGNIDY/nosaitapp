@@ -85,6 +85,7 @@ class PlayerEvaluationsNotifier
       (failure) => failure.message,
       (_) {
         refresh();
+        ref.invalidate(latestEvaluationProvider);
         return null;
       },
     );
@@ -116,6 +117,7 @@ class PlayerEvaluationsNotifier
       (failure) => failure.message,
       (_) {
         refresh();
+        ref.invalidate(latestEvaluationProvider);
         return null;
       },
     );
@@ -129,6 +131,7 @@ class PlayerEvaluationsNotifier
       (failure) => failure.message,
       (_) {
         refresh();
+        ref.invalidate(latestEvaluationProvider);
         return null;
       },
     );
@@ -145,7 +148,7 @@ final playerEvaluationsProvider =
 // ---------------------------------------------------------------------------
 
 final latestEvaluationProvider =
-    FutureProvider.family<EvaluationEntity?, String>((ref, playerId) async {
+    FutureProvider.autoDispose.family<EvaluationEntity?, String>((ref, playerId) async {
   final usecase = sl<GetLatestEvaluationUsecase>();
   final result = await usecase(GetLatestEvaluationParams(playerId: playerId));
   // عند أي خطأ → null (لا توجد تقييمات) بدلاً من throw

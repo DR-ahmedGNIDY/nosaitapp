@@ -76,7 +76,7 @@ class SportStatsParams {
 
 /// Fetches per-sport stats from `GET /dashboard/sport-stats` in one request.
 final sportStatsProvider =
-    FutureProvider.family<SportStats, SportStatsParams>((ref, params) async {
+    FutureProvider.autoDispose.family<SportStats, SportStatsParams>((ref, params) async {
   final api = sl<ApiClient>();
   final response = await api.get(
     '/dashboard/sport-stats',
