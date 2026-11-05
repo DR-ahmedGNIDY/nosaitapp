@@ -1,12 +1,15 @@
+import 'package:basketball_academy/core/di/injection_container.dart';
 import 'package:basketball_academy/core/errors/exceptions.dart';
 import 'package:basketball_academy/core/errors/failures.dart';
 import 'package:basketball_academy/core/network/token_manager.dart';
 import 'package:basketball_academy/features/auth/data/datasources/auth_remote_datasource.dart';
+import 'package:basketball_academy/features/auth/data/saved_accounts_store.dart';
 import 'package:basketball_academy/features/auth/data/models/user_model.dart';
 import 'package:basketball_academy/features/auth/domain/entities/user_entity.dart';
 import 'package:basketball_academy/features/auth/domain/repositories/auth_repository.dart';
 import 'package:dartz/dartz.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   final AuthRemoteDatasource _remoteDatasource;
@@ -25,17 +28,20 @@ class AuthRepositoryImpl implements AuthRepository {
   }) async {
     debugPrint('[REPO] login() → calling API');
     try {
-      final result = await _remoteDatasource.login(email: email, password: password);
+      final result =
+          await _remoteDatasource.login(email: email, password: password);
       debugPrint('[REPO] login() → API returned, parsing response');
       final token = result['token'] as String?;
       final refreshToken = result['refreshToken'] as String?;
       final userData = result['data'] as Map<String, dynamic>?;
 
-      debugPrint('[REPO] login() → token=${token != null ? "EXISTS(${token.length}chars)" : "NULL"} userData=${userData != null ? "EXISTS" : "NULL"}');
+      debugPrint(
+          '[REPO] login() → token=${token != null ? "EXISTS(${token.length}chars)" : "NULL"} userData=${userData != null ? "EXISTS" : "NULL"}');
 
       if (token == null || userData == null) {
         debugPrint('[REPO] login() → FAIL: token or userData is null');
-        return const Left(ServerFailure(message: 'استجابة غير صحيحة من الخادم'));
+        return const Left(
+            ServerFailure(message: 'استجابة غير صحيحة من الخادم'));
       }
 
       debugPrint('[REPO] login() → saving token to secure storage...');
@@ -48,7 +54,8 @@ class AuthRepositoryImpl implements AuthRepository {
       }
 
       final user = UserModel.fromJson(userData);
-      debugPrint('[REPO] login() → user parsed: ${user.email} role=${user.role} academyId=${user.academyId}');
+      debugPrint(
+          '[REPO] login() → user parsed: ${user.email} role=${user.role} academyId=${user.academyId}');
       debugPrint('[REPO] login() → LOGIN SUCCESS ✓');
       return Right(user.toEntity());
     } on UnauthorizedException catch (e) {
@@ -87,7 +94,8 @@ class AuthRepositoryImpl implements AuthRepository {
     final hasToken = await _tokenManager.hasToken();
     debugPrint('[REPO] getCurrentUser() → hasToken=$hasToken');
     if (!hasToken) {
-      debugPrint('[REPO] getCurrentUser() → no token, returning UnauthorizedFailure');
+      debugPrint(
+          '[REPO] getCurrentUser() → no token, returning UnauthorizedFailure');
       return const Left(UnauthorizedFailure());
     }
     debugPrint('[REPO] getCurrentUser() → calling GET /auth/me...');
@@ -135,10 +143,25 @@ class AuthRepositoryImpl implements AuthRepository {
     required String newPassword,
   }) async {
     try {
-      await _remoteDatasource.changePassword(
+      final oldToken = await _tokenManager.getToken();
+      final result = await _remoteDatasource.changePassword(
         currentPassword: currentPassword,
         newPassword: newPassword,
       );
+      // الخادم يُسقط كل الجلسات القديمة؛ نحفظ الجديدة حتى يبقى هذا الجهاز مسجّلاً،
+      // ونحدّث كارت الحساب المحفوظ (إن وُجد) بنفس التوكنات.
+      final token = result['token'] as String?;
+      final refreshToken = result['refreshToken'] as String?;
+      if (token != null && token.isNotEmpty) {
+        await _tokenManager.saveToken(token);
+        if (refreshToken != null && refreshToken.isNotEmpty) {
+          await _tokenManager.saveRefreshToken(refreshToken);
+        }
+        if (oldToken != null) {
+          await SavedAccountsStore(sl<FlutterSecureStorage>())
+              .replaceTokens(oldToken, token, refreshToken);
+        }
+      }
       return const Right(null);
     } on ValidationException catch (e) {
       return Left(ValidationFailure(message: e.message));

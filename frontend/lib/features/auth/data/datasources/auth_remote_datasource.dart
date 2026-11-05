@@ -9,7 +9,9 @@ abstract class AuthRemoteDatasource {
   Future<void> logout();
   Future<UserModel> getCurrentUser();
   Future<UserModel> updateProfile({required String name});
-  Future<void> changePassword({
+
+  /// يعيد التوكنات الجديدة {token, refreshToken} (تغيير كلمة المرور يُسقط القديمة).
+  Future<Map<String, dynamic>> changePassword({
     required String currentPassword,
     required String newPassword,
   });
@@ -51,13 +53,15 @@ class AuthRemoteDatasourceImpl implements AuthRemoteDatasource {
   }
 
   @override
-  Future<void> changePassword({
+  Future<Map<String, dynamic>> changePassword({
     required String currentPassword,
     required String newPassword,
   }) async {
-    await _apiClient.patch('/auth/change-password', data: {
+    final response = await _apiClient.patch('/auth/change-password', data: {
       'currentPassword': currentPassword,
       'newPassword': newPassword,
     });
+    final data = response.data;
+    return data is Map<String, dynamic> ? data : <String, dynamic>{};
   }
 }

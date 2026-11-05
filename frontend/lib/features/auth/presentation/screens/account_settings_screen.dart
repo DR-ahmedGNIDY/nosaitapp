@@ -91,8 +91,9 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final tier =
-        kIsWeb ? screenTierOf(MediaQuery.sizeOf(context).width) : ScreenTier.mobile;
+    final tier = kIsWeb
+        ? screenTierOf(MediaQuery.sizeOf(context).width)
+        : ScreenTier.mobile;
 
     if (tier != ScreenTier.mobile) {
       return DesktopScaffold(
@@ -128,176 +129,176 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-            // Current account summary
-            Center(
-              child: CircleAvatar(
-                radius: 40.r,
-                backgroundColor: AppColors.primaryContainer,
-                child: Text(
-                  (user?.name.isNotEmpty ?? false)
-                      ? user!.name[0].toUpperCase()
-                      : '?',
-                  style: TextStyle(
-                    fontSize: 30.sp,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primaryDark,
+        // Current account summary
+        Center(
+          child: CircleAvatar(
+            radius: 40.r,
+            backgroundColor: AppColors.primaryContainer,
+            child: Text(
+              (user?.name.isNotEmpty ?? false)
+                  ? user!.name[0].toUpperCase()
+                  : '?',
+              style: TextStyle(
+                fontSize: 30.sp,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primaryDark,
+              ),
+            ),
+          ),
+        ),
+        Gap(8.h),
+        Center(
+          child: Text(
+            user?.email ?? '',
+            style:
+                theme.textTheme.bodyMedium?.copyWith(color: AppColors.grey500),
+          ),
+        ),
+        Gap(24.h),
+
+        // ── Name section ──────────────────────────────────────────────
+        _SectionCard(
+          title: 'الاسم',
+          child: Form(
+            key: _nameFormKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextFormField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'الاسم',
+                    prefixIcon: Icon(Icons.person_outline),
                   ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) {
+                      return 'الاسم مطلوب';
+                    }
+                    if (v.trim().length < 2) {
+                      return 'الاسم يجب أن يكون حرفين على الأقل';
+                    }
+                    return null;
+                  },
                 ),
-              ),
-            ),
-            Gap(8.h),
-            Center(
-              child: Text(
-                user?.email ?? '',
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(color: AppColors.grey500),
-              ),
-            ),
-            Gap(24.h),
-
-            // ── Name section ──────────────────────────────────────────────
-            _SectionCard(
-              title: 'الاسم',
-              child: Form(
-                key: _nameFormKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    TextFormField(
-                      controller: _nameController,
-                      decoration: const InputDecoration(
-                        labelText: 'الاسم',
-                        prefixIcon: Icon(Icons.person_outline),
-                      ),
-                      validator: (v) {
-                        if (v == null || v.trim().isEmpty) {
-                          return 'الاسم مطلوب';
-                        }
-                        if (v.trim().length < 2) {
-                          return 'الاسم يجب أن يكون حرفين على الأقل';
-                        }
-                        return null;
-                      },
-                    ),
-                    Gap(14.h),
-                    ElevatedButton(
-                      onPressed: _savingName ? null : _saveName,
-                      child: _savingName
-                          ? SizedBox(
-                              height: 20.h,
-                              width: 20.h,
-                              child: const CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppColors.white,
-                              ),
-                            )
-                          : const Text('حفظ الاسم'),
-                    ),
-                  ],
+                Gap(14.h),
+                ElevatedButton(
+                  onPressed: _savingName ? null : _saveName,
+                  child: _savingName
+                      ? SizedBox(
+                          height: 20.h,
+                          width: 20.h,
+                          child: const CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.white,
+                          ),
+                        )
+                      : const Text('حفظ الاسم'),
                 ),
-              ),
+              ],
             ),
-            Gap(20.h),
+          ),
+        ),
+        Gap(20.h),
 
-            // ── Password section ─────────────────────────────────────────
-            _SectionCard(
-              title: 'تغيير كلمة المرور',
-              child: Form(
-                key: _passwordFormKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    TextFormField(
-                      controller: _currentPasswordController,
-                      obscureText: _obscureCurrent,
-                      decoration: InputDecoration(
-                        labelText: 'كلمة المرور الحالية',
-                        prefixIcon: const Icon(Icons.lock_outline),
-                        suffixIcon: IconButton(
-                          icon: Icon(_obscureCurrent
-                              ? Icons.visibility_off
-                              : Icons.visibility),
-                          onPressed: () => setState(
-                              () => _obscureCurrent = !_obscureCurrent),
-                        ),
-                      ),
-                      validator: (v) => (v == null || v.isEmpty)
-                          ? 'كلمة المرور الحالية مطلوبة'
-                          : null,
+        // ── Password section ─────────────────────────────────────────
+        _SectionCard(
+          title: 'تغيير كلمة المرور',
+          child: Form(
+            key: _passwordFormKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextFormField(
+                  controller: _currentPasswordController,
+                  obscureText: _obscureCurrent,
+                  decoration: InputDecoration(
+                    labelText: 'كلمة المرور الحالية',
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      icon: Icon(_obscureCurrent
+                          ? Icons.visibility_off
+                          : Icons.visibility),
+                      onPressed: () =>
+                          setState(() => _obscureCurrent = !_obscureCurrent),
                     ),
-                    Gap(14.h),
-                    TextFormField(
-                      controller: _newPasswordController,
-                      obscureText: _obscureNew,
-                      decoration: InputDecoration(
-                        labelText: 'كلمة المرور الجديدة',
-                        prefixIcon: const Icon(Icons.lock_reset_outlined),
-                        suffixIcon: IconButton(
-                          icon: Icon(_obscureNew
-                              ? Icons.visibility_off
-                              : Icons.visibility),
-                          onPressed: () =>
-                              setState(() => _obscureNew = !_obscureNew),
-                        ),
-                      ),
-                      validator: (v) {
-                        if (v == null || v.isEmpty) {
-                          return 'كلمة المرور الجديدة مطلوبة';
-                        }
-                        if (v.length < 8) {
-                          return 'كلمة المرور يجب أن تكون 8 أحرف على الأقل';
-                        }
-                        return null;
-                      },
-                    ),
-                    Gap(14.h),
-                    TextFormField(
-                      controller: _confirmPasswordController,
-                      obscureText: _obscureNew,
-                      decoration: const InputDecoration(
-                        labelText: 'تأكيد كلمة المرور الجديدة',
-                        prefixIcon: Icon(Icons.lock_outline),
-                      ),
-                      validator: (v) {
-                        if (v != _newPasswordController.text) {
-                          return 'كلمتا المرور غير متطابقتين';
-                        }
-                        return null;
-                      },
-                    ),
-                    Gap(14.h),
-                    ElevatedButton(
-                      onPressed: _savingPassword ? null : _savePassword,
-                      child: _savingPassword
-                          ? SizedBox(
-                              height: 20.h,
-                              width: 20.h,
-                              child: const CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppColors.white,
-                              ),
-                            )
-                          : const Text('تغيير كلمة المرور'),
-                    ),
-                  ],
+                  ),
+                  validator: (v) => (v == null || v.isEmpty)
+                      ? 'كلمة المرور الحالية مطلوبة'
+                      : null,
                 ),
-              ),
+                Gap(14.h),
+                TextFormField(
+                  controller: _newPasswordController,
+                  obscureText: _obscureNew,
+                  decoration: InputDecoration(
+                    labelText: 'كلمة المرور الجديدة',
+                    prefixIcon: const Icon(Icons.lock_reset_outlined),
+                    suffixIcon: IconButton(
+                      icon: Icon(_obscureNew
+                          ? Icons.visibility_off
+                          : Icons.visibility),
+                      onPressed: () =>
+                          setState(() => _obscureNew = !_obscureNew),
+                    ),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.isEmpty) {
+                      return 'كلمة المرور الجديدة مطلوبة';
+                    }
+                    if (v.length < 8) {
+                      return 'كلمة المرور يجب أن تكون 8 أحرف على الأقل';
+                    }
+                    return null;
+                  },
+                ),
+                Gap(14.h),
+                TextFormField(
+                  controller: _confirmPasswordController,
+                  obscureText: _obscureNew,
+                  decoration: const InputDecoration(
+                    labelText: 'تأكيد كلمة المرور الجديدة',
+                    prefixIcon: Icon(Icons.lock_outline),
+                  ),
+                  validator: (v) {
+                    if (v != _newPasswordController.text) {
+                      return 'كلمتا المرور غير متطابقتين';
+                    }
+                    return null;
+                  },
+                ),
+                Gap(14.h),
+                ElevatedButton(
+                  onPressed: _savingPassword ? null : _savePassword,
+                  child: _savingPassword
+                      ? SizedBox(
+                          height: 20.h,
+                          width: 20.h,
+                          child: const CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.white,
+                          ),
+                        )
+                      : const Text('تغيير كلمة المرور'),
+                ),
+              ],
             ),
-            Gap(20.h),
+          ),
+        ),
+        Gap(20.h),
 
-            // ── Privacy policy ───────────────────────────────────────────
-            Card(
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16.r)),
-              child: ListTile(
-                leading: const Icon(Icons.privacy_tip_outlined,
-                    color: AppColors.primary),
-                title: const Text('سياسة الخصوصية'),
-                trailing: const Icon(Icons.open_in_new, size: 18),
-                onTap: () => openPrivacyPolicy(context),
-              ),
-            ),
-            Gap(40.h),
+        // ── Privacy policy ───────────────────────────────────────────
+        Card(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+          child: ListTile(
+            leading: const Icon(Icons.privacy_tip_outlined,
+                color: AppColors.primary),
+            title: const Text('سياسة الخصوصية'),
+            trailing: const Icon(Icons.open_in_new, size: 18),
+            onTap: () => openPrivacyPolicy(context),
+          ),
+        ),
+        Gap(40.h),
       ],
     );
   }

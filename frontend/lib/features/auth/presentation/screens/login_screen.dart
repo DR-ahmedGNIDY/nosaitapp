@@ -3,7 +3,12 @@ import 'package:basketball_academy/core/constants/app_constants.dart';
 import 'package:basketball_academy/core/constants/app_strings.dart';
 import 'package:basketball_academy/core/router/app_router.dart';
 import 'package:basketball_academy/core/utils/privacy_launcher.dart';
+import 'package:basketball_academy/core/di/injection_container.dart';
+import 'package:basketball_academy/core/network/token_manager.dart';
+import 'package:basketball_academy/features/auth/data/saved_accounts_store.dart';
+import 'package:basketball_academy/features/auth/domain/entities/user_entity.dart';
 import 'package:basketball_academy/features/auth/presentation/providers/auth_provider.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:basketball_academy/features/whatsapp/utils/whatsapp_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -29,6 +34,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   bool _hasSubmitted = false;
   static const _kRememberKey = 'remember_me';
   static const _kSavedEmailKey = 'saved_email';
+  // الحسابات المحفوظة للدخول السريع (كروت أعلى النموذج).
+  List<SavedAccount> _savedAccounts = [];
+  String? _quickLoginId; // الحساب الجاري الدخول به الآن
   late AnimationController _animController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -47,9 +55,155 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.25),
       end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic));
+    ).animate(
+        CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic));
     _animController.forward();
     _loadSavedCredentials();
+    _loadSavedAccounts();
+  }
+
+  SavedAccountsStore get _accountsStore =>
+      SavedAccountsStore(sl<FlutterSecureStorage>());
+
+  Future<void> _loadSavedAccounts() async {
+    final list = await _accountsStore.list();
+    if (mounted) setState(() => _savedAccounts = list);
+  }
+
+  /// بعد دخول ناجح من النموذج: نحفظ الحساب (مع توكن الجلسة) لو "حفظ تسجيل الدخول"
+  /// مفعّل، أو نحذفه من الكروت لو أُلغي التفعيل.
+  Future<void> _persistAccount(UserEntity user) async {
+    try {
+      if (!_rememberMe) {
+        await _accountsStore.removeByEmail(user.email);
+        return;
+      }
+      final token = await sl<TokenManager>().getToken();
+      if (token == null || token.isEmpty) return;
+      final refreshToken = await sl<TokenManager>().getRefreshToken();
+      await _accountsStore.upsert(SavedAccount(
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role.name,
+        academyName: user.academyName,
+        token: token,
+        refreshToken: refreshToken,
+        savedAt: DateTime.now(),
+      ));
+    } catch (e) {
+      debugPrint('[LOGIN] save account failed: $e');
+    }
+  }
+
+  Future<void> _quickLogin(SavedAccount a) async {
+    if (_quickLoginId != null) return;
+    setState(() => _quickLoginId = a.id);
+    final error = await ref
+        .read(authStateProvider.notifier)
+        .loginWithSavedToken(a.token, refreshToken: a.refreshToken);
+    if (!mounted) return;
+    if (error != null) {
+      setState(() {
+        _quickLoginId = null;
+        _emailController.text = a.email;
+        _passwordController.clear();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error), backgroundColor: AppColors.error),
+      );
+    }
+    if (error == null) {
+      // لو جُدّدت الجلسة أثناء الدخول نحفظ التوكنات الجديدة في الكارت.
+      final tm = sl<TokenManager>();
+      final token = await tm.getToken();
+      if (token != null && token.isNotEmpty) {
+        await _accountsStore.upsert(SavedAccount(
+          id: a.id,
+          name: a.name,
+          email: a.email,
+          role: a.role,
+          academyName: a.academyName,
+          token: token,
+          refreshToken: await tm.getRefreshToken() ?? a.refreshToken,
+          savedAt: DateTime.now(),
+        ));
+      }
+    }
+    // النجاح: ref.listen أدناه ينقل المستخدم للصفحة الرئيسية.
+  }
+
+  Future<void> _removeSavedAccount(SavedAccount a) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('إزالة الحساب المحفوظ'),
+        content: Text(
+            'إزالة "${a.name.isNotEmpty ? a.name : a.email}" من الحسابات المحفوظة على هذا الجهاز؟'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('إزالة'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await _accountsStore.remove(a.id);
+    await _loadSavedAccounts();
+  }
+
+  static String _roleLabel(String role) => switch (role) {
+        'superAdmin' => 'مدير النظام',
+        'academyAdmin' => 'مدير الأكاديمية',
+        'admin' => 'موظف',
+        _ => '',
+      };
+
+  Widget _savedAccountsSection() {
+    if (_savedAccounts.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'الحسابات المحفوظة',
+          style: TextStyle(
+              fontSize: 13.sp,
+              fontWeight: FontWeight.w700,
+              color: AppColors.grey700),
+        ),
+        Gap(8.h),
+        for (final a in _savedAccounts) ...[
+          _SavedAccountCard(
+            account: a,
+            subtitle: [
+              if (a.academyName != null && a.academyName!.isNotEmpty)
+                a.academyName!,
+              if (_roleLabel(a.role).isNotEmpty) _roleLabel(a.role),
+            ].join(' • '),
+            loading: _quickLoginId == a.id,
+            enabled: _quickLoginId == null,
+            onTap: () => _quickLogin(a),
+            onRemove: () => _removeSavedAccount(a),
+          ),
+          Gap(8.h),
+        ],
+        Row(children: [
+          const Expanded(child: Divider()),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 8.w),
+            child: Text('أو سجّل الدخول بحساب آخر',
+                style: TextStyle(fontSize: 12.sp, color: AppColors.grey500)),
+          ),
+          const Expanded(child: Divider()),
+        ]),
+        Gap(12.h),
+      ],
+    );
   }
 
   Future<void> _loadSavedCredentials() async {
@@ -118,14 +272,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
     ref.listen(authStateProvider, (_, next) {
       final st = next.valueOrNull;
-      debugPrint('[LOGIN] authState changed: isLoading=${next.isLoading} isAuthenticated=${st?.isAuthenticated} error=${st?.errorMessage}');
+      debugPrint(
+          '[LOGIN] authState changed: isLoading=${next.isLoading} isAuthenticated=${st?.isAuthenticated} error=${st?.errorMessage}');
       if (st?.isAuthenticated == true) {
         debugPrint('[LOGIN] NAVIGATION START → going to home/players');
         final user = st?.user;
+        // دخول من النموذج (وليس من كارت محفوظ): نحدّث الحسابات المحفوظة.
+        if (_hasSubmitted && user != null) _persistAccount(user);
         if (user?.isAdmin == true &&
             user?.academyId != null &&
             !user!.hasPermission('view_dashboard_revenue')) {
-          context.go(AppRoutes.playersList.replaceFirst(':id', user.academyId!));
+          context
+              .go(AppRoutes.playersList.replaceFirst(':id', user.academyId!));
         } else {
           context.go(AppRoutes.home);
         }
@@ -260,6 +418,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               textAlign: TextAlign.center,
                             ),
                             Gap(28.h),
+                            _savedAccountsSection(),
                             TextFormField(
                               controller: _emailController,
                               keyboardType: TextInputType.emailAddress,
@@ -271,8 +430,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                 hintText: 'example@academy.com',
                               ),
                               validator: (v) {
-                                if (v == null || v.isEmpty) return AppStrings.required;
-                                if (!RegExp(r'^[\w\-.]+@([\w\-]+\.)+[\w\-]{2,4}$').hasMatch(v)) {
+                                if (v == null || v.isEmpty) {
+                                  return AppStrings.required;
+                                }
+                                if (!RegExp(
+                                        r'^[\w\-.]+@([\w\-]+\.)+[\w\-]{2,4}$')
+                                    .hasMatch(v)) {
                                   return AppStrings.invalidEmail;
                                 }
                                 return null;
@@ -297,8 +460,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                 ),
                               ),
                               validator: (v) {
-                                if (v == null || v.isEmpty) return AppStrings.required;
-                                if (v.length < 8) return AppStrings.passwordTooShort;
+                                if (v == null || v.isEmpty) {
+                                  return AppStrings.required;
+                                }
+                                if (v.length < 8) {
+                                  return AppStrings.passwordTooShort;
+                                }
                                 return null;
                               },
                             ),
@@ -315,14 +482,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(4.r),
                                     ),
-                                    onChanged: (v) =>
-                                        setState(() => _rememberMe = v ?? false),
+                                    onChanged: (v) => setState(
+                                        () => _rememberMe = v ?? false),
                                   ),
                                 ),
                                 Gap(8.w),
                                 GestureDetector(
-                                  onTap: () =>
-                                      setState(() => _rememberMe = !_rememberMe),
+                                  onTap: () => setState(
+                                      () => _rememberMe = !_rememberMe),
                                   child: Text(
                                     'حفظ تسجيل الدخول',
                                     style: TextStyle(
@@ -419,7 +586,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                           fontSize: 13.sp,
                           color: AppColors.white.withValues(alpha: 0.85),
                           decoration: TextDecoration.underline,
-                          decorationColor: AppColors.white.withValues(alpha: 0.85),
+                          decorationColor:
+                              AppColors.white.withValues(alpha: 0.85),
                         ),
                       ),
                     ),
@@ -428,6 +596,95 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// كارت حساب محفوظ: الضغط يدخل مباشرة، و× يزيل الحساب من هذا الجهاز.
+class _SavedAccountCard extends StatelessWidget {
+  final SavedAccount account;
+  final String subtitle;
+  final bool loading;
+  final bool enabled;
+  final VoidCallback onTap;
+  final VoidCallback onRemove;
+
+  const _SavedAccountCard({
+    required this.account,
+    required this.subtitle,
+    required this.loading,
+    required this.enabled,
+    required this.onTap,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12.r),
+        side: const BorderSide(color: AppColors.grey200),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12.r),
+        onTap: enabled ? onTap : null,
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
+          child: Row(children: [
+            CircleAvatar(
+              radius: 18.r,
+              backgroundColor: AppColors.primary,
+              child: Text(
+                account.initial,
+                style: TextStyle(
+                    color: AppColors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15.sp),
+              ),
+            ),
+            Gap(10.w),
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      account.name.isNotEmpty ? account.name : account.email,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 14.sp, fontWeight: FontWeight.w700),
+                    ),
+                    Text(
+                      subtitle.isNotEmpty ? subtitle : account.email,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style:
+                          TextStyle(fontSize: 12.sp, color: AppColors.grey500),
+                    ),
+                  ]),
+            ),
+            if (loading)
+              Padding(
+                padding: EdgeInsets.all(8.r),
+                child: SizedBox(
+                  width: 18.r,
+                  height: 18.r,
+                  child: const CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+            else ...[
+              Icon(Icons.login_rounded, color: AppColors.primary, size: 20.r),
+              IconButton(
+                tooltip: 'إزالة',
+                visualDensity: VisualDensity.compact,
+                onPressed: enabled ? onRemove : null,
+                icon: Icon(Icons.close, size: 18.r, color: AppColors.grey500),
+              ),
+            ],
+          ]),
         ),
       ),
     );

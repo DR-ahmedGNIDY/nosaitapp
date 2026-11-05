@@ -45,7 +45,8 @@ class UserEntity extends Equatable {
   bool get isLimitedAdmin => role == UserRole.admin;
 
   /// يملك صلاحيات كاملة على أكاديميته
-  bool get isAcademyLevel => role == UserRole.academyAdmin || role == UserRole.admin;
+  bool get isAcademyLevel =>
+      role == UserRole.academyAdmin || role == UserRole.admin;
 
   /// academy_admin و super_admin غير مقيَّدين بمصفوفة permissions أصلاً؛
   /// لدور admin نتحقق من وجود المفتاح فعلياً في permissions.
@@ -57,8 +58,9 @@ class UserEntity extends Equatable {
   /// الحالة الفعلية لاشتراك الأكاديمية: اشتراك وصل trial/active لكن مرّ تاريخ
   /// نهايته أثناء الجلسة يُعامَل منتهياً (نظير effectiveStatus() في الـ backend).
   AcademySubscriptionStatus get effectiveAcademySubscriptionStatus {
-    final isLive = academySubscriptionStatus == AcademySubscriptionStatus.active ||
-        academySubscriptionStatus == AcademySubscriptionStatus.trial;
+    final isLive =
+        academySubscriptionStatus == AcademySubscriptionStatus.active ||
+            academySubscriptionStatus == AcademySubscriptionStatus.trial;
     final end = academySubscriptionEndDate;
     if (isLive && end != null && DateTime.now().isAfter(end)) {
       return AcademySubscriptionStatus.expired;

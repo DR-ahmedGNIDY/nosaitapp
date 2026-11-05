@@ -15,8 +15,10 @@ class ApiClient {
     _dio = Dio(
       BaseOptions(
         baseUrl: AppConstants.baseUrl,
-        connectTimeout: const Duration(milliseconds: AppConstants.connectTimeout),
-        receiveTimeout: const Duration(milliseconds: AppConstants.receiveTimeout),
+        connectTimeout:
+            const Duration(milliseconds: AppConstants.connectTimeout),
+        receiveTimeout:
+            const Duration(milliseconds: AppConstants.receiveTimeout),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -24,7 +26,7 @@ class ApiClient {
       ),
     );
 
-    _dio.interceptors.add(_AuthInterceptor(_tokenManager));
+    _dio.interceptors.add(_AuthInterceptor(_tokenManager, _dio));
     _dio.interceptors.add(_SaasBlockInterceptor());
 
     if (kDebugMode) {
@@ -46,7 +48,8 @@ class ApiClient {
     Options? options,
   }) async {
     try {
-      return await _dio.get<T>(path, queryParameters: queryParameters, options: options);
+      return await _dio.get<T>(path,
+          queryParameters: queryParameters, options: options);
     } on DioException catch (e) {
       throw _handleDioException(e);
     }
@@ -59,7 +62,8 @@ class ApiClient {
     Options? options,
   }) async {
     try {
-      return await _dio.post<T>(path, data: data, queryParameters: queryParameters, options: options);
+      return await _dio.post<T>(path,
+          data: data, queryParameters: queryParameters, options: options);
     } on DioException catch (e) {
       throw _handleDioException(e);
     }
@@ -72,7 +76,8 @@ class ApiClient {
     Options? options,
   }) async {
     try {
-      return await _dio.put<T>(path, data: data, queryParameters: queryParameters, options: options);
+      return await _dio.put<T>(path,
+          data: data, queryParameters: queryParameters, options: options);
     } on DioException catch (e) {
       throw _handleDioException(e);
     }
@@ -85,7 +90,8 @@ class ApiClient {
     Options? options,
   }) async {
     try {
-      return await _dio.delete<T>(path, data: data, queryParameters: queryParameters, options: options);
+      return await _dio.delete<T>(path,
+          data: data, queryParameters: queryParameters, options: options);
     } on DioException catch (e) {
       throw _handleDioException(e);
     }
@@ -98,7 +104,8 @@ class ApiClient {
     Options? options,
   }) async {
     try {
-      return await _dio.patch<T>(path, data: data, queryParameters: queryParameters, options: options);
+      return await _dio.patch<T>(path,
+          data: data, queryParameters: queryParameters, options: options);
     } on DioException catch (e) {
       throw _handleDioException(e);
     }
@@ -164,7 +171,52 @@ class ApiClient {
 
 class _AuthInterceptor extends Interceptor {
   final TokenManager _tokenManager;
-  _AuthInterceptor(this._tokenManager);
+  final Dio _dio;
+  _AuthInterceptor(this._tokenManager, this._dio);
+
+  static const _retriedKey = 'auth_retried';
+
+  /// تجديد واحد مشترك: لو انتهت الجلسة وأُرسلت عدة طلبات معاً، كلها تنتظر نفس
+  /// نداء /auth/refresh بدل أن يرسل كل طلب تجديداً خاصاً به.
+  Future<bool>? _refreshing;
+
+  /// يجدّد توكن جلسة المدير بالـ refresh token. يعيد true عند النجاح.
+  Future<bool> _refresh() {
+    return _refreshing ??= () async {
+      try {
+        final refreshToken = await _tokenManager.getRefreshToken();
+        if (refreshToken == null || refreshToken.isEmpty) return false;
+        // Dio مستقل بلا interceptors حتى لا يدخل التجديد في حلقة.
+        final plain = Dio(BaseOptions(
+          baseUrl: _dio.options.baseUrl,
+          connectTimeout: _dio.options.connectTimeout,
+          receiveTimeout: _dio.options.receiveTimeout,
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+        ));
+        final res = await plain.post<Map<String, dynamic>>(
+          '/auth/refresh',
+          data: {'refreshToken': refreshToken},
+        );
+        final token = res.data?['token'] as String?;
+        final newRefresh = res.data?['refreshToken'] as String?;
+        if (token == null || token.isEmpty) return false;
+        await _tokenManager.saveToken(token);
+        if (newRefresh != null && newRefresh.isNotEmpty) {
+          await _tokenManager.saveRefreshToken(newRefresh);
+        }
+        if (kDebugMode) debugPrint('[AUTH] session refreshed ✓');
+        return true;
+      } catch (e) {
+        if (kDebugMode) debugPrint('[AUTH] refresh failed: $e');
+        return false;
+      } finally {
+        _refreshing = null;
+      }
+    }();
+  }
 
   @override
   Future<void> onRequest(
@@ -191,6 +243,24 @@ class _AuthInterceptor extends Interceptor {
       final belongsToSession = isPlayerSession
           ? (path.startsWith('/player') || path.startsWith('/auth/player'))
           : !(path.startsWith('/player') || path.startsWith('/auth/player'));
+
+      // جلسة مدير انتهى توكنها: نجدّدها مرة واحدة ثم نعيد نفس الطلب.
+      final canRefresh = belongsToSession &&
+          !isPlayerSession &&
+          !path.startsWith('/auth/login') &&
+          !path.startsWith('/auth/refresh') &&
+          err.requestOptions.extra[_retriedKey] != true;
+      if (canRefresh && await _refresh()) {
+        try {
+          final opts = err.requestOptions..extra[_retriedKey] = true;
+          final token = await _tokenManager.getToken();
+          opts.headers['Authorization'] = 'Bearer $token';
+          return handler.resolve(await _dio.fetch(opts));
+        } on DioException catch (e) {
+          return handler.next(e);
+        }
+      }
+
       if (belongsToSession) {
         await _tokenManager.clearToken();
       }

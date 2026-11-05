@@ -1,4 +1,5 @@
 import 'package:basketball_academy/core/di/injection_container.dart';
+import 'package:basketball_academy/core/errors/failures.dart';
 import 'package:basketball_academy/core/network/token_manager.dart';
 import 'package:basketball_academy/features/auth/domain/entities/user_entity.dart';
 import 'package:basketball_academy/features/auth/domain/repositories/auth_repository.dart';
@@ -76,7 +77,8 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
   Future<void> login({required String email, required String password}) async {
     debugPrint('[AUTH] login() called — state → loading');
     state = const AsyncValue.loading();
-    final result = await _loginUsecase(LoginParams(email: email, password: password));
+    final result =
+        await _loginUsecase(LoginParams(email: email, password: password));
     state = result.fold(
       (failure) {
         debugPrint('[AUTH] login() FAILED: ${failure.message}');
@@ -91,6 +93,35 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
         return AsyncValue.data(
           AuthState(isAuthenticated: true, user: user),
         );
+      },
+    );
+  }
+
+  /// دخول سريع بتوكن حساب محفوظ (من كروت شاشة الدخول).
+  /// يعيد null عند النجاح، أو رسالة خطأ (مثلاً انتهت صلاحية الجلسة).
+  /// عند الفشل نمسح التوكن ونرجع لحالة "غير مسجّل" بدون رسالة خطأ عامة.
+  Future<String?> loginWithSavedToken(String token,
+      {String? refreshToken}) async {
+    final tm = sl<TokenManager>();
+    state = const AsyncValue.loading();
+    await tm.saveToken(token);
+    // مع الـ refresh token يجدّد ApiClient التوكن تلقائياً لو كان منتهياً.
+    if (refreshToken != null && refreshToken.isNotEmpty) {
+      await tm.saveRefreshToken(refreshToken);
+    }
+    await tm.saveSessionType('admin');
+    final result = await _getCurrentUserUsecase();
+    return result.fold(
+      (failure) async {
+        await tm.clearToken();
+        state = const AsyncValue.data(AuthState(isAuthenticated: false));
+        return failure is UnauthorizedFailure
+            ? 'انتهت صلاحية الجلسة — أدخل كلمة المرور مرة أخرى'
+            : failure.message;
+      },
+      (user) {
+        state = AsyncValue.data(AuthState(isAuthenticated: true, user: user));
+        return null;
       },
     );
   }
