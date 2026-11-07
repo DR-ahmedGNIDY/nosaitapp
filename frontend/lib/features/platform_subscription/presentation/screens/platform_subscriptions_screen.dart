@@ -1,6 +1,7 @@
 import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/di/injection_container.dart';
 import 'package:basketball_academy/core/errors/exceptions.dart';
+import 'package:basketball_academy/features/academy/presentation/providers/academy_provider.dart';
 import 'package:basketball_academy/features/platform_subscription/data/platform_subscription_service.dart';
 import 'package:basketball_academy/features/platform_subscription/presentation/providers/platform_subscription_provider.dart';
 import 'package:basketball_academy/features/platform_subscription/presentation/widgets/subscription_plan_dialog.dart';
@@ -45,7 +46,8 @@ class PlatformSubscriptionsScreen extends ConsumerWidget {
             return const Center(child: Text('لا توجد أكاديميات'));
           }
           return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(platformSubscriptionsProvider),
+            onRefresh: () async =>
+                ref.invalidate(platformSubscriptionsProvider),
             child: ListView.separated(
               padding: EdgeInsets.all(12.r),
               itemCount: rows.length,
@@ -82,12 +84,14 @@ class PlatformSubscriptionsScreen extends ConsumerWidget {
             children: [
               Expanded(
                 child: Text(row['academyName'] as String? ?? '',
-                    style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w800)),
+                    style: TextStyle(
+                        fontSize: 16.sp, fontWeight: FontWeight.w800)),
               ),
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
                 decoration: BoxDecoration(
-                  color: (_statusColors[status] ?? AppColors.grey500).withValues(alpha: 0.15),
+                  color: (_statusColors[status] ?? AppColors.grey500)
+                      .withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(20.r),
                 ),
                 child: Text(_statusLabels[status] ?? status,
@@ -106,7 +110,8 @@ class PlatformSubscriptionsScreen extends ConsumerWidget {
               _info('الباقة', _packageLabel(maxPlayers, plan)),
               _info('المدة', _durationLabel(durationMonths, plan)),
               _info('اللاعبون', '$playerCount / ${maxPlayers ?? '-'}'),
-              if (endDate != null) _info('ينتهي', DateFormat('yyyy/MM/dd').format(endDate)),
+              if (endDate != null)
+                _info('ينتهي', DateFormat('yyyy/MM/dd').format(endDate)),
             ],
           ),
           if (portalEnabled) ...[
@@ -133,7 +138,9 @@ class PlatformSubscriptionsScreen extends ConsumerWidget {
               Gap(10.w),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: sub == null ? null : () => _showEditDialog(context, ref, row),
+                  onPressed: sub == null
+                      ? null
+                      : () => _showEditDialog(context, ref, row),
                   icon: const Icon(Icons.edit_outlined, size: 18),
                   label: const Text('تعديل'),
                 ),
@@ -145,8 +152,8 @@ class PlatformSubscriptionsScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _togglePlayerPortal(
-      BuildContext context, WidgetRef ref, Map<String, dynamic> row, bool enabled) async {
+  Future<void> _togglePlayerPortal(BuildContext context, WidgetRef ref,
+      Map<String, dynamic> row, bool enabled) async {
     final academyId = row['academyId'] as String;
     try {
       await sl<PlatformSubscriptionService>()
@@ -155,7 +162,8 @@ class PlatformSubscriptionsScreen extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(enabled ? 'تم تفعيل بوابة اللاعب' : 'تم تعطيل بوابة اللاعب'),
+            content: Text(
+                enabled ? 'تم تفعيل بوابة اللاعب' : 'تم تعطيل بوابة اللاعب'),
             backgroundColor: enabled ? AppColors.success : AppColors.grey700,
           ),
         );
@@ -207,7 +215,9 @@ class PlatformSubscriptionsScreen extends ConsumerWidget {
           Gap(6.w),
           Text('حسابات اللاعبين مفعّلة',
               style: TextStyle(
-                  color: AppColors.success, fontWeight: FontWeight.w700, fontSize: 11.sp)),
+                  color: AppColors.success,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 11.sp)),
         ],
       ),
     );
@@ -217,8 +227,10 @@ class PlatformSubscriptionsScreen extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(fontSize: 11.sp, color: AppColors.grey500)),
-        Text(value, style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w700)),
+        Text(label,
+            style: TextStyle(fontSize: 11.sp, color: AppColors.grey500)),
+        Text(value,
+            style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w700)),
       ],
     );
   }
@@ -228,9 +240,12 @@ class PlatformSubscriptionsScreen extends ConsumerWidget {
     final academyId = row['academyId'] as String;
     final sub = row['subscription'] as Map<String, dynamic>?;
 
+    final currency = await _academyCurrency(ref, academyId);
+    if (!context.mounted) return;
     final result = await showSubscriptionPlanDialog(
       context,
       academyName: row['academyName'] as String? ?? '',
+      academyCurrency: currency,
       editMode: false,
       currentMaxPlayers: (sub?['maxPlayers'] as num?)?.toInt(),
       currentDurationMonths: _resolveDurationMonths(sub),
@@ -250,7 +265,8 @@ class PlatformSubscriptionsScreen extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('تم تفعيل الاشتراك بنجاح'), backgroundColor: AppColors.success),
+              content: Text('تم تفعيل الاشتراك بنجاح'),
+              backgroundColor: AppColors.success),
         );
       }
     } catch (e) {
@@ -263,9 +279,12 @@ class PlatformSubscriptionsScreen extends ConsumerWidget {
     final academyId = row['academyId'] as String;
     final sub = row['subscription'] as Map<String, dynamic>;
 
+    final currency = await _academyCurrency(ref, academyId);
+    if (!context.mounted) return;
     final result = await showSubscriptionPlanDialog(
       context,
       academyName: row['academyName'] as String? ?? '',
+      academyCurrency: currency,
       editMode: true,
       currentMaxPlayers: (sub['maxPlayers'] as num?)?.toInt(),
       currentDurationMonths: _resolveDurationMonths(sub),
@@ -289,7 +308,8 @@ class PlatformSubscriptionsScreen extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('تم تعديل الاشتراك بنجاح'), backgroundColor: AppColors.success),
+              content: Text('تم تعديل الاشتراك بنجاح'),
+              backgroundColor: AppColors.success),
         );
       }
     } catch (e) {
@@ -371,5 +391,16 @@ class _PlayerPortalRow extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// عملة الأكاديمية لعرض الأسعار بالجنيه (مصر) أو بالدولار (غيرها) في نافذة
+/// التفعيل. عند فشل الجلب نرجع null فتُعرض أسعار مصر (الافتراضي).
+Future<String?> _academyCurrency(WidgetRef ref, String academyId) async {
+  try {
+    final academy = await ref.read(academyByIdProvider(academyId).future);
+    return academy.currency;
+  } catch (_) {
+    return null;
   }
 }

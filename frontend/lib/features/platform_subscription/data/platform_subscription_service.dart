@@ -24,7 +24,8 @@ class PlatformSubscriptionService {
         'plan': plan,
         'maxPlayers': maxPlayers,
         if (durationMonths != null) 'durationMonths': durationMonths,
-        if (playerPortalEnabled != null) 'playerPortalEnabled': playerPortalEnabled,
+        if (playerPortalEnabled != null)
+          'playerPortalEnabled': playerPortalEnabled,
       },
     );
     return (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>;
@@ -57,7 +58,8 @@ class PlatformSubscriptionService {
         if (maxPlayers != null) 'maxPlayers': maxPlayers,
         if (durationMonths != null) 'durationMonths': durationMonths,
         if (status != null) 'status': status,
-        if (playerPortalEnabled != null) 'playerPortalEnabled': playerPortalEnabled,
+        if (playerPortalEnabled != null)
+          'playerPortalEnabled': playerPortalEnabled,
       },
     );
     return (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>;

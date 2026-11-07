@@ -5,6 +5,7 @@
 // ملخّص للطلب. لا تُجري أي استدعاء API — تُرجع فقط اختيار المستخدم عبر
 // [SubscriptionPlanResult]، وتتولى الشاشة استدعاء نفس الـ API الحالية.
 import 'package:basketball_academy/core/constants/app_colors.dart';
+import 'package:basketball_academy/core/constants/platform_pricing.dart';
 import 'package:flutter/material.dart';
 
 // ─── نماذج البيانات الثابتة (مطابقة لأسعار صفحة اشتراك النظام) ─────────────────
@@ -13,13 +14,14 @@ class _Package {
   final String title; // مثال: "حتى 100 لاعب"
   final int maxPlayers;
   final Color color;
-  final List<int> prices; // بترتيب [_durations]: [شهر, 3, 6, سنة]
   const _Package({
     required this.title,
     required this.maxPlayers,
     required this.color,
-    required this.prices,
   });
+
+  /// أسعار الجنيه الأساسية بترتيب [_durations] (من platform_pricing).
+  List<int> get prices => packagePricesEgp[maxPlayers]!;
 }
 
 const _packages = <_Package>[
@@ -27,19 +29,16 @@ const _packages = <_Package>[
     title: 'حتى 100 لاعب',
     maxPlayers: 100,
     color: Color(0xFF2D9748), // أخضر
-    prices: [250, 600, 950, 1700],
   ),
   _Package(
     title: 'حتى 200 لاعب',
     maxPlayers: 200,
     color: Color(0xFF2563EB), // أزرق
-    prices: [300, 800, 1300, 2500],
   ),
   _Package(
     title: 'حتى 300 لاعب',
     maxPlayers: 300,
     color: Color(0xFF7C3AED), // بنفسجي
-    prices: [400, 1100, 2200, 3200],
   ),
 ];
 
@@ -56,8 +55,8 @@ const _durations = <_Duration>[
   _Duration('سنة', 12),
 ];
 
-// السعر السنوي لخدمة تفعيل حسابات اللاعبين (كما في صفحة اشتراك النظام).
-const int _playerAccountsPrice = 1000;
+// السعر السنوي لخدمة تفعيل حسابات اللاعبين (من platform_pricing).
+const int _playerAccountsPrice = playerAccountsPriceEgp;
 
 // خيارات حالة الاشتراك المتاحة في وضع التعديل.
 const _statusOptions = <(String, String)>[
@@ -109,6 +108,9 @@ class SubscriptionPlanResult {
 Future<SubscriptionPlanResult?> showSubscriptionPlanDialog(
   BuildContext context, {
   required String academyName,
+
+  /// عملة الأكاديمية — تحدد عرض الأسعار بالجنيه (مصر) أو بالدولار (غيرها).
+  String? academyCurrency,
   bool editMode = false,
   int? currentMaxPlayers,
   int? currentDurationMonths,
@@ -119,6 +121,7 @@ Future<SubscriptionPlanResult?> showSubscriptionPlanDialog(
     context: context,
     builder: (_) => _SubscriptionPlanDialog(
       academyName: academyName,
+      pricing: PlatformPricing.forCurrency(academyCurrency),
       editMode: editMode,
       currentMaxPlayers: currentMaxPlayers,
       currentDurationMonths: currentDurationMonths,
@@ -130,6 +133,7 @@ Future<SubscriptionPlanResult?> showSubscriptionPlanDialog(
 
 class _SubscriptionPlanDialog extends StatefulWidget {
   final String academyName;
+  final PlatformPricing pricing;
   final bool editMode;
   final int? currentMaxPlayers;
   final int? currentDurationMonths;
@@ -138,6 +142,7 @@ class _SubscriptionPlanDialog extends StatefulWidget {
 
   const _SubscriptionPlanDialog({
     required this.academyName,
+    required this.pricing,
     required this.editMode,
     required this.currentMaxPlayers,
     required this.currentDurationMonths,
@@ -146,7 +151,8 @@ class _SubscriptionPlanDialog extends StatefulWidget {
   });
 
   @override
-  State<_SubscriptionPlanDialog> createState() => _SubscriptionPlanDialogState();
+  State<_SubscriptionPlanDialog> createState() =>
+      _SubscriptionPlanDialogState();
 }
 
 class _SubscriptionPlanDialogState extends State<_SubscriptionPlanDialog> {
@@ -173,7 +179,6 @@ class _SubscriptionPlanDialogState extends State<_SubscriptionPlanDialog> {
 
   int get _basePrice => _pkg?.prices[_selectedDur] ?? 0;
   int get _addonPrice => _portal ? _playerAccountsPrice : 0;
-  int get _total => _basePrice + _addonPrice;
 
   void _confirm() {
     final chosen = _selectedPkg != null;
@@ -216,11 +221,13 @@ class _SubscriptionPlanDialogState extends State<_SubscriptionPlanDialog> {
                       const SizedBox(height: 16),
                     ],
                     const _MiniTitle(
-                        icon: Icons.workspace_premium_outlined, title: 'اختر الباقة'),
+                        icon: Icons.workspace_premium_outlined,
+                        title: 'اختر الباقة'),
                     const SizedBox(height: 12),
                     for (var i = 0; i < _packages.length; i++) ...[
                       _PackageCard(
                         package: _packages[i],
+                        pricing: widget.pricing,
                         selected: _selectedPkg == i,
                         durationIndex: _selectedDur,
                         onSelect: () => setState(() => _selectedPkg = i),
@@ -264,7 +271,9 @@ class _SubscriptionPlanDialogState extends State<_SubscriptionPlanDialog> {
               shape: BoxShape.circle,
             ),
             child: Icon(
-              widget.editMode ? Icons.edit_outlined : Icons.workspace_premium_rounded,
+              widget.editMode
+                  ? Icons.edit_outlined
+                  : Icons.workspace_premium_rounded,
               color: accent,
               size: 24,
             ),
@@ -277,14 +286,17 @@ class _SubscriptionPlanDialogState extends State<_SubscriptionPlanDialog> {
                 Text(
                   widget.editMode ? 'تعديل الاشتراك' : 'تفعيل اشتراك',
                   style: const TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.grey900),
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.grey900),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   widget.academyName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 13, color: AppColors.grey600),
+                  style:
+                      const TextStyle(fontSize: 13, color: AppColors.grey600),
                 ),
               ],
             ),
@@ -358,10 +370,10 @@ class _SubscriptionPlanDialogState extends State<_SubscriptionPlanDialog> {
               onChanged: (v) => setState(() => _portal = v ?? false),
             ),
             const SizedBox(width: 4),
-            const Expanded(
+            Expanded(
               child: Text(
-                'تفعيل حسابات اللاعبين (+1000 جنيه/سنة)',
-                style: TextStyle(fontSize: 13, color: AppColors.grey800),
+                'تفعيل حسابات اللاعبين (+${widget.pricing.format(_playerAccountsPrice)}/سنة)',
+                style: const TextStyle(fontSize: 13, color: AppColors.grey800),
               ),
             ),
           ],
@@ -386,28 +398,37 @@ class _SubscriptionPlanDialogState extends State<_SubscriptionPlanDialog> {
         children: [
           const Row(
             children: [
-              Icon(Icons.receipt_long_outlined, size: 18, color: AppColors.secondary),
+              Icon(Icons.receipt_long_outlined,
+                  size: 18, color: AppColors.secondary),
               SizedBox(width: 8),
               Text('ملخّص الطلب',
                   style: TextStyle(
-                      fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.secondary)),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.secondary)),
             ],
           ),
           const SizedBox(height: 10),
           _summaryRow('الباقة المختارة', pkgLabel),
           _summaryRow('المدة', _durations[_selectedDur].label),
-          if (_pkg != null) _summaryRow('السعر الأساسي', '$_basePrice جنيه'),
-          if (_portal) _summaryRow('تفعيل حسابات اللاعبين', '$_playerAccountsPrice جنيه'),
+          if (_pkg != null)
+            _summaryRow('السعر الأساسي', widget.pricing.format(_basePrice)),
+          if (_portal)
+            _summaryRow('تفعيل حسابات اللاعبين',
+                widget.pricing.format(_playerAccountsPrice)),
           if (_pkg != null) ...[
             const Divider(height: 18),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('الإجمالي',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
-                Text('$_total جنيه',
+                    style:
+                        TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                Text(widget.pricing.formatSum([_basePrice, _addonPrice]),
                     style: TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.w900, color: accent)),
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: accent)),
               ],
             ),
           ],
@@ -422,10 +443,13 @@ class _SubscriptionPlanDialogState extends State<_SubscriptionPlanDialog> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 13, color: AppColors.grey700)),
+          Text(label,
+              style: const TextStyle(fontSize: 13, color: AppColors.grey700)),
           Text(value,
               style: const TextStyle(
-                  fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.grey900)),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.grey900)),
         ],
       ),
     );
@@ -459,7 +483,8 @@ class _SubscriptionPlanDialogState extends State<_SubscriptionPlanDialog> {
                 icon: const Icon(Icons.check_circle_outline, size: 20),
                 label: Text(
                   widget.editMode ? 'حفظ التعديلات' : 'تفعيل الاشتراك',
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                  style: const TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w700),
                 ),
               ),
             ),
@@ -474,6 +499,7 @@ class _SubscriptionPlanDialogState extends State<_SubscriptionPlanDialog> {
 
 class _PackageCard extends StatelessWidget {
   final _Package package;
+  final PlatformPricing pricing;
   final bool selected;
   final int durationIndex;
   final VoidCallback onSelect;
@@ -481,6 +507,7 @@ class _PackageCard extends StatelessWidget {
 
   const _PackageCard({
     required this.package,
+    required this.pricing,
     required this.selected,
     required this.durationIndex,
     required this.onSelect,
@@ -489,10 +516,9 @@ class _PackageCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final price = package.prices[durationIndex];
+    final price = pricing.price(package.prices[durationIndex]);
     final duration = _durations[durationIndex];
-    final minPrice =
-        package.prices.reduce((a, b) => a < b ? a : b);
+    final minPriceEgp = package.prices.reduce((a, b) => a < b ? a : b);
 
     return InkWell(
       onTap: onSelect,
@@ -500,7 +526,9 @@ class _PackageCard extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         decoration: BoxDecoration(
-          color: selected ? package.color.withValues(alpha: 0.05) : AppColors.white,
+          color: selected
+              ? package.color.withValues(alpha: 0.05)
+              : AppColors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: selected ? package.color : AppColors.grey200,
@@ -519,7 +547,8 @@ class _PackageCard extends StatelessWidget {
                     color: package.color.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.groups_outlined, color: package.color, size: 20),
+                  child: Icon(Icons.groups_outlined,
+                      color: package.color, size: 20),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -552,12 +581,16 @@ class _PackageCard extends StatelessWidget {
                       labelStyle: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: durationIndex == i ? AppColors.white : AppColors.grey700,
+                        color: durationIndex == i
+                            ? AppColors.white
+                            : AppColors.grey700,
                       ),
                       selectedColor: package.color,
                       backgroundColor: AppColors.grey100,
                       side: BorderSide(
-                        color: durationIndex == i ? package.color : AppColors.grey200,
+                        color: durationIndex == i
+                            ? package.color
+                            : AppColors.grey200,
                       ),
                       onSelected: (_) => onDuration(i),
                     ),
@@ -577,20 +610,22 @@ class _PackageCard extends StatelessWidget {
                         height: 1),
                   ),
                   const SizedBox(width: 6),
-                  const Text('جنيه',
-                      style: TextStyle(
+                  Text(pricing.unitShort,
+                      style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: AppColors.grey600)),
                   const SizedBox(width: 4),
                   Text('/ ${duration.label}',
-                      style: const TextStyle(fontSize: 12, color: AppColors.grey500)),
+                      style: const TextStyle(
+                          fontSize: 12, color: AppColors.grey500)),
                 ],
               ),
             ] else ...[
               const SizedBox(height: 6),
-              Text('من $minPrice جنيه',
-                  style: const TextStyle(fontSize: 12, color: AppColors.grey500)),
+              Text('من ${pricing.format(minPriceEgp)}',
+                  style:
+                      const TextStyle(fontSize: 12, color: AppColors.grey500)),
             ],
           ],
         ),
@@ -614,7 +649,9 @@ class _MiniTitle extends StatelessWidget {
         const SizedBox(width: 8),
         Text(title,
             style: const TextStyle(
-                fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.grey900)),
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                color: AppColors.grey900)),
       ],
     );
   }

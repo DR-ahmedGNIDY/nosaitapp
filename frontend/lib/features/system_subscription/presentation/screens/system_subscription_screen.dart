@@ -3,6 +3,7 @@
 // جاهزة باستخدام رقم الدعم الموجود مسبقاً (AppConstants.companyWhatsappNumber).
 import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/constants/app_constants.dart';
+import 'package:basketball_academy/core/constants/platform_pricing.dart';
 import 'package:basketball_academy/features/academy/presentation/providers/academy_provider.dart';
 import 'package:basketball_academy/features/auth/presentation/providers/auth_provider.dart';
 import 'package:basketball_academy/features/whatsapp/utils/whatsapp_utils.dart';
@@ -28,13 +29,14 @@ class _Package {
   final String title; // مثال: "حتى 100 لاعب"
   final int maxPlayers;
   final Color color;
-  final List<int> prices; // بترتيب _durations: [شهر, 3, 6, سنة]
   const _Package({
     required this.title,
     required this.maxPlayers,
     required this.color,
-    required this.prices,
   });
+
+  /// أسعار الجنيه الأساسية بترتيب _durations: [شهر, 3, 6, سنة] (من platform_pricing).
+  List<int> get pricesEgp => packagePricesEgp[maxPlayers]!;
 }
 
 const _packages = <_Package>[
@@ -42,24 +44,18 @@ const _packages = <_Package>[
     title: 'حتى 100 لاعب',
     maxPlayers: 100,
     color: Color(0xFF2D9748), // أخضر
-    prices: [250, 600, 950, 1700],
   ),
   _Package(
     title: 'حتى 200 لاعب',
     maxPlayers: 200,
     color: Color(0xFF2563EB), // أزرق
-    prices: [300, 800, 1300, 2500],
   ),
   _Package(
     title: 'حتى 300 لاعب',
     maxPlayers: 300,
     color: Color(0xFF7C3AED), // بنفسجي
-    prices: [400, 1100, 2200, 3200],
   ),
 ];
-
-// سعر شراء التطبيق الخاص بالأكاديمية.
-const int _appPurchasePrice = 9500;
 
 // المميزات المعروضة في قسم "لماذا تشترك؟".
 const _features = <(IconData, String)>[
@@ -75,8 +71,8 @@ const _features = <(IconData, String)>[
   (Icons.verified_user_outlined, 'الأمان الكامل'),
 ];
 
+// سطر العملة يُضاف أولاً حسب دولة الأكاديمية (PlatformPricing.currencyNote).
 const _notes = <String>[
-  'جميع الأسعار بالجنيه المصري.',
   'يتم التفعيل بعد التواصل مع الدعم.',
   'يمكن ترقية الباقة في أي وقت.',
   'عند تجاوز الحد الأقصى للاعبين يمكن الترقية للباقة التالية.',
@@ -100,9 +96,19 @@ class SystemSubscriptionScreen extends ConsumerWidget {
             : 'أكاديميتي');
   }
 
+  /// تسعير حسب عملة الأكاديمية: EGP = أسعار مصر، غيرها = أسعار دولية بالدولار.
+  PlatformPricing _pricing(WidgetRef ref) {
+    final user = ref.watch(authStateProvider).valueOrNull?.user;
+    final currency = (user?.academyId != null)
+        ? ref.watch(academyByIdProvider(user!.academyId!)).valueOrNull?.currency
+        : null;
+    return PlatformPricing.forCurrency(currency);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final academyName = _academyName(ref);
+    final pricing = _pricing(ref);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -120,20 +126,22 @@ class SystemSubscriptionScreen extends ConsumerWidget {
               child: ConstrainedBox(
                 constraints: BoxConstraints(maxWidth: maxContentWidth),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 20),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       const _Header(),
                       const SizedBox(height: 24),
-                      _PackagesSection(academyName: academyName),
+                      _PackagesSection(
+                          academyName: academyName, pricing: pricing),
                       const SizedBox(height: 32),
-                      _AdditionalServicesSection(academyName: academyName),
+                      _AdditionalServicesSection(
+                          academyName: academyName, pricing: pricing),
                       const SizedBox(height: 32),
                       const _FeaturesSection(),
                       const SizedBox(height: 32),
-                      const _NotesSection(),
+                      _NotesSection(pricing: pricing),
                       const SizedBox(height: 24),
                     ],
                   ),
@@ -220,14 +228,16 @@ class _Header extends StatelessWidget {
 
 class _PackagesSection extends StatelessWidget {
   final String academyName;
-  const _PackagesSection({required this.academyName});
+  final PlatformPricing pricing;
+  const _PackagesSection({required this.academyName, required this.pricing});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _SectionTitle(icon: Icons.workspace_premium_outlined, title: 'الباقات'),
+        const _SectionTitle(
+            icon: Icons.workspace_premium_outlined, title: 'الباقات'),
         const SizedBox(height: 16),
         LayoutBuilder(
           builder: (context, constraints) {
@@ -241,6 +251,7 @@ class _PackagesSection extends StatelessWidget {
                       child: _PackageCard(
                         package: _packages[i],
                         academyName: academyName,
+                        pricing: pricing,
                         highlighted: i == 1,
                       ),
                     ),
@@ -255,6 +266,7 @@ class _PackagesSection extends StatelessWidget {
                   _PackageCard(
                     package: _packages[i],
                     academyName: academyName,
+                    pricing: pricing,
                     highlighted: i == 1,
                   ),
                   if (i != _packages.length - 1) const SizedBox(height: 16),
@@ -271,11 +283,13 @@ class _PackagesSection extends StatelessWidget {
 class _PackageCard extends StatefulWidget {
   final _Package package;
   final String academyName;
+  final PlatformPricing pricing;
   final bool highlighted;
 
   const _PackageCard({
     required this.package,
     required this.academyName,
+    required this.pricing,
     required this.highlighted,
   });
 
@@ -289,7 +303,9 @@ class _PackageCardState extends State<_PackageCard> {
   @override
   Widget build(BuildContext context) {
     final pkg = widget.package;
-    final price = pkg.prices[_selected];
+    final pricing = widget.pricing;
+    final priceEgp = pkg.pricesEgp[_selected];
+    final price = pricing.price(priceEgp);
     final duration = _durations[_selected];
 
     return Container(
@@ -297,9 +313,7 @@ class _PackageCardState extends State<_PackageCard> {
         color: AppColors.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: widget.highlighted
-              ? pkg.color
-              : AppColors.grey200,
+          color: widget.highlighted ? pkg.color : AppColors.grey200,
           width: widget.highlighted ? 2 : 1,
         ),
         boxShadow: [
@@ -318,7 +332,8 @@ class _PackageCardState extends State<_PackageCard> {
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
               color: pkg.color.withValues(alpha: 0.10),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(17)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(17)),
             ),
             child: Column(
               children: [
@@ -413,9 +428,9 @@ class _PackageCardState extends State<_PackageCard> {
                       ),
                     ),
                     const SizedBox(width: 6),
-                    const Text(
-                      'جنيه',
-                      style: TextStyle(
+                    Text(
+                      pricing.unitShort,
+                      style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
                         color: AppColors.grey600,
@@ -442,7 +457,7 @@ class _PackageCardState extends State<_PackageCard> {
                         academyName: widget.academyName,
                         packageTitle: pkg.title,
                         duration: duration.label,
-                        price: price,
+                        price: pricing.format(priceEgp),
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
@@ -456,8 +471,8 @@ class _PackageCardState extends State<_PackageCard> {
                     icon: const Icon(Icons.check_circle_outline, size: 20),
                     label: const Text(
                       'اشترك الآن',
-                      style: TextStyle(
-                          fontSize: 15, fontWeight: FontWeight.w700),
+                      style:
+                          TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                     ),
                   ),
                 ),
@@ -474,14 +489,17 @@ class _PackageCardState extends State<_PackageCard> {
 
 class _AdditionalServicesSection extends StatelessWidget {
   final String academyName;
-  const _AdditionalServicesSection({required this.academyName});
+  final PlatformPricing pricing;
+  const _AdditionalServicesSection(
+      {required this.academyName, required this.pricing});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _SectionTitle(icon: Icons.add_business_outlined, title: 'خدمات إضافية'),
+        const _SectionTitle(
+            icon: Icons.add_business_outlined, title: 'خدمات إضافية'),
         const SizedBox(height: 16),
         LayoutBuilder(
           builder: (context, constraints) {
@@ -491,7 +509,7 @@ class _AdditionalServicesSection extends StatelessWidget {
                 icon: Icons.smartphone_outlined,
                 color: const Color(0xFFE85D04),
                 title: 'شراء تطبيق الأكاديمية',
-                price: '9500 جنيه',
+                price: pricing.format(appPurchasePriceEgp),
                 badge: 'مدى الحياة',
                 description:
                     'تطبيق Android و iOS ونسخة ويب ونسخة Windows باسم وشعار '
@@ -500,25 +518,30 @@ class _AdditionalServicesSection extends StatelessWidget {
                 buttonLabel: 'اطلب التطبيق',
                 onPressed: () => _openWhatsApp(
                   context,
-                  _appPurchaseMessage(academyName),
+                  _appPurchaseMessage(academyName, pricing),
                 ),
               ),
             ];
+            // يدعم أي عدد من الكروت (كان يفترض كارتين فيسقط عند كارت واحد).
             if (isWide) {
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(child: cards[0]),
-                  const SizedBox(width: 16),
-                  Expanded(child: cards[1]),
+                  for (var i = 0; i < cards.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 16),
+                    Expanded(child: cards[i]),
+                  ],
+                  // كارت واحد: لا نمدّه بعرض الصفحة كله.
+                  if (cards.length == 1) const Spacer(),
                 ],
               );
             }
             return Column(
               children: [
-                cards[0],
-                const SizedBox(height: 16),
-                cards[1],
+                for (var i = 0; i < cards.length; i++) ...[
+                  if (i > 0) const SizedBox(height: 16),
+                  cards[i],
+                ],
               ],
             );
           },
@@ -714,7 +737,8 @@ class _FeaturesSection extends StatelessWidget {
               crossAxisSpacing: 12,
               childAspectRatio: 4.2,
               children: [
-                for (final f in _features) _FeatureTile(icon: f.$1, label: f.$2),
+                for (final f in _features)
+                  _FeatureTile(icon: f.$1, label: f.$2),
               ],
             );
           },
@@ -771,7 +795,8 @@ class _FeatureTile extends StatelessWidget {
 // ─── الملاحظات ─────────────────────────────────────────────────────────────────
 
 class _NotesSection extends StatelessWidget {
-  const _NotesSection();
+  final PlatformPricing pricing;
+  const _NotesSection({required this.pricing});
 
   @override
   Widget build(BuildContext context) {
@@ -799,7 +824,7 @@ class _NotesSection extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          for (final note in _notes)
+          for (final note in [pricing.currencyNote, ..._notes])
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Row(
@@ -862,22 +887,22 @@ String _subscribeMessage({
   required String academyName,
   required String packageTitle,
   required String duration,
-  required int price,
+  required String price,
 }) {
   return 'السلام عليكم\n\n'
       'أرغب في الاشتراك في منصة Nosait.\n\n'
       'اسم الأكاديمية:\n$academyName\n\n'
       'الباقة:\n$packageTitle\n\n'
       'المدة:\n$duration\n\n'
-      'السعر:\n$price جنيه\n\n'
+      'السعر:\n$price\n\n'
       'أرجو التواصل معي لإتمام الاشتراك.';
 }
 
-String _appPurchaseMessage(String academyName) {
+String _appPurchaseMessage(String academyName, PlatformPricing pricing) {
   return 'السلام عليكم\n\n'
       'أرغب في شراء التطبيق الخاص بالأكاديمية.\n\n'
       'اسم الأكاديمية:\n$academyName\n\n'
       'الخدمة المطلوبة:\nشراء تطبيق خاص بالأكاديمية\n\n'
-      'السعر:\n$_appPurchasePrice جنيه\n\n'
+      'السعر:\n${pricing.format(appPurchasePriceEgp)}\n\n'
       'أرجو التواصل معي.';
 }
