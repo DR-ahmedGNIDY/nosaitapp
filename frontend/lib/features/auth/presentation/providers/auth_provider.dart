@@ -1,6 +1,7 @@
 import 'package:basketball_academy/core/di/injection_container.dart';
 import 'package:basketball_academy/core/errors/failures.dart';
 import 'package:basketball_academy/core/network/token_manager.dart';
+import 'package:basketball_academy/core/services/push_service.dart';
 import 'package:basketball_academy/features/auth/domain/entities/user_entity.dart';
 import 'package:basketball_academy/features/auth/domain/repositories/auth_repository.dart';
 import 'package:basketball_academy/features/auth/domain/usecases/get_current_user_usecase.dart';
@@ -63,7 +64,10 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     final result = await _getCurrentUserUsecase();
     return result.fold(
       (_) => const AuthState(isAuthenticated: false),
-      (user) => AuthState(isAuthenticated: true, user: user),
+      (user) {
+        PushService.instance.register(PushAudience.admin);
+        return AuthState(isAuthenticated: true, user: user);
+      },
     );
   }
 
@@ -90,6 +94,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
         debugPrint('[AUTH] login() SUCCESS: ${user.email} role=${user.role}');
         // وسم الجلسة كـ admin (منصة Nosait) لتمييزها عن جلسة اللاعب.
         sl<TokenManager>().saveSessionType('admin');
+        PushService.instance.register(PushAudience.admin);
         return AsyncValue.data(
           AuthState(isAuthenticated: true, user: user),
         );
@@ -121,6 +126,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       },
       (user) {
         state = AsyncValue.data(AuthState(isAuthenticated: true, user: user));
+        PushService.instance.register(PushAudience.admin);
         return null;
       },
     );
@@ -147,6 +153,8 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
 
   Future<void> logout() async {
     state = const AsyncValue.loading();
+    // قبل مسح التوكن: نلغي تسجيل الجهاز حتى لا تصله إشعارات هذا الحساب.
+    await PushService.instance.unregister(PushAudience.admin);
     await _logoutUsecase();
     state = const AsyncValue.data(AuthState(isAuthenticated: false));
   }

@@ -4,6 +4,12 @@ plugins {
     id "dev.flutter.flutter-gradle-plugin"
 }
 
+// Firebase Cloud Messaging: يحتاج google-services.json (من Firebase Console) في
+// هذا المجلد. بدونه يُبنى التطبيق عادي ويعمل بلا Push.
+if (file("google-services.json").exists()) {
+    apply plugin: "com.google.gms.google-services"
+}
+
 // Load release signing config from android/key.properties (not committed to git)
 def keystoreProperties = new Properties()
 def keystorePropertiesFile = rootProject.file("key.properties")

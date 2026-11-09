@@ -1,6 +1,7 @@
 import 'package:basketball_academy/core/di/injection_container.dart';
 import 'package:basketball_academy/core/errors/exceptions.dart';
 import 'package:basketball_academy/core/network/token_manager.dart';
+import 'package:basketball_academy/core/services/push_service.dart';
 import 'package:basketball_academy/features/player_portal/data/player_api_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -30,6 +31,7 @@ class PlayerSessionNotifier extends AsyncNotifier<PlayerSessionState> {
     }
     try {
       final data = await _service.me();
+      PushService.instance.register(PushAudience.player);
       return PlayerSessionState(isAuthenticated: true, player: data);
     } catch (_) {
       return const PlayerSessionState(isAuthenticated: false);
@@ -41,6 +43,7 @@ class PlayerSessionNotifier extends AsyncNotifier<PlayerSessionState> {
     try {
       final data = await _service.login(username: username, password: password);
       state = AsyncValue.data(PlayerSessionState(isAuthenticated: true, player: data));
+      PushService.instance.register(PushAudience.player);
     } catch (e) {
       state = AsyncValue.data(
         PlayerSessionState(isAuthenticated: false, errorMessage: _msg(e)),
@@ -50,6 +53,8 @@ class PlayerSessionNotifier extends AsyncNotifier<PlayerSessionState> {
 
   Future<void> logout() async {
     state = const AsyncValue.loading();
+    // قبل مسح التوكن: نلغي تسجيل الجهاز حتى لا تصله إشعارات هذا اللاعب.
+    await PushService.instance.unregister(PushAudience.player);
     await _service.logout();
     state = const AsyncValue.data(PlayerSessionState(isAuthenticated: false));
   }

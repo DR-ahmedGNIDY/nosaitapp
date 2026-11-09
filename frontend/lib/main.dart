@@ -2,6 +2,7 @@ import 'package:basketball_academy/core/ads/ads_lifecycle_refresher.dart';
 import 'package:basketball_academy/core/di/injection_container.dart';
 import 'package:basketball_academy/core/layout/responsive.dart';
 import 'package:basketball_academy/core/router/app_router.dart';
+import 'package:basketball_academy/core/services/push_service.dart';
 import 'package:basketball_academy/core/theme/app_theme.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -28,6 +29,8 @@ void main() async {
   );
 
   await initDependencies();
+  // Push Notifications (Android) — يفشل بهدوء لو Firebase غير مُعدّ.
+  await PushService.instance.init();
 
   runApp(
     const ProviderScope(

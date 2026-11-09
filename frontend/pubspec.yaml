@@ -73,6 +73,8 @@ dependencies:
   # bindings — so it compiles within memory on low-RAM build machines.
   # Android only; we guard usage behind Platform.isAndroid (Windows uses manual/USB).
   barcode_scan2: ^4.5.0
+  firebase_core: ^5.1.0
+  firebase_messaging: ^17.0.1
 
 # path_provider_foundation is the iOS/macOS implementation only. Versions ≥2.5
 # migrated to FFI and pull `objective_c`, which forces the experimental
