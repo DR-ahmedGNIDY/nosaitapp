@@ -1,4 +1,7 @@
 import 'package:basketball_academy/core/constants/app_colors.dart';
+import 'package:basketball_academy/core/router/app_router.dart';
+import 'package:basketball_academy/features/chat/presentation/screens/academy_chat_screen.dart';
+import 'package:go_router/go_router.dart';
 import 'package:basketball_academy/features/notification/domain/entities/notification_entity.dart';
 import 'package:basketball_academy/features/notification/presentation/providers/notification_provider.dart';
 import 'package:basketball_academy/features/whatsapp/utils/whatsapp_utils.dart';
@@ -8,8 +11,29 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
 
-class NotificationsScreen extends ConsumerWidget {
+/// يحدّث إشعارات السيرفر فور فتح الشاشة (خفيف) ثم يعرضها.
+class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
+
+  @override
+  ConsumerState<NotificationsScreen> createState() =>
+      _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(
+        () => ref.read(notificationProvider.notifier).refreshServer());
+  }
+
+  @override
+  Widget build(BuildContext context) => const _NotificationsView();
+}
+
+class _NotificationsView extends ConsumerWidget {
+  const _NotificationsView();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -108,7 +132,7 @@ class NotificationsScreen extends ConsumerWidget {
                 final notif = list[index];
                 return _NotificationTile(
                   notification: notif,
-                  onTap: () => _handleTap(notifier, notif),
+                  onTap: () => _handleTap(context, notifier, notif),
                   onDelete: () => notifier.deleteNotification(notif.id),
                 );
               },
@@ -120,9 +144,23 @@ class NotificationsScreen extends ConsumerWidget {
   }
 
   // الضغط على الإشعار: تحديده كمقروء + فتح WhatsApp مباشرةً برسالة جاهزة لرقم ولي الأمر.
-  Future<void> _handleTap(
-      NotificationNotifier notifier, NotificationEntity n) async {
+  Future<void> _handleTap(BuildContext context, NotificationNotifier notifier,
+      NotificationEntity n) async {
     notifier.markAsRead(n.id);
+    // إشعارات السيرفر: رسالة → محادثة اللاعب، تعليق → الألبوم.
+    if (n.type == NotificationType.message && n.playerId != null) {
+      await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => AcademyChatScreen(
+          playerId: n.playerId!,
+          playerName: n.playerName ?? 'لاعب',
+        ),
+      ));
+      return;
+    }
+    if (n.type == NotificationType.albumComment) {
+      context.push(AppRoutes.academyAlbum);
+      return;
+    }
     String? message;
     if (n.type == NotificationType.birthday) {
       message = WhatsAppUtils.birthdayTemplate(
@@ -189,7 +227,7 @@ class _EmptyState extends StatelessWidget {
           ),
           Gap(8.h),
           Text(
-            'ستظهر هنا إشعارات أعياد الميلاد\nوانتهاء الاشتراكات',
+            'ستظهر هنا رسائل اللاعبين وتعليقات الألبوم\nوأعياد الميلاد وانتهاء الاشتراكات',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 13.sp, color: AppColors.grey400),
           ),
@@ -320,6 +358,10 @@ class _NotifIcon extends StatelessWidget {
         (Icons.cancel_outlined, AppColors.error),
       NotificationType.system =>
         (Icons.info_outline, AppColors.secondary),
+      NotificationType.message =>
+        (Icons.chat_bubble_outline, AppColors.secondary),
+      NotificationType.albumComment =>
+        (Icons.photo_library_outlined, AppColors.primary),
     };
 
     return Container(
@@ -467,6 +509,10 @@ class _MiniNotifTile extends StatelessWidget {
       NotificationType.subscriptionExpired =>
         (Icons.cancel_outlined, AppColors.error),
       NotificationType.system => (Icons.info_outline, AppColors.secondary),
+      NotificationType.message =>
+        (Icons.chat_bubble_outline, AppColors.secondary),
+      NotificationType.albumComment =>
+        (Icons.photo_library_outlined, AppColors.primary),
     };
 
     return Padding(

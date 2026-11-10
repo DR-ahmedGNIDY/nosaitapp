@@ -24,6 +24,9 @@ class PushService {
   PushService._();
   static final PushService instance = PushService._();
 
+  /// يُستدعى عند وصول إشعار والتطبيق مفتوح (لتحديث مركز الإشعارات فوراً).
+  VoidCallback? onMessage;
+
   bool _ready = false;
   PushAudience? _audience;
   StreamSubscription<String>? _refreshSub;
@@ -107,6 +110,7 @@ class PushService {
   }
 
   void _showInApp(RemoteMessage message) {
+    onMessage?.call();
     final ctx = rootNavigatorKey.currentContext;
     final n = message.notification;
     if (ctx == null || n == null) return;

@@ -5,6 +5,9 @@ enum NotificationType {
   subscriptionExpiring,
   subscriptionExpired,
   system,
+  // إشعارات قادمة من السيرفر (/notifications).
+  message,
+  albumComment,
 }
 
 class NotificationEntity extends Equatable {
@@ -19,6 +22,9 @@ class NotificationEntity extends Equatable {
   final String? parentPhone;
   final String? playerName;
   final String? academyName;
+  // true = إشعار محفوظ على السيرفر (المقروء يُحفظ هناك)، false = محسوب محلياً.
+  final bool fromServer;
+  final Map<String, dynamic> meta;
 
   const NotificationEntity({
     required this.id,
@@ -31,7 +37,39 @@ class NotificationEntity extends Equatable {
     this.parentPhone,
     this.playerName,
     this.academyName,
+    this.fromServer = false,
+    this.meta = const {},
   });
+
+  /// من عنصر `/notifications` على السيرفر.
+  factory NotificationEntity.fromServerJson(Map<String, dynamic> j) {
+    final meta = (j['meta'] is Map)
+        ? Map<String, dynamic>.from(j['meta'] as Map)
+        : <String, dynamic>{};
+    final type = switch (j['type']) {
+      'NEW_MESSAGE' => NotificationType.message,
+      'ALBUM_COMMENT' => NotificationType.albumComment,
+      _ => NotificationType.system,
+    };
+    final count = (meta['count'] as num?)?.toInt() ?? 1;
+    var body = (j['body'] ?? '').toString();
+    if (type == NotificationType.message && count > 1) {
+      body = '$body\n($count رسائل جديدة)';
+    }
+    return NotificationEntity(
+      id: (j['_id'] ?? j['id']).toString(),
+      type: type,
+      title: (j['title'] ?? '').toString(),
+      body: body,
+      createdAt: DateTime.tryParse((j['createdAt'] ?? '').toString())?.toLocal() ??
+          DateTime.now(),
+      isRead: j['isRead'] == true,
+      playerId: meta['playerId']?.toString(),
+      playerName: meta['playerName']?.toString(),
+      fromServer: true,
+      meta: meta,
+    );
+  }
 
   NotificationEntity copyWith({bool? isRead}) => NotificationEntity(
         id: id,
@@ -44,9 +82,13 @@ class NotificationEntity extends Equatable {
         parentPhone: parentPhone,
         playerName: playerName,
         academyName: academyName,
+        fromServer: fromServer,
+        meta: meta,
       );
 
   @override
-  List<Object?> get props =>
-      [id, type, title, body, createdAt, isRead, playerId, parentPhone, playerName, academyName];
+  List<Object?> get props => [
+        id, type, title, body, createdAt, isRead, playerId, parentPhone,
+        playerName, academyName, fromServer,
+      ];
 }

@@ -1,4 +1,6 @@
+import 'package:basketball_academy/core/services/push_service.dart';
 import 'package:basketball_academy/features/auth/presentation/providers/auth_provider.dart';
+import 'package:basketball_academy/features/notification/presentation/providers/notification_provider.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -24,6 +26,12 @@ class _AdsLifecycleRefresherState extends ConsumerState<AdsLifecycleRefresher>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // إشعار Push والتطبيق مفتوح → حدّث مركز الإشعارات فوراً.
+    PushService.instance.onMessage = _refreshNotifications;
+  }
+
+  void _refreshNotifications() {
+    ref.read(notificationProvider.notifier).refreshServer();
   }
 
   @override
@@ -36,6 +44,7 @@ class _AdsLifecycleRefresherState extends ConsumerState<AdsLifecycleRefresher>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       ref.read(authStateProvider.notifier).refreshSilently();
+      _refreshNotifications();
     }
   }
 

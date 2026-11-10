@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:basketball_academy/core/di/injection_container.dart';
+import 'package:basketball_academy/core/network/api_client.dart';
 import 'package:basketball_academy/features/auth/domain/entities/user_entity.dart';
 import 'package:basketball_academy/features/auth/presentation/providers/auth_provider.dart';
 import 'package:basketball_academy/features/academy/data/datasources/academy_remote_datasource.dart';
@@ -9,45 +12,106 @@ import 'package:basketball_academy/features/subscription/data/models/subscriptio
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// مركز إشعارات الإدارة = مصدران:
+/// 1. **السيرفر** (`/notifications`): رسائل اللاعبين، تعليقات الألبوم… طلب خفيف
+///    يُعاد عند فتح الشاشة، عودة التطبيق للمقدمة، ووصول Push والتطبيق مفتوح.
+/// 2. **محلي** (أعياد الميلاد وانتهاء الاشتراكات): حساب ثقيل (لاعبين + اشتراكات)
+///    يُحسب في الخلفية ويُخزَّن [_localTtl]، فلا يؤخّر فتح الشاشة.
 class NotificationNotifier extends AsyncNotifier<List<NotificationEntity>> {
   static const _readKey = 'notification_read_ids';
   static const _deletedKey = 'notification_deleted_ids';
-  static const _cacheDuration = Duration(minutes: 30);
+  static const _localTtl = Duration(minutes: 2);
+  static const _serverMinGap = Duration(seconds: 3);
 
-  // In-memory cache — shared across rebuilds of the same provider instance
-  List<NotificationEntity>? _cache;
-  DateTime? _cacheTime;
-  String? _cacheUserId;
+  List<NotificationEntity> _server = const [];
+  List<NotificationEntity>? _local;
+  DateTime? _localTime;
+  DateTime? _serverTime;
+  String? _userId;
+  Future<void>? _localJob;
 
   @override
   Future<List<NotificationEntity>> build() async {
-    // Watch only the user ID — not the full AuthState.
-    // This prevents rebuild on isLoading / errorMessage changes.
     final userId = ref.watch(
       authStateProvider.select((s) => s.valueOrNull?.user?.id),
     );
-
-    if (userId == null) {
-      _cache = null;
-      _cacheTime = null;
-      _cacheUserId = null;
-      return [];
+    if (userId != _userId) {
+      _server = const [];
+      _local = null;
+      _localTime = null;
+      _serverTime = null;
+      _userId = userId;
     }
-
-    // Return cache if it belongs to the same user and is fresh (< 30 min)
-    if (_cache != null &&
-        _cacheUserId == userId &&
-        _cacheTime != null &&
-        DateTime.now().difference(_cacheTime!) < _cacheDuration) {
-      return _cache!;
-    }
-
+    if (userId == null) return [];
     final user = ref.read(authStateProvider).valueOrNull?.user;
-    if (user == null) return [];
-    return _loadNotifications(user);
+    if (user == null || user.academyId == null) return [];
+
+    _server = await _fetchServer();
+    _serverTime = DateTime.now();
+    if (!_localFresh) _computeLocalInBackground(user);
+    return _merged();
   }
 
-  Future<List<NotificationEntity>> _loadNotifications(UserEntity user) async {
+  bool get _localFresh =>
+      _local != null &&
+      _localTime != null &&
+      DateTime.now().difference(_localTime!) < _localTtl;
+
+  List<NotificationEntity> _merged() {
+    final all = [..._server, ...?_local];
+    all.sort((a, b) {
+      if (a.isRead != b.isRead) return a.isRead ? 1 : -1;
+      return b.createdAt.compareTo(a.createdAt);
+    });
+    return all;
+  }
+
+  Future<List<NotificationEntity>> _fetchServer() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final deletedIds = Set<String>.from(prefs.getStringList(_deletedKey) ?? []);
+      final res = await sl<ApiClient>().get<Map<String, dynamic>>('/notifications');
+      final data = (res.data?['data'] as Map?) ?? const {};
+      final items = (data['items'] as List?) ?? const [];
+      return items
+          .whereType<Map>()
+          .map((m) => NotificationEntity.fromServerJson(Map<String, dynamic>.from(m)))
+          .where((n) => !deletedIds.contains(n.id))
+          .toList();
+    } catch (_) {
+      return _server; // نُبقي آخر نسخة عند فشل الشبكة
+    }
+  }
+
+  void _computeLocalInBackground(UserEntity user) {
+    _localJob ??= () async {
+      try {
+        final list = await _loadLocal(user);
+        if (_userId != user.id) return; // تغيّر المستخدم أثناء الحساب
+        _local = list;
+        _localTime = DateTime.now();
+        state = AsyncValue.data(_merged());
+      } finally {
+        _localJob = null;
+      }
+    }();
+  }
+
+  /// تحديث خفيف لإشعارات السيرفر فقط (بدون مؤشر تحميل).
+  Future<void> refreshServer() async {
+    final user = ref.read(authStateProvider).valueOrNull?.user;
+    if (user == null || user.academyId == null) return;
+    if (_serverTime != null &&
+        DateTime.now().difference(_serverTime!) < _serverMinGap) {
+      return;
+    }
+    _serverTime = DateTime.now();
+    _server = await _fetchServer();
+    if (!_localFresh) _computeLocalInBackground(user);
+    state = AsyncValue.data(_merged());
+  }
+
+  Future<List<NotificationEntity>> _loadLocal(UserEntity user) async {
     final prefs = await SharedPreferences.getInstance();
     final readIds = Set<String>.from(prefs.getStringList(_readKey) ?? []);
     final deletedIds = Set<String>.from(prefs.getStringList(_deletedKey) ?? []);
@@ -234,66 +298,79 @@ class NotificationNotifier extends AsyncNotifier<List<NotificationEntity>> {
       if (a.isRead != b.isRead) return a.isRead ? 1 : -1;
       return b.createdAt.compareTo(a.createdAt);
     });
-
-    // Store in cache
-    _cache = notifications;
-    _cacheTime = DateTime.now();
-    _cacheUserId = user.id;
-
     return notifications;
   }
 
+  /// إعادة تحميل كاملة (سحب للتحديث / زر التحديث).
   Future<void> refresh() async {
-    // Bypass cache — explicit user-triggered reload
-    _cache = null;
-    _cacheTime = null;
     final user = ref.read(authStateProvider).valueOrNull?.user;
-    if (user == null) return;
+    if (user == null || user.academyId == null) return;
     state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() => _loadNotifications(user));
+    state = await AsyncValue.guard(() async {
+      final results = await Future.wait([_fetchServer(), _loadLocal(user)]);
+      _server = results[0];
+      _local = results[1];
+      _serverTime = _localTime = DateTime.now();
+      return _merged();
+    });
+  }
+
+  void _apply(NotificationEntity Function(NotificationEntity) f) {
+    _server = _server.map(f).toList();
+    _local = _local?.map(f).toList();
+    state = AsyncValue.data(_merged());
   }
 
   Future<void> markAsRead(String id) async {
-    final prefs = await SharedPreferences.getInstance();
-    final readIds = Set<String>.from(prefs.getStringList(_readKey) ?? []);
-    readIds.add(id);
-    await prefs.setStringList(_readKey, readIds.toList());
-
-    final current = state.valueOrNull ?? [];
-    state = AsyncValue.data(
-      current.map((n) => n.id == id ? n.copyWith(isRead: true) : n).toList(),
-    );
+    final target = (state.valueOrNull ?? const <NotificationEntity>[])
+        .where((n) => n.id == id)
+        .firstOrNull;
+    if (target == null || target.isRead) return;
+    _apply((n) => n.id == id ? n.copyWith(isRead: true) : n);
+    if (target.fromServer) {
+      try {
+        await sl<ApiClient>().patch('/notifications/$id/read');
+      } catch (_) {}
+    } else {
+      final prefs = await SharedPreferences.getInstance();
+      final readIds = Set<String>.from(prefs.getStringList(_readKey) ?? []);
+      readIds.add(id);
+      await prefs.setStringList(_readKey, readIds.toList());
+    }
   }
 
   Future<void> markAllAsRead() async {
     final prefs = await SharedPreferences.getInstance();
-    final current = state.valueOrNull ?? [];
-    final allIds = current.map((n) => n.id).toList();
-    await prefs.setStringList(_readKey, allIds);
+    final readIds = Set<String>.from(prefs.getStringList(_readKey) ?? []);
+    readIds.addAll((_local ?? const []).map((n) => n.id));
+    await prefs.setStringList(_readKey, readIds.toList());
+    final hadServerUnread = _server.any((n) => !n.isRead);
+    _apply((n) => n.copyWith(isRead: true));
+    if (hadServerUnread) {
+      try {
+        await sl<ApiClient>().patch('/notifications/read-all');
+      } catch (_) {}
+    }
+  }
 
-    state = AsyncValue.data(
-      current.map((n) => n.copyWith(isRead: true)).toList(),
-    );
+  Future<void> _addDeleted(Iterable<String> ids) async {
+    final prefs = await SharedPreferences.getInstance();
+    final deletedIds = Set<String>.from(prefs.getStringList(_deletedKey) ?? []);
+    deletedIds.addAll(ids);
+    await prefs.setStringList(_deletedKey, deletedIds.toList());
   }
 
   Future<void> deleteNotification(String id) async {
-    final prefs = await SharedPreferences.getInstance();
-    final deletedIds = Set<String>.from(prefs.getStringList(_deletedKey) ?? []);
-    deletedIds.add(id);
-    await prefs.setStringList(_deletedKey, deletedIds.toList());
-
-    final current = state.valueOrNull ?? [];
-    state = AsyncValue.data(current.where((n) => n.id != id).toList());
+    await _addDeleted([id]);
+    _server = _server.where((n) => n.id != id).toList();
+    _local = _local?.where((n) => n.id != id).toList();
+    state = AsyncValue.data(_merged());
   }
 
   Future<void> deleteAll() async {
-    final prefs = await SharedPreferences.getInstance();
-    final current = state.valueOrNull ?? [];
-    final deletedIds = Set<String>.from(prefs.getStringList(_deletedKey) ?? []);
-    for (final n in current) {
-      deletedIds.add(n.id);
-    }
-    await prefs.setStringList(_deletedKey, deletedIds.toList());
+    await _addDeleted((state.valueOrNull ?? const []).map((n) => n.id));
+    _server = const [];
+    _local = const [];
     state = const AsyncValue.data([]);
   }
 }
