@@ -30,6 +30,21 @@ void main() {
     expect(u.type, NotificationType.system);
   });
 
+  test('local cache JSON round-trips', () {
+    final n = NotificationEntity(
+      id: 'birthday_p1_2026',
+      type: NotificationType.birthday,
+      title: 'عيد ميلاد',
+      body: 'b',
+      createdAt: DateTime(2026, 11, 13, 8),
+      playerId: 'p1',
+      parentPhone: '010',
+      playerName: 'أحمد',
+      academyName: 'A',
+    );
+    expect(NotificationEntity.fromCacheJson(n.toCacheJson()), n);
+  });
+
   test('copyWith keeps server fields', () {
     final n = NotificationEntity.fromServerJson(
         {'_id': 'x', 'type': 'NEW_MESSAGE', 'title': 't', 'meta': {'playerId': 'p'}});

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:basketball_academy/core/di/injection_container.dart';
 import 'package:basketball_academy/core/network/api_client.dart';
@@ -46,10 +47,56 @@ class NotificationNotifier extends AsyncNotifier<List<NotificationEntity>> {
     final user = ref.read(authStateProvider).valueOrNull?.user;
     if (user == null || user.academyId == null) return [];
 
+    // آخر نتيجة محفوظة على الجهاز (نفس المستخدم ونفس اليوم) تظهر فوراً،
+    // ثم يُعاد الحساب في الخلفية.
+    _local ??= await _readDiskCache(user.id);
     _server = await _fetchServer();
     _serverTime = DateTime.now();
     if (!_localFresh) _computeLocalInBackground(user);
     return _merged();
+  }
+
+  static const _diskKey = 'notification_local_cache';
+
+  String _todayKey() {
+    final n = DateTime.now();
+    return '${n.year}-${n.month}-${n.day}';
+  }
+
+  Future<List<NotificationEntity>?> _readDiskCache(String userId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_diskKey);
+      if (raw == null) return null;
+      final j = jsonDecode(raw) as Map<String, dynamic>;
+      if (j['user'] != userId || j['day'] != _todayKey()) return null;
+      final readIds = Set<String>.from(prefs.getStringList(_readKey) ?? []);
+      final deletedIds =
+          Set<String>.from(prefs.getStringList(_deletedKey) ?? []);
+      return (j['items'] as List)
+          .map((e) => NotificationEntity.fromCacheJson(
+              Map<String, dynamic>.from(e as Map)))
+          .where((n) => !deletedIds.contains(n.id))
+          .map((n) => readIds.contains(n.id) ? n.copyWith(isRead: true) : n)
+          .toList();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _saveDiskCache(
+      String userId, List<NotificationEntity> list) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _diskKey,
+        jsonEncode({
+          'user': userId,
+          'day': _todayKey(),
+          'items': list.map((n) => n.toCacheJson()).toList(),
+        }),
+      );
+    } catch (_) {}
   }
 
   bool get _localFresh =>
@@ -91,6 +138,7 @@ class NotificationNotifier extends AsyncNotifier<List<NotificationEntity>> {
         _local = list;
         _localTime = DateTime.now();
         state = AsyncValue.data(_merged());
+        _saveDiskCache(user.id, list);
       } finally {
         _localJob = null;
       }
@@ -124,19 +172,26 @@ class NotificationNotifier extends AsyncNotifier<List<NotificationEntity>> {
       // super_admin has no fixed academy — skip player notifications
       if (user.academyId == null) return [];
 
-      // اسم الأكاديمية (يُجلب مرة واحدة) لاستخدامه في رسائل WhatsApp.
-      String academyName = 'الأكاديمية';
-      try {
-        final acad =
-            await sl<AcademyRemoteDatasource>().getAcademyById(user.academyId!);
-        if (acad.name.isNotEmpty) academyName = acad.name;
-      } catch (_) {}
-
-      final playerDs = sl<PlayerRemoteDatasource>();
-      final playerResult = await playerDs.getPlayers(
+      // الطلبات الثلاثة بالتوازي (كانت متتالية فتضاعف زمن الانتظار).
+      final academyF = sl<AcademyRemoteDatasource>()
+          .getAcademyById(user.academyId!)
+          .then((a) => a.name, onError: (_) => '');
+      final playersF = sl<PlayerRemoteDatasource>().getPlayers(
         academyId: user.academyId,
         limit: 300,
       );
+      // admin لا يملك صلاحية endpoint اشتراكات الأكاديمية.
+      final subsF = user.isAdmin
+          ? null
+          : sl<SubscriptionRemoteDatasource>().getSubscriptionsByAcademy(
+              academyId: user.academyId!,
+              limit: 300,
+            );
+      subsF?.ignore(); // لا خطأ غير معالج لو فشل قبل انتظاره
+
+      final fetchedName = await academyF;
+      final academyName = fetchedName.isNotEmpty ? fetchedName : 'الأكاديمية';
+      final playerResult = await playersF;
 
       final playerNameMap = <String, String>{};
       final playerCodeMap = <String, String>{};
@@ -190,12 +245,8 @@ class NotificationNotifier extends AsyncNotifier<List<NotificationEntity>> {
       }
 
       // إشعارات الاشتراكات — فقط لغير admin (admin لا يملك صلاحية academy endpoint)
-      if (!user.isAdmin && user.academyId != null) {
-        final subDs = sl<SubscriptionRemoteDatasource>();
-        final subResult = await subDs.getSubscriptionsByAcademy(
-          academyId: user.academyId!,
-          limit: 300,
-        );
+      if (subsF != null) {
+        final subResult = await subsF;
 
         // الاشتراك الأحدث لكل لاعب
         final latestByPlayer = <String, SubscriptionModel>{};
@@ -311,6 +362,7 @@ class NotificationNotifier extends AsyncNotifier<List<NotificationEntity>> {
       _server = results[0];
       _local = results[1];
       _serverTime = _localTime = DateTime.now();
+      _saveDiskCache(user.id, results[1]);
       return _merged();
     });
   }

@@ -71,6 +71,35 @@ class NotificationEntity extends Equatable {
     );
   }
 
+  /// تخزين محلي للإشعارات المحسوبة (أعياد الميلاد/الاشتراكات) لعرضها فوراً.
+  Map<String, dynamic> toCacheJson() => {
+        'id': id,
+        'type': type.name,
+        'title': title,
+        'body': body,
+        'createdAt': createdAt.toIso8601String(),
+        'isRead': isRead,
+        'playerId': playerId,
+        'parentPhone': parentPhone,
+        'playerName': playerName,
+        'academyName': academyName,
+      };
+
+  factory NotificationEntity.fromCacheJson(Map<String, dynamic> j) =>
+      NotificationEntity(
+        id: j['id'] as String,
+        type: NotificationType.values.firstWhere((t) => t.name == j['type'],
+            orElse: () => NotificationType.system),
+        title: (j['title'] ?? '') as String,
+        body: (j['body'] ?? '') as String,
+        createdAt: DateTime.parse(j['createdAt'] as String),
+        isRead: j['isRead'] == true,
+        playerId: j['playerId'] as String?,
+        parentPhone: j['parentPhone'] as String?,
+        playerName: j['playerName'] as String?,
+        academyName: j['academyName'] as String?,
+      );
+
   NotificationEntity copyWith({bool? isRead}) => NotificationEntity(
         id: id,
         type: type,
