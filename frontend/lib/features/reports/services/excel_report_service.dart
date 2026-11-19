@@ -184,24 +184,32 @@ class ExcelReportService {
       'اسم اللاعب',
       'نوع العملية',
       'المبلغ (${filter.currencyLabel})',
+      'المدفوع',
+      'المتبقي',
       'تاريخ البداية',
       'تاريخ الانتهاء',
       'الحالة',
     ]);
 
     double total = 0;
+    double totalPaid = 0;
+    double totalRemaining = 0;
     for (var i = 0; i < subs.length; i++) {
       final s = subs[i];
       final row = i + 1;
       final style = row.isOdd ? null : _altRowStyle();
       total += s.amount;
+      totalPaid += s.paidAmount;
+      totalRemaining += s.remainingAmount;
 
       _setCell(sheet, row, 0, s.playerName.isNotEmpty ? s.playerName : s.playerId, style: style);
       _setCell(sheet, row, 1, s.typeLabel, style: style);
       _setCell(sheet, row, 2, s.amount, style: style);
-      _setCell(sheet, row, 3, _fmtDate(s.startDate), style: style);
-      _setCell(sheet, row, 4, _fmtDate(s.endDate), style: style);
-      _setCell(sheet, row, 5, s.statusLabel, style: style);
+      _setCell(sheet, row, 3, s.paidAmount, style: style);
+      _setCell(sheet, row, 4, s.remainingAmount, style: style);
+      _setCell(sheet, row, 5, _fmtDate(s.startDate), style: style);
+      _setCell(sheet, row, 6, _fmtDate(s.endDate), style: style);
+      _setCell(sheet, row, 7, '${s.statusLabel} • ${s.paymentStatusLabel}', style: style);
     }
 
     // Total row
@@ -209,6 +217,8 @@ class ExcelReportService {
       final totalRow = subs.length + 1;
       _setCell(sheet, totalRow, 0, 'الإجمالي', style: _totalStyle());
       _setCell(sheet, totalRow, 2, total, style: _totalStyle());
+      _setCell(sheet, totalRow, 3, totalPaid, style: _totalStyle());
+      _setCell(sheet, totalRow, 4, totalRemaining, style: _totalStyle());
     }
 
     final bytes = excel.save();
@@ -224,6 +234,7 @@ class ExcelReportService {
     double totalRevenue;
     double monthlyRevenue;
     double matchRevenue;
+    double outstanding;
     int newSubs;
     int renewals;
     int activeCount;
@@ -241,11 +252,11 @@ class ExcelReportService {
         subs = subs.where((s) => sportIds.contains(s.playerId)).toList();
       }
       final now = DateTime.now();
-      totalRevenue = subs.fold<double>(0, (sum, s) => sum + s.amount);
-      monthlyRevenue = subs
-          .where((s) =>
-              s.createdAt.year == now.year && s.createdAt.month == now.month)
-          .fold<double>(0, (sum, s) => sum + s.amount);
+      // الإيراد = المُحصَّل فعلاً (بتاريخ الدفع) — نفس قاعدة السيرفر.
+      totalRevenue = subs.fold<double>(0, (sum, s) => sum + s.paidAmount);
+      monthlyRevenue = subs.fold<double>(
+          0, (sum, s) => sum + s.collectedInMonth(now.year, now.month));
+      outstanding = subs.fold<double>(0, (sum, s) => sum + s.remainingAmount);
       newSubs =
           subs.where((s) => s.type == SubscriptionType.newSubscription).length;
       renewals = subs.where((s) => s.type == SubscriptionType.renewal).length;
@@ -268,6 +279,7 @@ class ExcelReportService {
       activeCount = (data['activeCount'] as num?)?.toInt() ?? 0;
       expiredCount = (data['expiredCount'] as num?)?.toInt() ?? 0;
       matchRevenue = (data['matchRevenue'] as num?)?.toDouble() ?? 0;
+      outstanding = (data['outstandingTotal'] as num?)?.toDouble() ?? 0;
     }
 
     final excel = Excel.createExcel();
@@ -282,6 +294,7 @@ class ExcelReportService {
       ['إجمالي الإيرادات (${filter.currencyLabel})', totalRevenue],
       ['إيرادات الشهر الحالي (${filter.currencyLabel})', monthlyRevenue],
       ['منها اشتراكات المباريات (${filter.currencyLabel})', matchRevenue],
+      ['المتبقي على اللاعبين - مديونيات (${filter.currencyLabel})', outstanding],
       ['عدد الاشتراكات الجديدة', newSubs],
       ['عدد التجديدات', renewals],
       ['الاشتراكات النشطة', activeCount],

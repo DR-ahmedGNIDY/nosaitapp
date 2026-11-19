@@ -117,6 +117,22 @@ class SubscriptionEntity extends Equatable {
 
   bool get hasDebt => remainingAmount > 0;
 
+  /// الدفعات الفعلية — الاشتراك القديم بلا سجل = دفعة واحدة يوم الإنشاء.
+  List<SubscriptionPaymentEntity> get effectivePayments {
+    if (payments.isNotEmpty || paidAmount <= 0) return payments;
+    return [
+      SubscriptionPaymentEntity(id: '', amount: paidAmount, date: createdAt),
+    ];
+  }
+
+  /// المُحصَّل فعلاً داخل شهر معيّن (بتاريخ الدفع).
+  double collectedInMonth(int year, int month) => effectivePayments
+      .where((p) {
+        final d = p.date.toLocal();
+        return d.year == year && d.month == month;
+      })
+      .fold<double>(0, (sum, p) => sum + p.amount);
+
   String get paymentStatusLabel => switch (paymentStatus) {
         PaymentStatus.paid => 'مدفوع',
         PaymentStatus.partial => 'مدفوع جزئياً',

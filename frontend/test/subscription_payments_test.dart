@@ -43,6 +43,23 @@ void main() {
     expect(e.payments.single.recordedByName, 'مدير');
   });
 
+  test('collectedInMonth uses payment dates; legacy counts on created_at', () {
+    final legacy = SubscriptionModel.fromJson(_sub()).toEntity();
+    expect(legacy.collectedInMonth(2026, 11), 500);
+    expect(legacy.collectedInMonth(2026, 10), 0);
+
+    final partial = SubscriptionModel.fromJson(_sub({
+      'paidAmount': 300,
+      'payments': [
+        {'_id': 'a', 'amount': 100, 'date': '2026-10-15T10:00:00.000Z'},
+        {'_id': 'b', 'amount': 200, 'date': '2026-11-15T10:00:00.000Z'},
+      ],
+    })).toEntity();
+    expect(partial.collectedInMonth(2026, 10), 100);
+    expect(partial.collectedInMonth(2026, 11), 200);
+    expect(partial.remainingAmount, 200);
+  });
+
   test('unpaid subscription', () {
     final e = SubscriptionModel.fromJson(_sub({'paidAmount': 0, 'payments': []})).toEntity();
     expect(e.paymentStatus, PaymentStatus.unpaid);

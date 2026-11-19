@@ -2,6 +2,7 @@ import 'package:basketball_academy/core/ads/ad_banner_slot.dart';
 import 'package:basketball_academy/core/ads/ads_interstitial_helper.dart';
 import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/router/app_router.dart';
+import 'package:basketball_academy/core/utils/currency_utils.dart';
 import 'package:basketball_academy/features/player_portal/presentation/providers/player_data_providers.dart';
 import 'package:basketball_academy/features/player_portal/presentation/providers/player_session_provider.dart';
 import 'package:basketball_academy/features/player_portal/presentation/screens/player_matches_screen.dart';
@@ -94,6 +95,11 @@ class PlayerDashboardScreen extends ConsumerWidget {
           final latestEval = data['latestEvaluation'] as Map<String, dynamic>?;
           final evals = (data['evaluations'] as List<dynamic>?) ?? const [];
           final alert = _subscriptionAlert(context, sub);
+          final debtAlert = _debtAlert(
+            context,
+            data['balance'] as Map<String, dynamic>?,
+            data['academy'] as Map<String, dynamic>?,
+          );
 
           return RefreshIndicator(
             onRefresh: () async => ref.invalidate(playerDashboardProvider),
@@ -104,6 +110,7 @@ class PlayerDashboardScreen extends ConsumerWidget {
                 Gap(16.h),
                 _socialLinksCard(context, ref),
                 if (alert != null) ...[alert, Gap(16.h)],
+                if (debtAlert != null) ...[debtAlert, Gap(16.h)],
                 _statsRow(sub, attendance, latestEval),
                 Gap(16.h),
                 _quickActions(context, ref),
@@ -309,6 +316,29 @@ class PlayerDashboardScreen extends ConsumerWidget {
       );
     }
     return null;
+  }
+
+  // ── بانر المبلغ المتبقي (الدفع الجزئي) — يظهر فقط لو فيه مديونية ──
+  Widget? _debtAlert(
+    BuildContext context,
+    Map<String, dynamic>? balance,
+    Map<String, dynamic>? academy,
+  ) {
+    final due = (balance?['totalDue'] as num?)?.toDouble() ?? 0;
+    if (due <= 0) return null;
+    final currency =
+        CurrencyUtils.label((academy?['currency'] as String?) ?? CurrencyUtils.defaultCode);
+    final amount = due == due.roundToDouble()
+        ? due.toStringAsFixed(0)
+        : due.toStringAsFixed(2);
+    return _alertBanner(
+      context,
+      color: AppColors.warning,
+      bg: AppColors.warningLight,
+      icon: Icons.account_balance_wallet_outlined,
+      title: 'عليك مبلغ متبقٍ',
+      message: 'المتبقي من اشتراكك: $amount $currency. تواصل مع الأكاديمية للسداد.',
+    );
   }
 
   Widget _alertBanner(

@@ -279,6 +279,10 @@ class PdfReportService {
     }
     final total =
         subs.fold<double>(0, (sum, s) => sum + s.amount);
+    final totalPaid =
+        subs.fold<double>(0, (sum, s) => sum + s.paidAmount);
+    final totalRemaining =
+        subs.fold<double>(0, (sum, s) => sum + s.remainingAmount);
 
     final pdf = pw.Document();
 
@@ -286,6 +290,8 @@ class PdfReportService {
       'الحالة',
       'تاريخ الانتهاء',
       'تاريخ البداية',
+      'المتبقي',
+      'المدفوع',
       'المبلغ',
       'نوع العملية',
       'اسم اللاعب',
@@ -293,11 +299,13 @@ class PdfReportService {
 
     final columnWidths = <int, pw.TableColumnWidth>{
       0: const pw.FlexColumnWidth(1.0),
-      1: const pw.FlexColumnWidth(1.4),
-      2: const pw.FlexColumnWidth(1.4),
+      1: const pw.FlexColumnWidth(1.3),
+      2: const pw.FlexColumnWidth(1.3),
       3: const pw.FlexColumnWidth(1.0),
-      4: const pw.FlexColumnWidth(1.2),
-      5: const pw.FlexColumnWidth(2.0),
+      4: const pw.FlexColumnWidth(1.0),
+      5: const pw.FlexColumnWidth(1.0),
+      6: const pw.FlexColumnWidth(1.1),
+      7: const pw.FlexColumnWidth(1.9),
     };
 
     pdf.addPage(
@@ -310,7 +318,10 @@ class PdfReportService {
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              _text('إجمالي المبالغ: ${total.toStringAsFixed(0)} ${filter.currencyLabel}',
+              _text(
+                  'إجمالي المبالغ: ${total.toStringAsFixed(0)} • المُحصَّل: '
+                  '${totalPaid.toStringAsFixed(0)} • المتبقي: '
+                  '${totalRemaining.toStringAsFixed(0)} ${filter.currencyLabel}',
                   bold: true,
                   size: 11,
                   color: PdfColor.fromHex('#2D9748')),
@@ -349,6 +360,10 @@ class PdfReportService {
                       _cell(s.statusLabel),
                       _cell(_fmtDate(s.endDate)),
                       _cell(_fmtDate(s.startDate)),
+                      _cell(s.remainingAmount > 0
+                          ? s.remainingAmount.toStringAsFixed(0)
+                          : '-'),
+                      _cell(s.paidAmount.toStringAsFixed(0)),
                       _cell('${s.amount.toStringAsFixed(0)} ${filter.currencyLabel}'),
                       _cell(s.typeLabel),
                       _cell(s.playerName.isNotEmpty ? s.playerName : s.playerId, bold: true),
@@ -364,6 +379,8 @@ class PdfReportService {
                     _cell(''),
                     _cell(''),
                     _cell('الإجمالي', bold: true),
+                    _cell(totalRemaining.toStringAsFixed(0), bold: true),
+                    _cell(totalPaid.toStringAsFixed(0), bold: true),
                     _cell('${total.toStringAsFixed(0)} ${filter.currencyLabel}', bold: true),
                     _cell(''),
                     _cell(''),
@@ -390,6 +407,7 @@ class PdfReportService {
     double totalRevenue;
     double monthlyRevenue;
     double matchRevenue;
+    double outstanding;
     int newSubs;
     int renewals;
     int activeCount;
@@ -409,11 +427,11 @@ class PdfReportService {
         subs = subs.where((s) => sportIds.contains(s.playerId)).toList();
       }
       final now = DateTime.now();
-      totalRevenue = subs.fold<double>(0, (sum, s) => sum + s.amount);
-      monthlyRevenue = subs
-          .where((s) =>
-              s.createdAt.year == now.year && s.createdAt.month == now.month)
-          .fold<double>(0, (sum, s) => sum + s.amount);
+      // الإيراد = المُحصَّل فعلاً (بتاريخ الدفع) — نفس قاعدة السيرفر.
+      totalRevenue = subs.fold<double>(0, (sum, s) => sum + s.paidAmount);
+      monthlyRevenue = subs.fold<double>(
+          0, (sum, s) => sum + s.collectedInMonth(now.year, now.month));
+      outstanding = subs.fold<double>(0, (sum, s) => sum + s.remainingAmount);
       newSubs = subs
           .where((s) => s.type == SubscriptionType.newSubscription)
           .length;
@@ -439,6 +457,7 @@ class PdfReportService {
       activeCount = (data['activeCount'] as num?)?.toInt() ?? 0;
       expiredCount = (data['expiredCount'] as num?)?.toInt() ?? 0;
       matchRevenue = (data['matchRevenue'] as num?)?.toDouble() ?? 0;
+      outstanding = (data['outstandingTotal'] as num?)?.toDouble() ?? 0;
     }
 
     final pdf = pw.Document();
@@ -477,6 +496,14 @@ class PdfReportService {
                 label: 'منها اشتراكات المباريات',
                 value: '${matchRevenue.toStringAsFixed(0)} ${filter.currencyLabel}',
                 color: PdfColor.fromHex('#C44D00'),
+              ),
+            ],
+            if (outstanding > 0) ...[
+              pw.SizedBox(height: 12),
+              _statBox(
+                label: 'المتبقي على اللاعبين (مديونيات)',
+                value: '${outstanding.toStringAsFixed(0)} ${filter.currencyLabel}',
+                color: PdfColor.fromHex('#B45309'),
               ),
             ],
             pw.SizedBox(height: 12),
