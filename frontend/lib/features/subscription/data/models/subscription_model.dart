@@ -21,6 +21,11 @@ class SubscriptionModel {
   final String? notes;
   final int? sessionsLimit;
   final DateTime? exhaustedAt;
+  /// المدفوع (null من سيرفر قديم ⇒ مدفوع بالكامل).
+  final double? paidAmount;
+  /// سجل الدفعات كما يرجع من الـ API.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  final List<SubscriptionPaymentEntity> payments;
   @JsonKey(name: 'created_at')
   final DateTime createdAt;
   @JsonKey(name: 'updated_at')
@@ -41,9 +46,28 @@ class SubscriptionModel {
     this.notes,
     this.sessionsLimit,
     this.exhaustedAt,
+    this.paidAmount,
+    this.payments = const [],
     required this.createdAt,
     this.updatedAt,
   });
+
+  static List<SubscriptionPaymentEntity> _parsePayments(dynamic raw) {
+    if (raw is! List) return const [];
+    return raw.whereType<Map>().map((p) {
+      final m = p.cast<String, dynamic>();
+      return SubscriptionPaymentEntity(
+        id: (m['_id'] ?? '').toString(),
+        amount: (m['amount'] as num?)?.toDouble() ?? 0,
+        date: m['date'] is String
+            ? DateTime.parse(m['date'] as String)
+            : DateTime.now(),
+        method: (m['method'] as String?) ?? 'cash',
+        note: m['note'] as String?,
+        recordedByName: (m['recordedByName'] as String?) ?? '',
+      );
+    }).toList();
+  }
 
   /// يدعم كلا الحالتين:
   /// 1. playerId = String (ObjectId فقط)
@@ -87,6 +111,8 @@ class SubscriptionModel {
       exhaustedAt: json['exhaustedAt'] == null
           ? null
           : DateTime.parse(json['exhaustedAt'] as String),
+      paidAmount: (json['paidAmount'] as num?)?.toDouble(),
+      payments: _parsePayments(json['payments']),
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: json['updated_at'] == null
           ? null
@@ -113,6 +139,8 @@ class SubscriptionModel {
         notes: notes,
         sessionsLimit: sessionsLimit,
         exhaustedAt: exhaustedAt,
+        paidAmountRaw: paidAmount,
+        payments: payments,
         createdAt: createdAt,
         updatedAt: updatedAt,
       );

@@ -2,6 +2,7 @@ import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/constants/app_strings.dart';
 import 'package:basketball_academy/features/academy/presentation/providers/currency_provider.dart';
 import 'package:basketball_academy/features/subscription/presentation/providers/subscription_provider.dart';
+import 'package:basketball_academy/features/subscription/presentation/widgets/payment_widgets.dart';
 import 'package:basketball_academy/core/widgets/platform_blocked_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -33,6 +34,7 @@ class _RenewSubscriptionScreenState
   final _amountController = TextEditingController();
   final _notesController = TextEditingController();
   final _sessionsController = TextEditingController();
+  final _payment = InitialPaymentController();
 
   DateTime _startDate = DateTime.now();
   DateTime _endDate =
@@ -54,6 +56,7 @@ class _RenewSubscriptionScreenState
     _amountController.dispose();
     _notesController.dispose();
     _sessionsController.dispose();
+    _payment.dispose();
     super.dispose();
   }
 
@@ -93,12 +96,15 @@ class _RenewSubscriptionScreenState
 
     setState(() => _isLoading = true);
 
+    final amount = double.parse(_amountController.text.trim());
     final error = await ref
         .read(playerSubscriptionsProvider(widget.playerId).notifier)
         .createSubscription(
           playerId: widget.playerId,
           type: 'RENEWAL',
-          amount: double.parse(_amountController.text.trim()),
+          amount: amount,
+          paidAmount: _payment.paidAmountFor(amount),
+          paymentMethod: _payment.method,
           startDate: _startDate,
           endDate: _endDate,
           notes: _notesController.text.trim().isEmpty
@@ -229,6 +235,14 @@ class _RenewSubscriptionScreenState
                   }
                   return null;
                 },
+              ),
+              Gap(12.h),
+
+              // الدفع: كامل أو جزئي + طريقة الدفع
+              InitialPaymentSection(
+                controller: _payment,
+                amountController: _amountController,
+                currencyLabel: currencyLabel,
               ),
               Gap(20.h),
 

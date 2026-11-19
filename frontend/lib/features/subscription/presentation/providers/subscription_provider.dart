@@ -1,4 +1,6 @@
 import 'package:basketball_academy/core/di/injection_container.dart';
+import 'package:basketball_academy/features/subscription/domain/entities/academy_debts_entity.dart';
+import 'package:basketball_academy/features/subscription/domain/repositories/subscription_repository.dart';
 import 'package:basketball_academy/features/subscription/domain/entities/subscription_entity.dart';
 import 'package:basketball_academy/features/subscription/domain/usecases/create_subscription_usecase.dart';
 import 'package:basketball_academy/features/subscription/domain/usecases/delete_subscription_usecase.dart';
@@ -65,6 +67,8 @@ class PlayerSubscriptionsNotifier
     String? notes,
     int? sessionsLimit,
     String? academyId,
+    double? paidAmount,
+    String? paymentMethod,
   }) async {
     final result = await _createSubscriptionUsecase(
       CreateSubscriptionParams(
@@ -76,6 +80,8 @@ class PlayerSubscriptionsNotifier
         notes: notes,
         sessionsLimit: sessionsLimit,
         academyId: academyId,
+        paidAmount: paidAmount,
+        paymentMethod: paymentMethod,
       ),
     );
     return result.fold(
@@ -119,6 +125,56 @@ class PlayerSubscriptionsNotifier
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// Payments (partial payments / installments) — shared by every screen
+// ---------------------------------------------------------------------------
+
+/// تسجيل دفعة على اشتراك. يرجّع رسالة الخطأ أو null عند النجاح.
+Future<String?> recordSubscriptionPayment(
+  WidgetRef ref, {
+  required String subscriptionId,
+  required double amount,
+  String method = 'cash',
+  DateTime? date,
+  String? note,
+}) async {
+  final result = await sl<SubscriptionRepository>().addPayment(
+    subscriptionId: subscriptionId,
+    amount: amount,
+    method: method,
+    date: date,
+    note: note,
+  );
+  return result.fold((f) => f.message, (_) {
+    _invalidateSubscriptionViewsW(ref);
+    return null;
+  });
+}
+
+/// حذف دفعة مسجّلة بالخطأ. يرجّع رسالة الخطأ أو null عند النجاح.
+Future<String?> deleteSubscriptionPayment(
+  WidgetRef ref, {
+  required String subscriptionId,
+  required String paymentId,
+}) async {
+  final result = await sl<SubscriptionRepository>().deletePayment(
+    subscriptionId: subscriptionId,
+    paymentId: paymentId,
+  );
+  return result.fold((f) => f.message, (_) {
+    _invalidateSubscriptionViewsW(ref);
+    return null;
+  });
+}
+
+/// مديونيات الأكاديمية (اللاعبون الذين عليهم مبالغ متبقية).
+final academyDebtsProvider =
+    FutureProvider.autoDispose.family<AcademyDebtsEntity, String>(
+        (ref, academyId) async {
+  final result = await sl<SubscriptionRepository>().getAcademyDebts(academyId);
+  return result.fold((f) => throw Exception(f.message), (d) => d);
+});
 
 final playerSubscriptionsProvider = AsyncNotifierProvider.family<
     PlayerSubscriptionsNotifier,
@@ -247,4 +303,14 @@ void _invalidateSubscriptionViews(Ref ref) {
   ref.invalidate(academySubscriptionsProvider);
   ref.invalidate(academyPlayerStatusMapProvider);
   ref.invalidate(revenueSummaryProvider);
+  ref.invalidate(academyDebtsProvider);
+}
+
+/// نفس السابق لكن من داخل widget (WidgetRef).
+void _invalidateSubscriptionViewsW(WidgetRef ref) {
+  ref.invalidate(playerSubscriptionsProvider);
+  ref.invalidate(academySubscriptionsProvider);
+  ref.invalidate(academyPlayerStatusMapProvider);
+  ref.invalidate(revenueSummaryProvider);
+  ref.invalidate(academyDebtsProvider);
 }

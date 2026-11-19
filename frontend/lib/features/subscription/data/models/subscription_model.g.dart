@@ -42,6 +42,7 @@ Map<String, dynamic> _$SubscriptionModelToJson(SubscriptionModel instance) =>
       'notes': instance.notes,
       'sessionsLimit': instance.sessionsLimit,
       'exhaustedAt': instance.exhaustedAt?.toIso8601String(),
+      'paidAmount': instance.paidAmount,
       'created_at': instance.createdAt.toIso8601String(),
       'updated_at': instance.updatedAt?.toIso8601String(),
     };

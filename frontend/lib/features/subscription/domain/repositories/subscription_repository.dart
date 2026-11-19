@@ -1,4 +1,5 @@
 import 'package:basketball_academy/core/errors/failures.dart';
+import 'package:basketball_academy/features/subscription/domain/entities/academy_debts_entity.dart';
 import 'package:basketball_academy/features/subscription/domain/entities/subscription_entity.dart';
 import 'package:dartz/dartz.dart';
 
@@ -36,7 +37,24 @@ abstract class SubscriptionRepository {
     String? notes,
     int? sessionsLimit,
     String? academyId,
+    double? paidAmount,
+    String? paymentMethod,
   });
+
+  Future<Either<Failure, SubscriptionEntity>> addPayment({
+    required String subscriptionId,
+    required double amount,
+    String method = 'cash',
+    DateTime? date,
+    String? note,
+  });
+
+  Future<Either<Failure, SubscriptionEntity>> deletePayment({
+    required String subscriptionId,
+    required String paymentId,
+  });
+
+  Future<Either<Failure, AcademyDebtsEntity>> getAcademyDebts(String academyId);
 
   Future<Either<Failure, SubscriptionEntity>> updateNotes({
     required String id,

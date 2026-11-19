@@ -4,6 +4,56 @@ enum SubscriptionType { newSubscription, renewal }
 
 enum SubscriptionStatus { active, expired }
 
+/// حالة دفع الاشتراك (الدفع الجزئي).
+enum PaymentStatus { paid, partial, unpaid }
+
+/// طرق الدفع — المفاتيح مطابقة لـ PAYMENT_METHODS في الـ backend.
+class PaymentMethods {
+  PaymentMethods._();
+
+  static const List<String> all = [
+    'cash',
+    'vodafone_cash',
+    'instapay',
+    'bank_transfer',
+    'card',
+    'other',
+  ];
+
+  static String label(String method) => switch (method) {
+        'cash' => 'كاش',
+        'vodafone_cash' => 'فودافون كاش',
+        'instapay' => 'إنستاباي',
+        'bank_transfer' => 'تحويل بنكي',
+        'card' => 'بطاقة',
+        _ => 'أخرى',
+      };
+}
+
+/// دفعة واحدة من مبلغ الاشتراك.
+class SubscriptionPaymentEntity extends Equatable {
+  final String id;
+  final double amount;
+  final DateTime date;
+  final String method;
+  final String? note;
+  final String recordedByName;
+
+  const SubscriptionPaymentEntity({
+    required this.id,
+    required this.amount,
+    required this.date,
+    this.method = 'cash',
+    this.note,
+    this.recordedByName = '',
+  });
+
+  String get methodLabel => PaymentMethods.label(method);
+
+  @override
+  List<Object?> get props => [id, amount, date, method, note, recordedByName];
+}
+
 class SubscriptionEntity extends Equatable {
   final String id;
   final String academyId;
@@ -22,6 +72,10 @@ class SubscriptionEntity extends Equatable {
   final int? sessionsLimit;
   /// لحظة استهلاك آخر حصة — الاشتراك منتهٍ منذها حتى لو لم ينتهِ تاريخه.
   final DateTime? exhaustedAt;
+  /// المدفوع من مبلغ الاشتراك (null من سيرفر قديم ⇒ مدفوع بالكامل).
+  final double? paidAmountRaw;
+  /// سجل الدفعات (فارغ للاشتراكات القديمة).
+  final List<SubscriptionPaymentEntity> payments;
   final DateTime createdAt;
   final DateTime? updatedAt;
 
@@ -40,11 +94,34 @@ class SubscriptionEntity extends Equatable {
     this.notes,
     this.sessionsLimit,
     this.exhaustedAt,
+    this.paidAmountRaw,
+    this.payments = const [],
     required this.createdAt,
     this.updatedAt,
   });
 
   bool get isExhausted => exhaustedAt != null;
+
+  double get paidAmount => paidAmountRaw ?? amount;
+
+  double get remainingAmount {
+    final r = amount - paidAmount;
+    return r > 0.005 ? r : 0;
+  }
+
+  PaymentStatus get paymentStatus {
+    if (remainingAmount <= 0) return PaymentStatus.paid;
+    if (paidAmount <= 0.005) return PaymentStatus.unpaid;
+    return PaymentStatus.partial;
+  }
+
+  bool get hasDebt => remainingAmount > 0;
+
+  String get paymentStatusLabel => switch (paymentStatus) {
+        PaymentStatus.paid => 'مدفوع',
+        PaymentStatus.partial => 'مدفوع جزئياً',
+        PaymentStatus.unpaid => 'غير مدفوع',
+      };
 
   SubscriptionStatus get status =>
       !isExhausted && !DateTime.now().isAfter(endDate)
@@ -86,6 +163,8 @@ class SubscriptionEntity extends Equatable {
         notes,
         sessionsLimit,
         exhaustedAt,
+        paidAmountRaw,
+        payments,
         createdAt,
         updatedAt,
       ];

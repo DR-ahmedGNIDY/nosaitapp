@@ -5,6 +5,7 @@ import 'package:basketball_academy/features/auth/presentation/providers/auth_pro
 import 'package:basketball_academy/features/subscription/domain/entities/subscription_entity.dart';
 import 'package:basketball_academy/features/subscription/presentation/providers/subscription_provider.dart';
 import 'package:basketball_academy/features/subscription/presentation/screens/renew_subscription_screen.dart';
+import 'package:basketball_academy/features/subscription/presentation/widgets/payment_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -205,6 +206,15 @@ class _PlayerSubscriptionHistoryScreenState
                         onDelete: canEdit
                             ? () => _confirmDelete(context, sub)
                             : null,
+                        onAddPayment: canEdit && sub.hasDebt
+                            ? () => showAddPaymentSheet(
+                                  context,
+                                  subscriptionId: sub.id,
+                                  remaining: sub.remainingAmount,
+                                  currencyLabel: currencyLabel,
+                                  playerName: widget.playerName,
+                                )
+                            : null,
                       );
                     },
                   ),
@@ -350,6 +360,7 @@ class _SubscriptionCard extends StatelessWidget {
   final String currencyLabel;
   final bool canEdit;
   final VoidCallback? onDelete;
+  final VoidCallback? onAddPayment;
 
   const _SubscriptionCard({
     required this.subscription,
@@ -357,6 +368,7 @@ class _SubscriptionCard extends StatelessWidget {
     required this.currencyLabel,
     required this.canEdit,
     this.onDelete,
+    this.onAddPayment,
   });
 
   @override
@@ -409,6 +421,8 @@ class _SubscriptionCard extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
+                  PaymentStatusBadge.of(subscription),
+                  Gap(6.w),
                   // Status chip
                   Container(
                     padding: EdgeInsets.symmetric(
@@ -448,6 +462,13 @@ class _SubscriptionCard extends StatelessWidget {
                   ),
                 ],
               ),
+              if (subscription.hasDebt || subscription.payments.length > 1) ...[
+                Gap(8.h),
+                PaymentProgress(
+                  subscription: subscription,
+                  currencyLabel: currencyLabel,
+                ),
+              ],
               Gap(8.h),
               // Date range
               Row(
@@ -483,6 +504,29 @@ class _SubscriptionCard extends StatelessWidget {
                       ),
                     ),
                   ],
+                ),
+              ],
+              PaymentsHistoryTile(
+                subscription: subscription,
+                currencyLabel: currencyLabel,
+                canEdit: canEdit,
+              ),
+              if (onAddPayment != null) ...[
+                Gap(4.h),
+                ElevatedButton.icon(
+                  onPressed: onAddPayment,
+                  icon: const Icon(Icons.add_card),
+                  label: Text(
+                    'تسجيل دفعة (المتبقي ${formatMoney(subscription.remainingAmount)} $currencyLabel)',
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: Size(double.infinity, 42.h),
+                    backgroundColor: paymentStatusColor(subscription.paymentStatus),
+                    foregroundColor: AppColors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10.r),
+                    ),
+                  ),
                 ),
               ],
               if (canEdit) ...[

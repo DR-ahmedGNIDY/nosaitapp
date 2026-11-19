@@ -1,5 +1,7 @@
 import 'package:basketball_academy/core/network/api_client.dart';
+import 'package:basketball_academy/features/subscription/data/models/academy_debts_model.dart';
 import 'package:basketball_academy/features/subscription/data/models/subscription_model.dart';
+import 'package:basketball_academy/features/subscription/domain/entities/academy_debts_entity.dart';
 
 abstract class SubscriptionRemoteDatasource {
   Future<List<SubscriptionModel>> getSubscriptionsByPlayer({
@@ -33,7 +35,27 @@ abstract class SubscriptionRemoteDatasource {
     String? notes,
     int? sessionsLimit,
     String? academyId,
+    double? paidAmount,
+    String? paymentMethod,
   });
+
+  /// تسجيل دفعة (قسط) على اشتراك — يرجّع الاشتراك بعد التحديث.
+  Future<SubscriptionModel> addPayment({
+    required String subscriptionId,
+    required double amount,
+    String method = 'cash',
+    DateTime? date,
+    String? note,
+  });
+
+  /// حذف دفعة مسجّلة بالخطأ.
+  Future<SubscriptionModel> deletePayment({
+    required String subscriptionId,
+    required String paymentId,
+  });
+
+  /// اللاعبون الذين عليهم مبالغ متبقية.
+  Future<AcademyDebtsEntity> getAcademyDebts(String academyId);
 
   Future<SubscriptionModel> updateNotes({
     required String id,
@@ -129,8 +151,12 @@ class SubscriptionRemoteDatasourceImpl implements SubscriptionRemoteDatasource {
     String? notes,
     int? sessionsLimit,
     String? academyId,
+    double? paidAmount,
+    String? paymentMethod,
   }) async {
     final data = <String, dynamic>{
+      if (paidAmount != null) 'paidAmount': paidAmount,
+      if (paymentMethod != null) 'paymentMethod': paymentMethod,
       'playerId': playerId,
       'type': type,
       'amount': amount,
@@ -142,7 +168,52 @@ class SubscriptionRemoteDatasourceImpl implements SubscriptionRemoteDatasource {
     };
     final response = await _apiClient.post('/subscriptions', data: data);
     final body = response.data as Map<String, dynamic>;
+    final payload = body['data'] as Map<String, dynamic>;
+    // اشتراك جديد للاعب له اشتراكات سابقة ⇒ { subscription, warning }.
+    final subJson = payload['subscription'] is Map<String, dynamic>
+        ? payload['subscription'] as Map<String, dynamic>
+        : payload;
+    return SubscriptionModel.fromJson(subJson);
+  }
+
+  @override
+  Future<SubscriptionModel> addPayment({
+    required String subscriptionId,
+    required double amount,
+    String method = 'cash',
+    DateTime? date,
+    String? note,
+  }) async {
+    final response = await _apiClient.post(
+      '/subscriptions/$subscriptionId/payments',
+      data: {
+        'amount': amount,
+        'method': method,
+        if (date != null) 'date': date.toIso8601String(),
+        if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+      },
+    );
+    final body = response.data as Map<String, dynamic>;
     return SubscriptionModel.fromJson(body['data'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<SubscriptionModel> deletePayment({
+    required String subscriptionId,
+    required String paymentId,
+  }) async {
+    final response = await _apiClient
+        .delete('/subscriptions/$subscriptionId/payments/$paymentId');
+    final body = response.data as Map<String, dynamic>;
+    return SubscriptionModel.fromJson(body['data'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<AcademyDebtsEntity> getAcademyDebts(String academyId) async {
+    final response =
+        await _apiClient.get('/subscriptions/academy/$academyId/debts');
+    final body = response.data as Map<String, dynamic>;
+    return AcademyDebtsModel.fromJson(body['data'] as Map<String, dynamic>);
   }
 
   @override

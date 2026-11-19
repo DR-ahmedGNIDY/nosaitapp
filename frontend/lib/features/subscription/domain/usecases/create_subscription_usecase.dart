@@ -13,6 +13,9 @@ class CreateSubscriptionParams {
   final String? notes;
   final int? sessionsLimit;
   final String? academyId;
+  /// المدفوع الآن (null ⇒ المبلغ كاملاً).
+  final double? paidAmount;
+  final String? paymentMethod;
 
   const CreateSubscriptionParams({
     required this.playerId,
@@ -23,6 +26,8 @@ class CreateSubscriptionParams {
     this.notes,
     this.sessionsLimit,
     this.academyId,
+    this.paidAmount,
+    this.paymentMethod,
   });
 }
 
@@ -44,6 +49,8 @@ class CreateSubscriptionUsecase
       notes: params.notes,
       sessionsLimit: params.sessionsLimit,
       academyId: params.academyId,
+      paidAmount: params.paidAmount,
+      paymentMethod: params.paymentMethod,
     );
   }
 }

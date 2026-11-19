@@ -3,6 +3,7 @@ import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/layout/desktop_scaffold.dart';
 import 'package:basketball_academy/core/layout/responsive.dart';
 import 'package:basketball_academy/core/router/app_router.dart';
+import 'package:basketball_academy/features/subscription/presentation/widgets/payment_widgets.dart';
 import 'package:basketball_academy/features/player/presentation/screens/player_detail_screen.dart';
 import 'package:basketball_academy/features/subscription/domain/entities/subscription_entity.dart';
 import 'package:basketball_academy/features/subscription/presentation/providers/subscription_provider.dart';
@@ -129,6 +130,7 @@ class _SubscriptionsListScreenState
             AppRoutes.subscriptionsList.replaceFirst(':id', widget.academyId),
         tier: tier,
         title: 'الاشتراكات',
+        actions: [DebtsActionButton(academyId: widget.academyId)],
         content: content,
       );
     }
@@ -137,7 +139,11 @@ class _SubscriptionsListScreenState
       backgroundColor: AppColors.background,
       // بانر إعلاني — يختفي تلقائياً للمشترك ولأي حالة غير معروفة.
       bottomNavigationBar: const AdBannerSlot(),
-      appBar: AppBar(title: const Text('الاشتراكات'), centerTitle: true),
+      appBar: AppBar(
+        title: const Text('الاشتراكات'),
+        centerTitle: true,
+        actions: [DebtsActionButton(academyId: widget.academyId)],
+      ),
       body: RefreshIndicator(
         onRefresh: () => ref
             .read(academySubscriptionsProvider(widget.academyId).notifier)

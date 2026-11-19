@@ -1,6 +1,7 @@
 import 'package:basketball_academy/core/errors/exceptions.dart';
 import 'package:basketball_academy/core/errors/failures.dart';
 import 'package:basketball_academy/features/subscription/data/datasources/subscription_remote_datasource.dart';
+import 'package:basketball_academy/features/subscription/domain/entities/academy_debts_entity.dart';
 import 'package:basketball_academy/features/subscription/domain/entities/subscription_entity.dart';
 import 'package:basketball_academy/features/subscription/domain/repositories/subscription_repository.dart';
 import 'package:dartz/dartz.dart';
@@ -108,6 +109,8 @@ class SubscriptionRepositoryImpl implements SubscriptionRepository {
     String? notes,
     int? sessionsLimit,
     String? academyId,
+    double? paidAmount,
+    String? paymentMethod,
   }) async {
     try {
       final model = await _remoteDatasource.createSubscription(
@@ -119,6 +122,8 @@ class SubscriptionRepositoryImpl implements SubscriptionRepository {
         notes: notes,
         sessionsLimit: sessionsLimit,
         academyId: academyId,
+        paidAmount: paidAmount,
+        paymentMethod: paymentMethod,
       );
       return Right(model.toEntity());
     } on ValidationException catch (e) {
@@ -135,6 +140,60 @@ class SubscriptionRepositoryImpl implements SubscriptionRepository {
       return const Left(UnknownFailure());
     }
   }
+
+  /// غلاف موحّد لتحويل الاستثناءات إلى Failure.
+  Future<Either<Failure, T>> _guard<T>(Future<T> Function() run) async {
+    try {
+      return Right(await run());
+    } on ValidationException catch (e) {
+      return Left(ValidationFailure(message: e.message));
+    } on NotFoundException {
+      return const Left(NotFoundFailure());
+    } on UnauthorizedException {
+      return const Left(UnauthorizedFailure());
+    } on NetworkException {
+      return const Left(NetworkFailure());
+    } on TimeoutException {
+      return const Left(TimeoutFailure());
+    } on AppException catch (e) {
+      return Left(ServerFailure(message: e.message));
+    } catch (_) {
+      return const Left(UnknownFailure());
+    }
+  }
+
+  @override
+  Future<Either<Failure, SubscriptionEntity>> addPayment({
+    required String subscriptionId,
+    required double amount,
+    String method = 'cash',
+    DateTime? date,
+    String? note,
+  }) =>
+      _guard(() async => (await _remoteDatasource.addPayment(
+            subscriptionId: subscriptionId,
+            amount: amount,
+            method: method,
+            date: date,
+            note: note,
+          ))
+              .toEntity());
+
+  @override
+  Future<Either<Failure, SubscriptionEntity>> deletePayment({
+    required String subscriptionId,
+    required String paymentId,
+  }) =>
+      _guard(() async => (await _remoteDatasource.deletePayment(
+            subscriptionId: subscriptionId,
+            paymentId: paymentId,
+          ))
+              .toEntity());
+
+  @override
+  Future<Either<Failure, AcademyDebtsEntity>> getAcademyDebts(
+          String academyId) =>
+      _guard(() => _remoteDatasource.getAcademyDebts(academyId));
 
   @override
   Future<Either<Failure, SubscriptionEntity>> updateNotes({
