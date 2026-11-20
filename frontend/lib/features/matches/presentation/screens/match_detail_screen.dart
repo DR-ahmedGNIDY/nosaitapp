@@ -1,5 +1,6 @@
 import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/features/auth/presentation/providers/auth_provider.dart';
+import 'package:basketball_academy/features/match_stats/match_stats_entry_screen.dart';
 import 'package:basketball_academy/features/matches/data/match_model.dart';
 import 'package:basketball_academy/features/matches/presentation/providers/matches_providers.dart';
 import 'package:basketball_academy/features/matches/presentation/screens/select_match_players_screen.dart';
@@ -204,6 +205,14 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
             canManage: canManage,
             onEdit: () => _editSettings(match),
           ),
+          Gap(10.h),
+          _StatsCard(
+            canManage: canManage,
+            hasPlayers: players.isNotEmpty,
+            onOpen: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => MatchStatsEntryScreen(matchId: widget.matchId, canEdit: canManage),
+            )),
+          ),
           Gap(16.h),
           Row(
             children: [
@@ -374,6 +383,58 @@ class _SettingsCard extends StatelessWidget {
               child: Text('• $l', style: TextStyle(fontSize: 13.sp, color: AppColors.grey700)),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// مدخل نتيجة المباراة وإحصائيات اللاعبين.
+class _StatsCard extends StatelessWidget {
+  final bool canManage;
+  final bool hasPlayers;
+  final VoidCallback onOpen;
+  const _StatsCard({required this.canManage, required this.hasPlayers, required this.onOpen});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(14.r),
+      onTap: hasPlayers ? onOpen : null,
+      child: Container(
+        padding: EdgeInsets.all(14.r),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: [
+            AppColors.primary.withValues(alpha: 0.10),
+            AppColors.secondary.withValues(alpha: 0.10),
+          ]),
+          borderRadius: BorderRadius.circular(14.r),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.query_stats, color: AppColors.primary, size: 26.sp),
+            Gap(10.w),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('النتيجة وإحصائيات اللاعبين',
+                      style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w800)),
+                  Gap(2.h),
+                  Text(
+                    !hasPlayers
+                        ? 'أضف لاعبين للمباراة أولاً'
+                        : canManage
+                            ? 'سجّل النتيجة وأرقام كل لاعب ونجم المباراة'
+                            : 'عرض النتيجة وأرقام اللاعبين',
+                    style: TextStyle(fontSize: 12.sp, color: AppColors.grey600),
+                  ),
+                ],
+              ),
+            ),
+            if (hasPlayers) const Icon(Icons.chevron_left, color: AppColors.primary),
+          ],
+        ),
       ),
     );
   }

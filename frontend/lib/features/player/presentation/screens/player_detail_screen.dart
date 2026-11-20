@@ -5,6 +5,7 @@ import 'package:basketball_academy/features/auth/presentation/providers/auth_pro
 import 'package:basketball_academy/features/evaluation/presentation/providers/evaluation_provider.dart';
 import 'package:basketball_academy/features/evaluation/presentation/screens/add_evaluation_screen.dart';
 import 'package:basketball_academy/features/evaluation/presentation/screens/evaluation_history_screen.dart';
+import 'package:basketball_academy/features/match_stats/player_match_stats_screen.dart';
 import 'package:basketball_academy/features/player/domain/entities/player_entity.dart';
 import 'package:basketball_academy/features/player/presentation/providers/player_provider.dart';
 import 'package:basketball_academy/features/player/presentation/screens/edit_player_screen.dart';
@@ -539,6 +540,23 @@ class _PlayerDetailContent extends ConsumerWidget {
                     academyId: academyId,
                     playerName: player.fullName,
                     canEdit: canEdit,
+                  ),
+                  Gap(8.h),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      padding: EdgeInsets.symmetric(vertical: 12.h),
+                    ),
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => PlayerMatchStatsScreen(
+                          playerId: player.id,
+                          playerName: player.fullName,
+                          academyId: academyId,
+                        ),
+                      ),
+                    ),
+                    icon: const Icon(Icons.query_stats),
+                    label: const Text('إحصائيات المباريات'),
                   ),
                   Gap(16.h),
 

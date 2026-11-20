@@ -1,5 +1,7 @@
 import 'package:basketball_academy/core/constants/app_colors.dart';
+import 'package:basketball_academy/features/academy/presentation/providers/academy_provider.dart';
 import 'package:basketball_academy/features/auth/presentation/providers/auth_provider.dart';
+import 'package:basketball_academy/features/match_stats/leaderboard_screen.dart';
 import 'package:basketball_academy/features/matches/data/match_model.dart';
 import 'package:basketball_academy/features/matches/presentation/providers/matches_providers.dart';
 import 'package:basketball_academy/features/matches/presentation/screens/create_match_screen.dart';
@@ -25,7 +27,21 @@ class MatchesListScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('المباريات')),
+      appBar: AppBar(
+        title: const Text('المباريات'),
+        actions: [
+          IconButton(
+            tooltip: 'ترتيب الأكاديمية',
+            icon: const Icon(Icons.leaderboard_outlined),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => LeaderboardScreen(
+                academyId: academyId,
+                sports: ref.read(academyByIdProvider(academyId)).valueOrNull?.sports ?? const [],
+              ),
+            )),
+          ),
+        ],
+      ),
       floatingActionButton: canManage
           ? FloatingActionButton.extended(
               onPressed: () async {

@@ -8,6 +8,7 @@ import 'package:basketball_academy/features/player_portal/presentation/providers
 import 'package:basketball_academy/features/player_portal/presentation/screens/player_matches_screen.dart';
 import 'package:basketball_academy/features/player_portal/presentation/screens/player_receipts_screen.dart';
 import 'package:basketball_academy/features/tournaments/presentation/screens/player_tournaments_screen.dart';
+import 'package:basketball_academy/features/match_stats/player_match_stats_screen.dart';
 import 'package:basketball_academy/features/player_portal/presentation/screens/player_training_rating_screen.dart';
 import 'package:basketball_academy/features/player_portal/presentation/widgets/player_photo_sheet.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -613,6 +614,19 @@ class PlayerDashboardScreen extends ConsumerWidget {
             colors: const [AppColors.success, AppColors.secondary],
             onTap: () => Navigator.of(context).push(MaterialPageRoute(
               builder: (_) => const PlayerReceiptsScreen(),
+            )),
+          ),
+        ),
+        Gap(12.h),
+        SizedBox(
+          width: double.infinity,
+          child: _actionTile(
+            icon: Icons.query_stats,
+            title: 'إحصائياتي',
+            subtitle: 'أرقامك في المباريات وترتيبك في الأكاديمية',
+            colors: const [AppColors.primaryDark, AppColors.primary],
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => const PlayerMatchStatsScreen(),
             )),
           ),
         ),
