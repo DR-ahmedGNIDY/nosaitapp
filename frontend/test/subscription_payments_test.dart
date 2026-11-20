@@ -1,7 +1,10 @@
 import 'package:basketball_academy/features/subscription/data/models/academy_debts_model.dart';
 import 'package:basketball_academy/features/subscription/data/models/subscription_model.dart';
 import 'package:basketball_academy/features/subscription/domain/entities/subscription_entity.dart';
+import 'package:basketball_academy/features/subscription/domain/entities/receipt_entity.dart';
+import 'package:basketball_academy/features/subscription/services/receipt_pdf_service.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 Map<String, dynamic> _sub([Map<String, dynamic> extra = const {}]) => {
       '_id': 's1',
@@ -15,7 +18,62 @@ Map<String, dynamic> _sub([Map<String, dynamic> extra = const {}]) => {
       ...extra,
     };
 
+Map<String, dynamic> _receiptJson({double remaining = 300}) => {
+      'receiptNoLabel': '000007',
+      'payment': {
+        '_id': 'pay1',
+        'amount': 200,
+        'date': '2026-11-02T10:00:00.000Z',
+        'method': 'instapay',
+        'recordedByName': 'مدير',
+      },
+      'subscription': {
+        '_id': 's1',
+        'type': 'NEW_SUBSCRIPTION',
+        'amount': 500,
+        'startDate': '2026-11-01T00:00:00.000Z',
+        'endDate': '2026-12-01T00:00:00.000Z',
+        'paidToDate': 500 - remaining,
+        'remainingAfter': remaining,
+      },
+      'player': {'fullName': 'علي', 'playerCode': 'A1', 'parentPhone': '', 'playerPhone': '0101'},
+      'academy': {'name': 'أكاديمية', 'logo_url': '', 'currency': 'EGP'},
+    };
+
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(() => initializeDateFormatting('ar'));
+
+  test('receipt parses and builds a PDF + WhatsApp summary', () async {
+    final r = ReceiptEntity.fromJson(_receiptJson());
+    expect(r.receiptNoLabel, '000007');
+    expect(r.methodLabel, 'إنستاباي');
+    expect(r.fullyPaid, isFalse);
+    expect(r.contactPhone, '0101');
+    expect(r.typeLabel, 'اشتراك جديد');
+
+    final bytes = await ReceiptPdfService.build(r);
+    expect(bytes.length, greaterThan(1000));
+    expect(String.fromCharCodes(bytes.take(4)), '%PDF');
+
+    final text = ReceiptPdfService.textSummary(r);
+    expect(text, contains('000007'));
+    expect(text, contains('المتبقي: 300'));
+    expect(ReceiptPdfService.textSummary(ReceiptEntity.fromJson(_receiptJson(remaining: 0))),
+        contains('مدفوع بالكامل'));
+    expect(ReceiptPdfService.fileName(r), 'receipt_000007.pdf');
+  });
+
+  test('payment receiptNo is parsed', () {
+    final e = SubscriptionModel.fromJson(_sub({
+      'paidAmount': 100,
+      'payments': [
+        {'_id': 'p', 'amount': 100, 'date': '2026-11-02T10:00:00.000Z', 'receiptNo': 12},
+      ],
+    })).toEntity();
+    expect(e.payments.single.receiptNo, 12);
+  });
+
   test('legacy subscription without paidAmount is fully paid', () {
     final e = SubscriptionModel.fromJson(_sub()).toEntity();
     expect(e.paidAmount, 500);

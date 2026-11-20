@@ -38,6 +38,13 @@ class PlayerApiService {
     return (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>;
   }
 
+  /// إيصالات دفع اللاعب (الأحدث أولاً) — كل عنصر بيانات إيصال كاملة.
+  Future<List<Map<String, dynamic>>> receipts() async {
+    final res = await _api.get<Map<String, dynamic>>('/player/receipts');
+    final list = (res.data as Map<String, dynamic>)['data'] as List<dynamic>? ?? const [];
+    return list.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+  }
+
   // ── الصورة الشخصية ──
   /// يرفع صورة اللاعب إلى Cloudinary عبر الخادم ويعيد رابط الصورة الجديد.
   Future<String?> updatePhoto(String imagePath) async {

@@ -97,7 +97,7 @@ class _AddSubscriptionScreenState
     setState(() => _isLoading = true);
 
     final amount = double.parse(_amountController.text.trim());
-    final error = await ref
+    final result = await ref
         .read(playerSubscriptionsProvider(widget.playerId).notifier)
         .createSubscription(
           playerId: widget.playerId,
@@ -118,6 +118,7 @@ class _AddSubscriptionScreenState
     if (!mounted) return;
     setState(() => _isLoading = false);
 
+    final error = result.error;
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -134,6 +135,7 @@ class _AddSubscriptionScreenState
           behavior: SnackBarBehavior.floating,
         ),
       );
+      await showFirstPaymentReceipt(context, result.subscription);
       if (mounted) Navigator.of(context).pop();
     }
   }

@@ -2,6 +2,7 @@ import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/features/subscription/domain/entities/subscription_entity.dart';
 import 'package:basketball_academy/features/subscription/presentation/providers/subscription_provider.dart';
 import 'package:basketball_academy/features/subscription/presentation/screens/debts_screen.dart';
+import 'package:basketball_academy/features/subscription/presentation/widgets/receipt_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -317,7 +318,25 @@ class PaymentsHistoryTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final payments = subscription.payments;
-    if (payments.isEmpty) return const SizedBox.shrink();
+    // اشتراك قديم بلا سجل دفعات لكنه مدفوع ⇒ زر إيصال (يُرقَّم عند أول طلب).
+    if (payments.isEmpty) {
+      if (subscription.paidAmount <= 0) return const SizedBox.shrink();
+      return Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: TextButton.icon(
+          onPressed: () => showReceiptSheet(
+            context,
+            title: 'إيصال دفع',
+            load: () => fetchPaymentReceipt(
+              subscriptionId: subscription.id,
+              paymentId: 'legacy',
+            ),
+          ),
+          icon: Icon(Icons.receipt_outlined, size: 18.sp),
+          label: const Text('إيصال الدفع'),
+        ),
+      );
+    }
     final df = DateFormat('dd/MM/yyyy', 'ar');
     return Theme(
       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
@@ -336,7 +355,8 @@ class PaymentsHistoryTile extends ConsumerWidget {
               contentPadding: EdgeInsets.zero,
               leading: Icon(Icons.receipt_long_outlined, size: 18.sp, color: AppColors.primary),
               title: Text(
-                '${formatMoney(p.amount)} $currencyLabel • ${p.methodLabel}',
+                '${formatMoney(p.amount)} $currencyLabel • ${p.methodLabel}'
+                '${p.receiptNo != null ? ' • #${p.receiptNo.toString().padLeft(6, '0')}' : ''}',
                 style: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w600),
               ),
               subtitle: Text(
@@ -347,13 +367,31 @@ class PaymentsHistoryTile extends ConsumerWidget {
                 ].join(' • '),
                 style: TextStyle(fontSize: 11.sp, color: AppColors.grey500),
               ),
-              trailing: canEdit && p.id.isNotEmpty
-                  ? IconButton(
-                      tooltip: 'حذف الدفعة',
-                      icon: Icon(Icons.delete_outline, size: 18.sp, color: AppColors.error),
-                      onPressed: () => _delete(context, ref, p),
-                    )
-                  : null,
+              trailing: p.id.isEmpty
+                  ? null
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          tooltip: 'الإيصال',
+                          icon: Icon(Icons.receipt_outlined, size: 18.sp, color: AppColors.primary),
+                          onPressed: () => showReceiptSheet(
+                            context,
+                            title: 'إيصال دفع',
+                            load: () => fetchPaymentReceipt(
+                              subscriptionId: subscription.id,
+                              paymentId: p.id,
+                            ),
+                          ),
+                        ),
+                        if (canEdit)
+                          IconButton(
+                            tooltip: 'حذف الدفعة',
+                            icon: Icon(Icons.delete_outline, size: 18.sp, color: AppColors.error),
+                            onPressed: () => _delete(context, ref, p),
+                          ),
+                      ],
+                    ),
             ),
         ],
       ),
@@ -365,7 +403,8 @@ class PaymentsHistoryTile extends ConsumerWidget {
 // Add payment bottom sheet
 // ---------------------------------------------------------------------------
 
-/// يفتح نافذة "تسجيل دفعة". يرجّع true عند تسجيل الدفعة بنجاح.
+/// يفتح نافذة "تسجيل دفعة"، وبعد النجاح يفتح الإيصال مباشرة.
+/// يرجّع true عند تسجيل الدفعة بنجاح.
 Future<bool> showAddPaymentSheet(
   BuildContext context, {
   required String subscriptionId,
@@ -373,7 +412,7 @@ Future<bool> showAddPaymentSheet(
   required String currencyLabel,
   String? playerName,
 }) async {
-  final ok = await showModalBottomSheet<bool>(
+  final paymentId = await showModalBottomSheet<String>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
@@ -387,7 +426,14 @@ Future<bool> showAddPaymentSheet(
       playerName: playerName,
     ),
   );
-  return ok == true;
+  if (paymentId == null) return false;
+  if (paymentId.isNotEmpty && context.mounted) {
+    await showReceiptSheet(
+      context,
+      load: () => fetchPaymentReceipt(subscriptionId: subscriptionId, paymentId: paymentId),
+    );
+  }
+  return true;
 }
 
 class _AddPaymentSheet extends ConsumerStatefulWidget {
@@ -439,7 +485,7 @@ class _AddPaymentSheetState extends ConsumerState<_AddPaymentSheet> {
     setState(() => _saving = true);
     final now = DateTime.now();
     final isToday = _date.year == now.year && _date.month == now.month && _date.day == now.day;
-    final error = await recordSubscriptionPayment(
+    final result = await recordSubscriptionPayment(
       ref,
       subscriptionId: widget.subscriptionId,
       amount: double.parse(_amount.text.trim()),
@@ -450,20 +496,17 @@ class _AddPaymentSheetState extends ConsumerState<_AddPaymentSheet> {
     );
     if (!mounted) return;
     setState(() => _saving = false);
-    if (error != null) {
+    if (result.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(error),
+        content: Text(result.error!),
         backgroundColor: AppColors.error,
         behavior: SnackBarBehavior.floating,
       ));
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text('تم تسجيل الدفعة'),
-      backgroundColor: AppColors.success,
-      behavior: SnackBarBehavior.floating,
-    ));
-    Navigator.of(context).pop(true);
+    // الدفعة الجديدة = آخر عنصر في سجل الدفعات ('' ⇒ بدون إيصال).
+    final payments = result.subscription?.payments ?? const [];
+    Navigator.of(context).pop(payments.isNotEmpty ? payments.last.id : '');
   }
 
   @override
@@ -577,6 +620,23 @@ class _AddPaymentSheetState extends ConsumerState<_AddPaymentSheet> {
       ),
     );
   }
+}
+
+/// بعد إضافة/تجديد اشتراك: يعرض إيصال الدفعة الأولى (لو اتدفع حاجة).
+Future<void> showFirstPaymentReceipt(
+  BuildContext context,
+  SubscriptionEntity? subscription,
+) async {
+  if (subscription == null || subscription.payments.isEmpty || !context.mounted) return;
+  final paymentId = subscription.payments.first.id;
+  await showReceiptSheet(
+    context,
+    title: 'تم تسجيل الاشتراك',
+    load: () => fetchPaymentReceipt(
+      subscriptionId: subscription.id,
+      paymentId: paymentId,
+    ),
+  );
 }
 
 // ---------------------------------------------------------------------------

@@ -2,6 +2,7 @@ import 'package:basketball_academy/core/errors/exceptions.dart';
 import 'package:basketball_academy/core/errors/failures.dart';
 import 'package:basketball_academy/features/subscription/data/datasources/subscription_remote_datasource.dart';
 import 'package:basketball_academy/features/subscription/domain/entities/academy_debts_entity.dart';
+import 'package:basketball_academy/features/subscription/domain/entities/receipt_entity.dart';
 import 'package:basketball_academy/features/subscription/domain/entities/subscription_entity.dart';
 import 'package:basketball_academy/features/subscription/domain/repositories/subscription_repository.dart';
 import 'package:dartz/dartz.dart';
@@ -194,6 +195,16 @@ class SubscriptionRepositoryImpl implements SubscriptionRepository {
   Future<Either<Failure, AcademyDebtsEntity>> getAcademyDebts(
           String academyId) =>
       _guard(() => _remoteDatasource.getAcademyDebts(academyId));
+
+  @override
+  Future<Either<Failure, ReceiptEntity>> getReceipt({
+    required String subscriptionId,
+    required String paymentId,
+  }) =>
+      _guard(() => _remoteDatasource.getReceipt(
+            subscriptionId: subscriptionId,
+            paymentId: paymentId,
+          ));
 
   @override
   Future<Either<Failure, SubscriptionEntity>> updateNotes({

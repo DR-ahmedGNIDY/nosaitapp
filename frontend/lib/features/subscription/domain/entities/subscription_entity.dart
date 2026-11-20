@@ -38,6 +38,8 @@ class SubscriptionPaymentEntity extends Equatable {
   final String method;
   final String? note;
   final String recordedByName;
+  /// رقم الإيصال (null للدفعات القديمة قبل أول طلب لإيصالها).
+  final int? receiptNo;
 
   const SubscriptionPaymentEntity({
     required this.id,
@@ -46,12 +48,13 @@ class SubscriptionPaymentEntity extends Equatable {
     this.method = 'cash',
     this.note,
     this.recordedByName = '',
+    this.receiptNo,
   });
 
   String get methodLabel => PaymentMethods.label(method);
 
   @override
-  List<Object?> get props => [id, amount, date, method, note, recordedByName];
+  List<Object?> get props => [id, amount, date, method, note, recordedByName, receiptNo];
 }
 
 class SubscriptionEntity extends Equatable {

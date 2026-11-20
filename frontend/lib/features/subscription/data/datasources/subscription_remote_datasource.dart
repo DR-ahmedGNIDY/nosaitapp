@@ -2,6 +2,7 @@ import 'package:basketball_academy/core/network/api_client.dart';
 import 'package:basketball_academy/features/subscription/data/models/academy_debts_model.dart';
 import 'package:basketball_academy/features/subscription/data/models/subscription_model.dart';
 import 'package:basketball_academy/features/subscription/domain/entities/academy_debts_entity.dart';
+import 'package:basketball_academy/features/subscription/domain/entities/receipt_entity.dart';
 
 abstract class SubscriptionRemoteDatasource {
   Future<List<SubscriptionModel>> getSubscriptionsByPlayer({
@@ -56,6 +57,12 @@ abstract class SubscriptionRemoteDatasource {
 
   /// اللاعبون الذين عليهم مبالغ متبقية.
   Future<AcademyDebtsEntity> getAcademyDebts(String academyId);
+
+  /// بيانات إيصال دفعة (paymentId = 'legacy' للاشتراك القديم بلا سجل دفعات).
+  Future<ReceiptEntity> getReceipt({
+    required String subscriptionId,
+    required String paymentId,
+  });
 
   Future<SubscriptionModel> updateNotes({
     required String id,
@@ -214,6 +221,17 @@ class SubscriptionRemoteDatasourceImpl implements SubscriptionRemoteDatasource {
         await _apiClient.get('/subscriptions/academy/$academyId/debts');
     final body = response.data as Map<String, dynamic>;
     return AcademyDebtsModel.fromJson(body['data'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<ReceiptEntity> getReceipt({
+    required String subscriptionId,
+    required String paymentId,
+  }) async {
+    final response = await _apiClient
+        .get('/subscriptions/$subscriptionId/payments/$paymentId/receipt');
+    final body = response.data as Map<String, dynamic>;
+    return ReceiptEntity.fromJson(body['data'] as Map<String, dynamic>);
   }
 
   @override

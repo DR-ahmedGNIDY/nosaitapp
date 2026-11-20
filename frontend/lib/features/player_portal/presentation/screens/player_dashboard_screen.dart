@@ -6,6 +6,7 @@ import 'package:basketball_academy/core/utils/currency_utils.dart';
 import 'package:basketball_academy/features/player_portal/presentation/providers/player_data_providers.dart';
 import 'package:basketball_academy/features/player_portal/presentation/providers/player_session_provider.dart';
 import 'package:basketball_academy/features/player_portal/presentation/screens/player_matches_screen.dart';
+import 'package:basketball_academy/features/player_portal/presentation/screens/player_receipts_screen.dart';
 import 'package:basketball_academy/features/tournaments/presentation/screens/player_tournaments_screen.dart';
 import 'package:basketball_academy/features/player_portal/presentation/screens/player_training_rating_screen.dart';
 import 'package:basketball_academy/features/player_portal/presentation/widgets/player_photo_sheet.dart';
@@ -582,6 +583,19 @@ class PlayerDashboardScreen extends ConsumerWidget {
             colors: const [AppColors.warning, AppColors.primary],
             onTap: () => Navigator.of(context).push(MaterialPageRoute(
               builder: (_) => const PlayerTournamentsScreen(),
+            )),
+          ),
+        ),
+        Gap(12.h),
+        SizedBox(
+          width: double.infinity,
+          child: _actionTile(
+            icon: Icons.receipt_long_outlined,
+            title: 'إيصالاتي',
+            subtitle: 'إيصالات دفع اشتراكاتك — مشاركة وطباعة',
+            colors: const [AppColors.success, AppColors.secondary],
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => const PlayerReceiptsScreen(),
             )),
           ),
         ),

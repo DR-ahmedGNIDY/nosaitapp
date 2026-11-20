@@ -65,6 +65,7 @@ class SubscriptionModel {
         method: (m['method'] as String?) ?? 'cash',
         note: m['note'] as String?,
         recordedByName: (m['recordedByName'] as String?) ?? '',
+        receiptNo: (m['receiptNo'] as num?)?.toInt(),
       );
     }).toList();
   }
