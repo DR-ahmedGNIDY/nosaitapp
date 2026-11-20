@@ -7,6 +7,7 @@ import 'package:basketball_academy/core/layout/desktop_scaffold.dart';
 import 'package:basketball_academy/core/layout/responsive.dart';
 import 'package:basketball_academy/core/router/app_router.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:basketball_academy/features/finance/presentation/screens/profit_loss_screen.dart';
 import 'package:basketball_academy/features/academy/presentation/providers/academy_provider.dart';
 import 'package:basketball_academy/features/academy/presentation/providers/currency_provider.dart';
 import 'package:basketball_academy/features/auth/presentation/providers/auth_provider.dart';
@@ -332,6 +333,15 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final tier =
         kIsWeb ? screenTierOf(MediaQuery.sizeOf(context).width) : ScreenTier.mobile;
 
+    // تقرير الأرباح والخسائر يكشف المصروفات والرواتب ⇒ مدير الأكاديمية والسوبر أدمن فقط.
+    final profitLossCard = _selectedAcademyId != null &&
+            (isSuperAdmin || user?.isAcademyAdmin == true)
+        ? ProfitLossEntryCard(
+            academyId: _selectedAcademyId!,
+            academyName: _selectedAcademyName ?? '',
+          )
+        : null;
+
     final reportDefs = [
       (
         index: 0,
@@ -419,6 +429,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   setState(() => _subscriptionStatusFilter = s),
             ),
             const SizedBox(height: 20),
+            if (profitLossCard != null) ...[profitLossCard, const SizedBox(height: 16)],
             DesktopGrid(
               isDesktop: tier == ScreenTier.desktop,
               childAspectRatio: 1.3,
@@ -643,6 +654,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             child: ListView(
               padding: EdgeInsets.all(16.r),
               children: [
+                if (profitLossCard != null) ...[profitLossCard, Gap(12.h)],
                 _ReportCard(
                   index: 0,
                   icon: Icons.people_alt_outlined,
