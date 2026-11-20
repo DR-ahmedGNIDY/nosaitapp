@@ -1,5 +1,6 @@
 import 'package:basketball_academy/core/ads/ad_banner_slot.dart';
 import 'dart:async';
+import 'package:basketball_academy/features/online_registration/registration_requests_screen.dart';
 
 import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/constants/app_strings.dart';
@@ -136,6 +137,7 @@ class _PlayersListScreenState extends ConsumerState<PlayersListScreen> {
           DesktopPageHeader(
             title: AppStrings.players,
             actions: [
+              if (canAdd) RegistrationRequestsButton(academyId: widget.academyId),
               if (canAdd)
                 DesktopPrimaryButton(
                   label: AppStrings.addPlayer,
@@ -323,6 +325,7 @@ class _PlayersListScreenState extends ConsumerState<PlayersListScreen> {
         ),
         centerTitle: true,
         actions: [
+          if (canAdd) RegistrationRequestsButton(academyId: widget.academyId),
           IconButton(
             icon: const Icon(Icons.qr_code_scanner),
             tooltip: 'الحضور والانصراف',
