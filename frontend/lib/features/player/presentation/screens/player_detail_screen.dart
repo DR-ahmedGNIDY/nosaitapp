@@ -545,6 +545,7 @@ class _PlayerDetailContent extends ConsumerWidget {
                   OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
                       padding: EdgeInsets.symmetric(vertical: 12.h),
+                      minimumSize: const Size.fromHeight(44),
                     ),
                     onPressed: () => Navigator.of(context).push(
                       MaterialPageRoute(
