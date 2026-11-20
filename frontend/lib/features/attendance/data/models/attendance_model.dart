@@ -48,6 +48,10 @@ class AttendanceRecordMapper {
       recorded: data['recorded'] == true,
       alreadyToday: data['alreadyToday'] == true,
       subscriptionExpired: data['subscriptionExpired'] == true,
+      frozen: data['frozen'] == true,
+      frozenUntil: data['frozenUntil'] is String
+          ? DateTime.tryParse(data['frozenUntil'] as String)?.toLocal()
+          : null,
       playerId: (player['id'] as String?),
       playerName: (player['fullName'] ?? '').toString(),
       playerCode: (player['playerCode'] ?? '').toString(),

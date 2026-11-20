@@ -161,6 +161,43 @@ Future<({String? error, SubscriptionEntity? subscription})>
   );
 }
 
+/// تجميد اشتراك. يرجّع رسالة الخطأ أو null عند النجاح.
+Future<String?> freezePlayerSubscription(
+  WidgetRef ref, {
+  required String subscriptionId,
+  required int days,
+  String? startDate,
+  String reason = 'other',
+  String? note,
+}) async {
+  final result = await sl<SubscriptionRepository>().freezeSubscription(
+    subscriptionId: subscriptionId,
+    days: days,
+    startDate: startDate,
+    reason: reason,
+    note: note,
+  );
+  return result.fold((f) => f.message, (_) {
+    _invalidateSubscriptionViewsW(ref);
+    return null;
+  });
+}
+
+/// فك التجميد. يرجّع (error, message).
+Future<({String? error, String? message})> resumePlayerSubscription(
+  WidgetRef ref,
+  String subscriptionId,
+) async {
+  final result = await sl<SubscriptionRepository>().resumeSubscription(subscriptionId);
+  return result.fold(
+    (f) => (error: f.message, message: null),
+    (msg) {
+      _invalidateSubscriptionViewsW(ref);
+      return (error: null, message: msg);
+    },
+  );
+}
+
 /// رابط عام لصورة الإيصال (60 يوماً) — يرمي Exception برسالة عربية عند الفشل.
 Future<String> fetchReceiptShareLink({
   required String subscriptionId,

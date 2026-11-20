@@ -209,6 +209,27 @@ class SubscriptionRepositoryImpl implements SubscriptionRepository {
           ));
 
   @override
+  Future<Either<Failure, SubscriptionEntity>> freezeSubscription({
+    required String subscriptionId,
+    required int days,
+    String? startDate,
+    String reason = 'other',
+    String? note,
+  }) =>
+      _guard(() async => (await _remoteDatasource.freezeSubscription(
+            subscriptionId: subscriptionId,
+            days: days,
+            startDate: startDate,
+            reason: reason,
+            note: note,
+          ))
+              .toEntity());
+
+  @override
+  Future<Either<Failure, String>> resumeSubscription(String subscriptionId) =>
+      _guard(() async => (await _remoteDatasource.resumeSubscription(subscriptionId)).message);
+
+  @override
   Future<Either<Failure, String>> shareReceiptImage({
     required String subscriptionId,
     required String paymentId,

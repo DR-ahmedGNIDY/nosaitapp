@@ -118,6 +118,29 @@ void main() {
     expect(partial.remainingAmount, 200);
   });
 
+  test('freeze state parses and changes the display status', () {
+    final e = SubscriptionModel.fromJson(_sub({
+      'endDate': '2099-12-01T00:00:00.000Z',
+      'freezeStatus': 'frozen',
+      'currentFreeze': {
+        'startDate': '2099-11-01T00:00:00.000Z',
+        'endDate': '2099-11-15T00:00:00.000Z',
+        'days': 14,
+        'reason': 'injury',
+      },
+    })).toEntity();
+    expect(e.isFrozen, isTrue);
+    expect(e.hasOpenFreeze, isTrue);
+    expect(e.freezeDays, 14);
+    expect(e.displayStatus, 'مجمّد');
+    expect(SubscriptionEntity.freezeReasonLabel(e.freezeReason), 'إصابة');
+    expect(e.freezeLastDay!.isBefore(e.freezeEnd!), isTrue);
+
+    final none = SubscriptionModel.fromJson(_sub({'endDate': '2099-12-01T00:00:00.000Z'})).toEntity();
+    expect(none.hasOpenFreeze, isFalse);
+    expect(none.displayStatus, isNot('مجمّد'));
+  });
+
   test('unpaid subscription', () {
     final e = SubscriptionModel.fromJson(_sub({'paidAmount': 0, 'payments': []})).toEntity();
     expect(e.paymentStatus, PaymentStatus.unpaid);

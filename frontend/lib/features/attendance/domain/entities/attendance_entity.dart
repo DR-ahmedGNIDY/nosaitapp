@@ -98,6 +98,9 @@ class AttendanceRecordResult extends Equatable {
   final bool recorded;
   final bool alreadyToday;
   final bool subscriptionExpired;
+  /// الاشتراك مجمّد الآن (لم يُسجَّل الحضور) — frozenUntil نهاية حصرية للتجميد.
+  final bool frozen;
+  final DateTime? frozenUntil;
   final String? playerId;
   final String playerName;
   final String playerCode;
@@ -115,6 +118,8 @@ class AttendanceRecordResult extends Equatable {
     required this.recorded,
     required this.alreadyToday,
     this.subscriptionExpired = false,
+    this.frozen = false,
+    this.frozenUntil,
     this.playerId,
     required this.playerName,
     required this.playerCode,
@@ -132,6 +137,8 @@ class AttendanceRecordResult extends Equatable {
         recorded,
         alreadyToday,
         subscriptionExpired,
+        frozen,
+        frozenUntil,
         playerId,
         playerName,
         playerCode,

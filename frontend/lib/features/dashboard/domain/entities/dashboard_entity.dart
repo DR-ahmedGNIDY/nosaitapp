@@ -150,6 +150,8 @@ class RecentActivityEntity extends Equatable {
       'DELETE_SUBSCRIPTION' => 'قام بحذف اشتراك اللاعب',
       'ADD_PAYMENT' => 'قام بتسجيل دفعة للاعب',
       'DELETE_PAYMENT' => 'قام بحذف دفعة للاعب',
+      'FREEZE_SUBSCRIPTION' => 'قام بتجميد اشتراك اللاعب',
+      'UNFREEZE_SUBSCRIPTION' => 'قام بفك تجميد اشتراك اللاعب',
       'ADD_EVALUATION' => 'قام بإضافة تقييم للاعب',
       'UPDATE_EVALUATION' => 'قام بتعديل تقييم اللاعب',
       'DELETE_EVALUATION' => 'قام بحذف تقييم اللاعب',

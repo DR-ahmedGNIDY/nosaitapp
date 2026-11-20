@@ -79,6 +79,13 @@ class SubscriptionEntity extends Equatable {
   final double? paidAmountRaw;
   /// سجل الدفعات (فارغ للاشتراكات القديمة).
   final List<SubscriptionPaymentEntity> payments;
+  /// التجميد: 'frozen' (ساري الآن) | 'scheduled' (يبدأ لاحقاً) | null.
+  final String? freezeStatus;
+  final DateTime? freezeStart;
+  /// نهاية حصرية = يوم الرجوع.
+  final DateTime? freezeEnd;
+  final int freezeDays;
+  final String? freezeReason;
   final DateTime createdAt;
   final DateTime? updatedAt;
 
@@ -99,6 +106,11 @@ class SubscriptionEntity extends Equatable {
     this.exhaustedAt,
     this.paidAmountRaw,
     this.payments = const [],
+    this.freezeStatus,
+    this.freezeStart,
+    this.freezeEnd,
+    this.freezeDays = 0,
+    this.freezeReason,
     required this.createdAt,
     this.updatedAt,
   });
@@ -119,6 +131,19 @@ class SubscriptionEntity extends Equatable {
   }
 
   bool get hasDebt => remainingAmount > 0;
+
+  bool get isFrozen => freezeStatus == 'frozen';
+  bool get hasOpenFreeze => freezeStatus == 'frozen' || freezeStatus == 'scheduled';
+  /// آخر يوم مجمّد (للعرض).
+  DateTime? get freezeLastDay => freezeEnd?.subtract(const Duration(days: 1));
+
+  static String freezeReasonLabel(String? r) => switch (r) {
+        'injury' => 'إصابة',
+        'travel' => 'سفر',
+        'exams' => 'امتحانات',
+        'illness' => 'مرض',
+        _ => 'أخرى',
+      };
 
   /// الدفعات الفعلية — الاشتراك القديم بلا سجل = دفعة واحدة يوم الإنشاء.
   List<SubscriptionPaymentEntity> get effectivePayments {
@@ -162,6 +187,7 @@ class SubscriptionEntity extends Equatable {
   /// نشط | ينتهي قريباً | منتهي — لا يوجد مفهوم "مجمد" في الـ backend حالياً
   String get displayStatus {
     if (!isActive) return 'منتهي';
+    if (isFrozen) return 'مجمّد';
     if (isExpiringSoon) return 'ينتهي قريباً';
     return 'نشط';
   }
@@ -184,6 +210,11 @@ class SubscriptionEntity extends Equatable {
         exhaustedAt,
         paidAmountRaw,
         payments,
+        freezeStatus,
+        freezeStart,
+        freezeEnd,
+        freezeDays,
+        freezeReason,
         createdAt,
         updatedAt,
       ];

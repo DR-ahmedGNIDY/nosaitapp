@@ -71,7 +71,11 @@ class AttendanceRemoteDatasourceImpl implements AttendanceRemoteDatasource {
       'localTime': localTime,
       // allowExpired يبقى لتوافق سيرفر قديم مع "حضور والدفع لاحقاً".
       if (allowExpired || mode == 'pay_later') 'allowExpired': true,
-      if (mode != null) 'mode': mode,
+      // mode 'unfreeze' = فك تجميد الاشتراك ثم تسجيل الحضور (ليس نوع حضور).
+      if (mode != null && mode != 'unfreeze') 'mode': mode,
+      if (mode == 'unfreeze') 'unfreeze': true,
+      // الواجهة تعرف التجميد ⇒ السيرفر ينبّه بدل الفك التلقائي.
+      'freezeAware': true,
     };
     final response = await _apiClient.post('/attendance', data: data);
     final body = response.data as Map<String, dynamic>;

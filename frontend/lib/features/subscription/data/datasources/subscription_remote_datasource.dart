@@ -67,6 +67,19 @@ abstract class SubscriptionRemoteDatasource {
     required String paymentId,
   });
 
+  /// تجميد الاشتراك عدد أيام (يمدّد نهايته). startDate 'YYYY-MM-DD' أو null = اليوم.
+  Future<SubscriptionModel> freezeSubscription({
+    required String subscriptionId,
+    required int days,
+    String? startDate,
+    String reason = 'other',
+    String? note,
+  });
+
+  /// فك التجميد الآن — يرجّع الاشتراك + رسالة السيرفر.
+  Future<({SubscriptionModel subscription, String message})> resumeSubscription(
+      String subscriptionId);
+
   /// يرفع صورة الإيصال ويرجّع رابطاً عاماً (صالح 60 يوماً) لمعاينة واتساب.
   Future<String> shareReceiptImage({
     required String subscriptionId,
@@ -242,6 +255,38 @@ class SubscriptionRemoteDatasourceImpl implements SubscriptionRemoteDatasource {
         .get('/subscriptions/$subscriptionId/payments/$paymentId/receipt');
     final body = response.data as Map<String, dynamic>;
     return ReceiptEntity.fromJson(body['data'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<SubscriptionModel> freezeSubscription({
+    required String subscriptionId,
+    required int days,
+    String? startDate,
+    String reason = 'other',
+    String? note,
+  }) async {
+    final response = await _apiClient.post(
+      '/subscriptions/$subscriptionId/freeze',
+      data: {
+        'days': days,
+        if (startDate != null) 'startDate': startDate,
+        'reason': reason,
+        if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+      },
+    );
+    final body = response.data as Map<String, dynamic>;
+    return SubscriptionModel.fromJson(body['data'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<({SubscriptionModel subscription, String message})> resumeSubscription(
+      String subscriptionId) async {
+    final response = await _apiClient.post('/subscriptions/$subscriptionId/freeze/resume');
+    final body = response.data as Map<String, dynamic>;
+    return (
+      subscription: SubscriptionModel.fromJson(body['data'] as Map<String, dynamic>),
+      message: (body['message'] as String?) ?? 'تم فك التجميد',
+    );
   }
 
   @override

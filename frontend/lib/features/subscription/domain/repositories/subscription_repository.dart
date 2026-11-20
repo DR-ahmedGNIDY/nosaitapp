@@ -64,6 +64,17 @@ abstract class SubscriptionRepository {
     required String paymentId,
   });
 
+  Future<Either<Failure, SubscriptionEntity>> freezeSubscription({
+    required String subscriptionId,
+    required int days,
+    String? startDate,
+    String reason = 'other',
+    String? note,
+  });
+
+  /// يرجّع رسالة السيرفر (عدد الأيام المحتسبة).
+  Future<Either<Failure, String>> resumeSubscription(String subscriptionId);
+
   Future<Either<Failure, String>> shareReceiptImage({
     required String subscriptionId,
     required String paymentId,

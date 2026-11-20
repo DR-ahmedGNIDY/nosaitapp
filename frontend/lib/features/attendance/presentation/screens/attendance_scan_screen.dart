@@ -5,6 +5,7 @@ import 'package:barcode_scan2/barcode_scan2.dart';
 import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/di/injection_container.dart';
 import 'package:basketball_academy/features/attendance/domain/entities/attendance_entity.dart';
+import 'package:intl/intl.dart' show DateFormat;
 import 'package:basketball_academy/features/attendance/domain/repositories/attendance_repository.dart';
 import 'package:basketball_academy/features/attendance/domain/usecases/record_attendance_usecase.dart';
 import 'package:basketball_academy/features/attendance/presentation/widgets/web_qr_scanner.dart';
@@ -175,6 +176,31 @@ class _AttendanceScanScreenState extends State<AttendanceScanScreen> {
 
   // إرسال طلب تسجيل الحضور فعلياً — تُستخدم من المسح الأول ومن زر
   // خيارات الاشتراك المنتهي (دفع لاحقاً / تعويض غياب / حصة مجانية) عبر mode.
+  /// اشتراك اللاعب مجمّد: فك التجميد وتسجيل الحضور، أو إلغاء.
+  Future<void> _showFrozenDialog(String code, AttendanceRecordResult res) async {
+    final until = res.frozenUntil == null
+        ? ''
+        : ' حتى ${DateFormat('dd/MM/yyyy', 'ar').format(res.frozenUntil!.subtract(const Duration(days: 1)))}';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('الاشتراك مجمّد'),
+        content: Text(
+          'اشتراك ${res.playerName} مجمّد$until.\n'
+          'لو اللاعب رجع للتمرين، فك التجميد وسجّل حضوره — الأيام المتبقية من التجميد هترجع لاشتراكه.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('فك التجميد وتسجيل الحضور'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true && mounted) await _submit(code, mode: 'unfreeze');
+  }
+
   Future<void> _submit(String code, {String? mode}) async {
     setState(() {
       _processing = true;
@@ -221,6 +247,16 @@ class _AttendanceScanScreenState extends State<AttendanceScanScreen> {
             _processing = false;
           });
           await _showSubscriptionExpiredDialog(code, res);
+          return;
+        }
+        // الاشتراك مجمّد: اللاعب رجع؟ فك التجميد ثم سجّل الحضور.
+        if (res.frozen && mode != 'unfreeze') {
+          setState(() {
+            _result = null;
+            _error = null;
+            _processing = false;
+          });
+          await _showFrozenDialog(code, res);
           return;
         }
         setState(() {

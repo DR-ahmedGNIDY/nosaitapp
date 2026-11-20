@@ -26,6 +26,11 @@ class SubscriptionModel {
   /// سجل الدفعات كما يرجع من الـ API.
   @JsonKey(includeFromJson: false, includeToJson: false)
   final List<SubscriptionPaymentEntity> payments;
+  /// حالة التجميد + التجميد المفتوح (من الـ API).
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  final String? freezeStatus;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  final Map<String, dynamic>? currentFreeze;
   @JsonKey(name: 'created_at')
   final DateTime createdAt;
   @JsonKey(name: 'updated_at')
@@ -48,9 +53,14 @@ class SubscriptionModel {
     this.exhaustedAt,
     this.paidAmount,
     this.payments = const [],
+    this.freezeStatus,
+    this.currentFreeze,
     required this.createdAt,
     this.updatedAt,
   });
+
+  static DateTime? _date(dynamic v) =>
+      v is String ? DateTime.tryParse(v)?.toLocal() : null;
 
   static List<SubscriptionPaymentEntity> _parsePayments(dynamic raw) {
     if (raw is! List) return const [];
@@ -114,6 +124,8 @@ class SubscriptionModel {
           : DateTime.parse(json['exhaustedAt'] as String),
       paidAmount: (json['paidAmount'] as num?)?.toDouble(),
       payments: _parsePayments(json['payments']),
+      freezeStatus: json['freezeStatus'] as String?,
+      currentFreeze: (json['currentFreeze'] as Map?)?.cast<String, dynamic>(),
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: json['updated_at'] == null
           ? null
@@ -142,6 +154,11 @@ class SubscriptionModel {
         exhaustedAt: exhaustedAt,
         paidAmountRaw: paidAmount,
         payments: payments,
+        freezeStatus: freezeStatus,
+        freezeStart: _date(currentFreeze?['startDate']),
+        freezeEnd: _date(currentFreeze?['endDate']),
+        freezeDays: (currentFreeze?['days'] as num?)?.toInt() ?? 0,
+        freezeReason: currentFreeze?['reason'] as String?,
         createdAt: createdAt,
         updatedAt: updatedAt,
       );

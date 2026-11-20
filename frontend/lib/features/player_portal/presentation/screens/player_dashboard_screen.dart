@@ -296,6 +296,23 @@ class PlayerDashboardScreen extends ConsumerWidget {
     }
     final active = sub['isActive'] == true;
     final days = (sub['daysRemaining'] as num?)?.toInt() ?? 0;
+    // التجميد: اشتراك مجمّد الآن ⇒ تنبيه التجميد بدل "يقارب الانتهاء".
+    if (active && sub['freezeStatus'] == 'frozen') {
+      final freeze = sub['currentFreeze'] as Map?;
+      final end = DateTime.tryParse((freeze?['endDate'] ?? '').toString())?.toLocal();
+      final last = end?.subtract(const Duration(days: 1));
+      final lastStr = last == null
+          ? ''
+          : ' حتى ${last.day.toString().padLeft(2, '0')}/${last.month.toString().padLeft(2, '0')}/${last.year}';
+      return _alertBanner(
+        context,
+        color: const Color(0xFF0E7490),
+        bg: const Color(0xFFE0F2F7),
+        icon: Icons.ac_unit,
+        title: 'اشتراكك مجمّد$lastStr',
+        message: 'أيام التجميد مش بتتحسب غياب، ومدة اشتراكك اتمدت بنفس الأيام.',
+      );
+    }
     if (!active) {
       return _alertBanner(
         context,

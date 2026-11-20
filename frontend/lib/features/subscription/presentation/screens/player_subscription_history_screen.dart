@@ -5,6 +5,7 @@ import 'package:basketball_academy/features/auth/presentation/providers/auth_pro
 import 'package:basketball_academy/features/subscription/domain/entities/subscription_entity.dart';
 import 'package:basketball_academy/features/subscription/presentation/providers/subscription_provider.dart';
 import 'package:basketball_academy/features/subscription/presentation/screens/renew_subscription_screen.dart';
+import 'package:basketball_academy/features/subscription/presentation/widgets/freeze_widgets.dart';
 import 'package:basketball_academy/features/subscription/presentation/widgets/payment_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -506,6 +507,7 @@ class _SubscriptionCard extends StatelessWidget {
                   ],
                 ),
               ],
+              FreezeSection(subscription: subscription, canEdit: canEdit),
               PaymentsHistoryTile(
                 subscription: subscription,
                 currencyLabel: currencyLabel,
