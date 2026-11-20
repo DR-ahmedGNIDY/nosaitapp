@@ -250,7 +250,7 @@ class _ReceiptSheetState extends State<_ReceiptSheet> {
                       child: OutlinedButton.icon(
                         onPressed: _busy ? null : () => _whatsApp(r),
                         icon: const Icon(Icons.chat_outlined, color: Color(0xFF25D366)),
-                        label: const Text('إرسال واتساب'),
+                        label: const Text('واتساب'),
                       ),
                     ),
                   ],
