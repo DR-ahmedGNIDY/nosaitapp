@@ -1,9 +1,13 @@
 import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/utils/currency_utils.dart';
 import 'package:basketball_academy/features/subscription/domain/entities/receipt_entity.dart';
+import 'package:basketball_academy/features/subscription/presentation/providers/subscription_provider.dart';
 import 'package:basketball_academy/features/subscription/services/receipt_pdf_service.dart';
+import 'package:basketball_academy/features/subscription/services/whatsapp_image_share.dart';
 import 'package:basketball_academy/features/whatsapp/utils/whatsapp_utils.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
@@ -76,14 +80,66 @@ class _ReceiptSheetState extends State<_ReceiptSheet> {
         );
       });
 
+  /// إرسال الإيصال على واتساب كصورة:
+  ///  - أندرويد: الصورة جاهزة في محادثة ولي الأمر مباشرة (أو قائمة المشاركة لو فشل).
+  ///  - ويب/ويندوز: رسالة فيها رابط صورة الإيصال (واتساب يعرض معاينة الصورة).
   Future<void> _whatsApp(ReceiptEntity r) async {
     final phone = r.contactPhone;
     if (phone == null) {
       _snack('لا يوجد رقم هاتف لولي الأمر أو اللاعب', error: true);
       return;
     }
-    final ok = await WhatsAppUtils.open(phone, message: ReceiptPdfService.textSummary(r));
-    if (!ok) _snack('تعذّر فتح واتساب', error: true);
+    String? webMessage;
+    await _run(() async {
+      final png = await ReceiptPdfService.png(r);
+      final summary = ReceiptPdfService.textSummary(r);
+
+      if (WhatsAppImageShare.isSupported) {
+        final sent = await WhatsAppImageShare.send(png: png, phone: phone, text: summary);
+        if (!sent) {
+          await Share.shareXFiles(
+            [XFile.fromData(png, name: 'receipt_${r.receiptNoLabel}.png', mimeType: 'image/png')],
+            text: summary,
+          );
+        }
+        return;
+      }
+
+      final url = await fetchReceiptShareLink(
+        subscriptionId: r.subscriptionId,
+        paymentId: r.paymentId,
+        png: png,
+      );
+      final message = '$summary\n\nصورة الإيصال: $url';
+      if (kIsWeb) {
+        // المتصفح يمنع فتح نافذة بعد انتظار الرفع ⇒ زر بضغطة جديدة.
+        webMessage = message;
+        return;
+      }
+      final ok = await WhatsAppUtils.open(phone, message: message);
+      if (!ok) _snack('تعذّر فتح واتساب', error: true);
+    });
+
+    if (webMessage != null && mounted) {
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('رابط الإيصال جاهز'),
+          content: const Text('هيتفتح واتساب برسالة فيها صورة الإيصال (معاينة) لولي الأمر.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(ctx);
+                WhatsAppUtils.open(phone, message: webMessage);
+              },
+              icon: const Icon(Icons.chat_outlined),
+              label: const Text('فتح واتساب'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   @override
@@ -194,7 +250,7 @@ class _ReceiptSheetState extends State<_ReceiptSheet> {
                       child: OutlinedButton.icon(
                         onPressed: _busy ? null : () => _whatsApp(r),
                         icon: const Icon(Icons.chat_outlined, color: Color(0xFF25D366)),
-                        label: const Text('رسالة واتساب'),
+                        label: const Text('إرسال واتساب'),
                       ),
                     ),
                   ],

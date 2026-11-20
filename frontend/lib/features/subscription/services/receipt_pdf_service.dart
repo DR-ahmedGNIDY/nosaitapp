@@ -207,6 +207,15 @@ class ReceiptPdfService {
         ),
       );
 
+  /// الإيصال كصورة PNG (الصفحة الأولى من الـ PDF) — للمشاركة على واتساب.
+  static Future<Uint8List> png(ReceiptEntity r, {double dpi = 150}) async {
+    final pdf = await build(r);
+    await for (final page in Printing.raster(pdf, pages: const [0], dpi: dpi)) {
+      return page.toPng();
+    }
+    throw Exception('تعذّر تحويل الإيصال إلى صورة');
+  }
+
   /// ملخص نصي للإيصال (لإرساله على واتساب كرسالة).
   static String textSummary(ReceiptEntity r) {
     final currency = CurrencyUtils.label(r.currencyCode);

@@ -1,4 +1,7 @@
+import 'dart:typed_data';
+
 import 'package:basketball_academy/core/network/api_client.dart';
+import 'package:dio/dio.dart';
 import 'package:basketball_academy/features/subscription/data/models/academy_debts_model.dart';
 import 'package:basketball_academy/features/subscription/data/models/subscription_model.dart';
 import 'package:basketball_academy/features/subscription/domain/entities/academy_debts_entity.dart';
@@ -62,6 +65,13 @@ abstract class SubscriptionRemoteDatasource {
   Future<ReceiptEntity> getReceipt({
     required String subscriptionId,
     required String paymentId,
+  });
+
+  /// يرفع صورة الإيصال ويرجّع رابطاً عاماً (صالح 60 يوماً) لمعاينة واتساب.
+  Future<String> shareReceiptImage({
+    required String subscriptionId,
+    required String paymentId,
+    required Uint8List png,
   });
 
   Future<SubscriptionModel> updateNotes({
@@ -232,6 +242,27 @@ class SubscriptionRemoteDatasourceImpl implements SubscriptionRemoteDatasource {
         .get('/subscriptions/$subscriptionId/payments/$paymentId/receipt');
     final body = response.data as Map<String, dynamic>;
     return ReceiptEntity.fromJson(body['data'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<String> shareReceiptImage({
+    required String subscriptionId,
+    required String paymentId,
+    required Uint8List png,
+  }) async {
+    final form = FormData.fromMap({
+      'image': MultipartFile.fromBytes(
+        png,
+        filename: 'receipt.png',
+        contentType: DioMediaType('image', 'png'),
+      ),
+    });
+    final response = await _apiClient.postMultipart(
+      '/subscriptions/$subscriptionId/payments/$paymentId/share',
+      data: form,
+    );
+    final body = response.data as Map<String, dynamic>;
+    return (body['data'] as Map<String, dynamic>)['url'] as String;
   }
 
   @override

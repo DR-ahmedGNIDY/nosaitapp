@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:basketball_academy/core/errors/failures.dart';
 import 'package:basketball_academy/features/subscription/domain/entities/academy_debts_entity.dart';
 import 'package:basketball_academy/features/subscription/domain/entities/receipt_entity.dart';
@@ -60,6 +62,12 @@ abstract class SubscriptionRepository {
   Future<Either<Failure, ReceiptEntity>> getReceipt({
     required String subscriptionId,
     required String paymentId,
+  });
+
+  Future<Either<Failure, String>> shareReceiptImage({
+    required String subscriptionId,
+    required String paymentId,
+    required Uint8List png,
   });
 
   Future<Either<Failure, SubscriptionEntity>> updateNotes({

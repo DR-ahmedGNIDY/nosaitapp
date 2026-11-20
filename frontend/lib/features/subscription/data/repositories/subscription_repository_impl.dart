@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:basketball_academy/core/errors/exceptions.dart';
 import 'package:basketball_academy/core/errors/failures.dart';
 import 'package:basketball_academy/features/subscription/data/datasources/subscription_remote_datasource.dart';
@@ -204,6 +206,18 @@ class SubscriptionRepositoryImpl implements SubscriptionRepository {
       _guard(() => _remoteDatasource.getReceipt(
             subscriptionId: subscriptionId,
             paymentId: paymentId,
+          ));
+
+  @override
+  Future<Either<Failure, String>> shareReceiptImage({
+    required String subscriptionId,
+    required String paymentId,
+    required Uint8List png,
+  }) =>
+      _guard(() => _remoteDatasource.shareReceiptImage(
+            subscriptionId: subscriptionId,
+            paymentId: paymentId,
+            png: png,
           ));
 
   @override

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:basketball_academy/core/di/injection_container.dart';
 import 'package:basketball_academy/features/subscription/domain/entities/academy_debts_entity.dart';
 import 'package:basketball_academy/features/subscription/domain/entities/receipt_entity.dart';
@@ -157,6 +159,20 @@ Future<({String? error, SubscriptionEntity? subscription})>
       return (error: null, subscription: sub);
     },
   );
+}
+
+/// رابط عام لصورة الإيصال (60 يوماً) — يرمي Exception برسالة عربية عند الفشل.
+Future<String> fetchReceiptShareLink({
+  required String subscriptionId,
+  required String paymentId,
+  required Uint8List png,
+}) async {
+  final result = await sl<SubscriptionRepository>().shareReceiptImage(
+    subscriptionId: subscriptionId,
+    paymentId: paymentId,
+    png: png,
+  );
+  return result.fold((f) => throw Exception(f.message), (url) => url);
 }
 
 /// بيانات إيصال دفعة — يرمي Exception برسالة عربية عند الفشل.

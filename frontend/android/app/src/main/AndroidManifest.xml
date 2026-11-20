@@ -84,5 +84,16 @@
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-6344883554405987~3739372322" />
 
+        <!-- مشاركة صورة الإيصال مع واتساب (MainActivity → ReceiptFileProvider). -->
+        <provider
+            android:name="com.basketball.academy.ReceiptFileProvider"
+            android:authorities="${applicationId}.receipts"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/receipt_paths" />
+        </provider>
+
     </application>
 </manifest>
