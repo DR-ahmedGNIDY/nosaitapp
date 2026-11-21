@@ -401,14 +401,20 @@ class _MatchStatsEntryScreenState extends State<MatchStatsEntryScreen> {
               onPressed: enabled && n > 0 ? () => bump(-1) : null,
             ),
             SizedBox(
-              width: 52.w,
+              // عرض ثابت يكفي 3 أرقام (حتى 999) بدون قصّ.
+              width: 64,
               child: TextField(
                 controller: c,
                 enabled: enabled,
                 textAlign: TextAlign.center,
                 keyboardType: TextInputType.number,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(3)],
-                decoration: const InputDecoration(isDense: true, hintText: '0', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                  isDense: true,
+                  hintText: '0',
+                  contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+                  border: OutlineInputBorder(),
+                ),
                 onChanged: (s) => _set(pid, f.key, s.isEmpty ? null : int.tryParse(s)),
               ),
             ),
