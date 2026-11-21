@@ -320,7 +320,9 @@ class _MatchStatsEntryScreenState extends State<MatchStatsEntryScreen> {
         child: Theme(
           data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
           child: ExpansionTile(
-            key: PageStorageKey('stats_${r.playerId}'),
+            // ValueKey وليس PageStorageKey: حقل الملاحظات بداخله له Scrollable
+            // يقرأ موضعه من نفس مفتاح التخزين فيجد حالة الفتح (bool) فينهار.
+            key: ValueKey('stats_${r.playerId}'),
             tilePadding: EdgeInsets.symmetric(horizontal: 12.w),
             childrenPadding: EdgeInsets.fromLTRB(12.w, 0, 12.w, 12.h),
             leading: CircleAvatar(
