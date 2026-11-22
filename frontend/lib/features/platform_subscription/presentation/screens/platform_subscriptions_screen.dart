@@ -6,6 +6,7 @@ import 'package:basketball_academy/features/platform_subscription/data/platform_
 import 'package:basketball_academy/features/platform_subscription/presentation/providers/platform_subscription_provider.dart';
 import 'package:basketball_academy/features/platform_subscription/presentation/widgets/subscription_plan_dialog.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
@@ -125,6 +126,15 @@ class PlatformSubscriptionsScreen extends ConsumerWidget {
             hasSubscription: sub != null,
             onChanged: (v) => _togglePlayerPortal(context, ref, row, v),
           ),
+          Gap(8.h),
+          // ── المساعد الذكي (ميزة مدفوعة) + الحد اليومي ─────────────────────
+          _AiAssistantRow(
+            enabled: (sub?['aiAssistantEnabled'] as bool?) ?? false,
+            dailyLimit: (sub?['aiDailyLimit'] as num?)?.toInt() ?? 30,
+            onToggle: (v) => _updateAi(context, ref, row, enabled: v),
+            onEditLimit: () => _editAiLimit(context, ref, row,
+                (sub?['aiDailyLimit'] as num?)?.toInt() ?? 30),
+          ),
           Gap(12.h),
           Row(
             children: [
@@ -170,6 +180,66 @@ class PlatformSubscriptionsScreen extends ConsumerWidget {
       }
     } catch (e) {
       if (context.mounted) _err(context, e);
+    }
+  }
+
+  Future<void> _updateAi(BuildContext context, WidgetRef ref,
+      Map<String, dynamic> row, {bool? enabled, int? dailyLimit}) async {
+    try {
+      await sl<PlatformSubscriptionService>().setAiAssistant(
+        academyId: row['academyId'] as String,
+        enabled: enabled,
+        dailyLimit: dailyLimit,
+      );
+      ref.invalidate(platformSubscriptionsProvider);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(enabled == null
+              ? 'تم تعديل الحد اليومي إلى $dailyLimit رسالة'
+              : enabled
+                  ? 'تم تفعيل المساعد الذكي'
+                  : 'تم تعطيل المساعد الذكي'),
+          backgroundColor: AppColors.success,
+        ));
+      }
+    } catch (e) {
+      if (context.mounted) _err(context, e);
+    }
+  }
+
+  Future<void> _editAiLimit(BuildContext context, WidgetRef ref,
+      Map<String, dynamic> row, int current) async {
+    final ctrl = TextEditingController(text: '$current');
+    final value = await showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('الحد اليومي للمساعد الذكي'),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          decoration: const InputDecoration(
+            labelText: 'عدد الرسائل في اليوم (1 - 1000)',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+          ElevatedButton(
+            onPressed: () {
+              final n = int.tryParse(ctrl.text.trim());
+              if (n != null && n >= 1 && n <= 1000) Navigator.pop(ctx, n);
+            },
+            child: const Text('حفظ'),
+          ),
+        ],
+      ),
+    );
+    ctrl.dispose();
+    if (value != null && value != current && context.mounted) {
+      await _updateAi(context, ref, row, dailyLimit: value);
     }
   }
 
@@ -387,6 +457,68 @@ class _PlayerPortalRow extends StatelessWidget {
             value: enabled,
             onChanged: onChanged,
             activeThumbColor: AppColors.success,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// صف "المساعد الذكي": شارة مفعّل/معطّل + الحد اليومي (قابل للتعديل) + مفتاح.
+class _AiAssistantRow extends StatelessWidget {
+  final bool enabled;
+  final int dailyLimit;
+  final ValueChanged<bool> onToggle;
+  final VoidCallback onEditLimit;
+
+  const _AiAssistantRow({
+    required this.enabled,
+    required this.dailyLimit,
+    required this.onToggle,
+    required this.onEditLimit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = enabled ? AppColors.primary : AppColors.grey500;
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+      decoration: BoxDecoration(
+        color: AppColors.grey50,
+        borderRadius: BorderRadius.circular(10.r),
+        border: Border.all(color: AppColors.grey200),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.auto_awesome, size: 18.sp, color: color),
+          Gap(8.w),
+          Expanded(
+            child: Text('المساعد الذكي (مدفوع)',
+                style: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w600)),
+          ),
+          InkWell(
+            onTap: onEditLimit,
+            borderRadius: BorderRadius.circular(20.r),
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20.r),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Text('$dailyLimit/يوم',
+                    style: TextStyle(
+                        color: color, fontWeight: FontWeight.w700, fontSize: 11.sp)),
+                Gap(3.w),
+                Icon(Icons.edit, size: 12.sp, color: color),
+              ]),
+            ),
+          ),
+          Gap(4.w),
+          Switch(
+            value: enabled,
+            onChanged: onToggle,
+            activeThumbColor: AppColors.primary,
           ),
         ],
       ),

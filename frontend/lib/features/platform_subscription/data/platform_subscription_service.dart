@@ -43,6 +43,22 @@ class PlatformSubscriptionService {
     return (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>;
   }
 
+  /// المساعد الذكي (ميزة مدفوعة): تفعيل/تعطيل و/أو الحد اليومي للرسائل.
+  Future<Map<String, dynamic>> setAiAssistant({
+    required String academyId,
+    bool? enabled,
+    int? dailyLimit,
+  }) async {
+    final res = await _api.patch<Map<String, dynamic>>(
+      '/platform/subscriptions/$academyId/ai-assistant',
+      data: {
+        if (enabled != null) 'enabled': enabled,
+        if (dailyLimit != null) 'dailyLimit': dailyLimit,
+      },
+    );
+    return (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>> update({
     required String academyId,
     String? plan,

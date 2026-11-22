@@ -6,6 +6,7 @@ import 'package:basketball_academy/core/layout/desktop_shell.dart';
 import 'package:basketball_academy/core/layout/responsive.dart';
 import 'package:basketball_academy/core/layout/tablet_shell.dart';
 import 'package:basketball_academy/core/router/app_router.dart';
+import 'package:basketball_academy/features/ai_assistant/ai_assistant_screen.dart';
 import 'package:basketball_academy/features/auth/presentation/providers/auth_provider.dart';
 import 'package:basketball_academy/features/academy/presentation/providers/academy_provider.dart';
 import 'package:basketball_academy/features/academy/presentation/providers/currency_provider.dart';
@@ -419,6 +420,16 @@ class _QuickActionsGrid extends ConsumerWidget {
           MaterialPageRoute(builder: (_) => const TrainingRatingsScreen()),
         ),
       ),
+      // المساعد الذكي — ويب فقط حالياً، لمدير الأكاديمية (ميزة مدفوعة).
+      if (kIsWeb && showSystemSubscription)
+        _QuickActionItem(
+          icon: Icons.auto_awesome,
+          label: 'المساعد الذكي',
+          color: AppColors.primary,
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const AiAssistantScreen()),
+          ),
+        ),
       if (showSystemSubscription)
         _QuickActionItem(
           icon: Icons.workspace_premium_outlined,
@@ -803,7 +814,10 @@ class _DesktopDashboardContent extends ConsumerWidget {
                     (isSuperAdmin && academyId != null)) ...[
                   const _DesktopSectionTitle(title: 'الإجراءات السريعة'),
                   const SizedBox(height: 12),
-                  _DesktopQuickActions(academyId: academyId!),
+                  _DesktopQuickActions(
+                    academyId: academyId!,
+                    showAssistant: kIsWeb && user?.isAcademyAdmin == true,
+                  ),
                   const SizedBox(height: 24),
                 ],
 
@@ -1256,7 +1270,8 @@ class _DesktopActingAsAcademyBanner extends StatelessWidget {
 
 class _DesktopQuickActions extends StatelessWidget {
   final String academyId;
-  const _DesktopQuickActions({required this.academyId});
+  final bool showAssistant;
+  const _DesktopQuickActions({required this.academyId, this.showAssistant = false});
 
   @override
   Widget build(BuildContext context) {
@@ -1264,6 +1279,15 @@ class _DesktopQuickActions extends StatelessWidget {
       spacing: 12,
       runSpacing: 12,
       children: [
+        if (showAssistant)
+          _DesktopQuickBtn(
+            icon: Icons.auto_awesome,
+            label: 'المساعد الذكي',
+            color: AppColors.primary,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AiAssistantScreen()),
+            ),
+          ),
         _DesktopQuickBtn(
           icon: Icons.sports_basketball_outlined,
           label: AppStrings.players,
