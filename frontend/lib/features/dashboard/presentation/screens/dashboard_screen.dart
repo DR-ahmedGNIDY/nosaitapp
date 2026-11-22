@@ -6,7 +6,7 @@ import 'package:basketball_academy/core/layout/desktop_shell.dart';
 import 'package:basketball_academy/core/layout/responsive.dart';
 import 'package:basketball_academy/core/layout/tablet_shell.dart';
 import 'package:basketball_academy/core/router/app_router.dart';
-import 'package:basketball_academy/features/ai_assistant/ai_assistant_screen.dart';
+import 'package:basketball_academy/features/ai_assistant/ai_assistant_fab.dart';
 import 'package:basketball_academy/features/auth/presentation/providers/auth_provider.dart';
 import 'package:basketball_academy/features/academy/presentation/providers/academy_provider.dart';
 import 'package:basketball_academy/features/academy/presentation/providers/currency_provider.dart';
@@ -70,6 +70,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final dashAsync = ref.watch(dashboardProvider);
     final selectedAcademyId = ref.watch(selectedAcademyIdProvider);
     final currentAcademyId = isSuperAdmin ? selectedAcademyId : user?.academyId;
+    // زر المساعد الذكي العائم — ويب فقط، لمدير الأكاديمية.
+    final showAiFab = kIsWeb && user?.isAcademyAdmin == true;
     final currencyLabel = ref.watch(
       academyCurrencyLabelProvider(currentAcademyId),
     );
@@ -117,9 +119,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             selectedAcademyId: selectedAcademyId,
             onAcademyChanged: onAcademyChanged,
           );
+          final body = showAiFab
+              ? Stack(fit: StackFit.expand, children: [
+                  content,
+                  const Positioned(left: 24, bottom: 24, child: AiAssistantFab()),
+                ])
+              : content;
           return tier == ScreenTier.desktop
-              ? DesktopShell(location: AppRoutes.home, child: content)
-              : TabletShell(location: AppRoutes.home, child: content);
+              ? DesktopShell(location: AppRoutes.home, child: body)
+              : TabletShell(location: AppRoutes.home, child: body);
         },
       );
     }
@@ -128,6 +136,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       backgroundColor: AppColors.background,
       // بانر إعلاني — يختفي تلقائياً للمشترك ولأي حالة غير معروفة.
       bottomNavigationBar: const AdBannerSlot(),
+      floatingActionButton: showAiFab ? const AiAssistantFab() : null,
+      // التطبيق RTL ⇒ "end" = يسار الشاشة.
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       appBar: AppBar(
         backgroundColor: AppColors.secondary,
         foregroundColor: AppColors.white,
@@ -420,16 +431,6 @@ class _QuickActionsGrid extends ConsumerWidget {
           MaterialPageRoute(builder: (_) => const TrainingRatingsScreen()),
         ),
       ),
-      // المساعد الذكي — ويب فقط حالياً، لمدير الأكاديمية (ميزة مدفوعة).
-      if (kIsWeb && showSystemSubscription)
-        _QuickActionItem(
-          icon: Icons.auto_awesome,
-          label: 'المساعد الذكي',
-          color: AppColors.primary,
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const AiAssistantScreen()),
-          ),
-        ),
       if (showSystemSubscription)
         _QuickActionItem(
           icon: Icons.workspace_premium_outlined,
@@ -814,10 +815,7 @@ class _DesktopDashboardContent extends ConsumerWidget {
                     (isSuperAdmin && academyId != null)) ...[
                   const _DesktopSectionTitle(title: 'الإجراءات السريعة'),
                   const SizedBox(height: 12),
-                  _DesktopQuickActions(
-                    academyId: academyId!,
-                    showAssistant: kIsWeb && user?.isAcademyAdmin == true,
-                  ),
+                  _DesktopQuickActions(academyId: academyId!),
                   const SizedBox(height: 24),
                 ],
 
@@ -1270,8 +1268,7 @@ class _DesktopActingAsAcademyBanner extends StatelessWidget {
 
 class _DesktopQuickActions extends StatelessWidget {
   final String academyId;
-  final bool showAssistant;
-  const _DesktopQuickActions({required this.academyId, this.showAssistant = false});
+  const _DesktopQuickActions({required this.academyId});
 
   @override
   Widget build(BuildContext context) {
@@ -1279,15 +1276,6 @@ class _DesktopQuickActions extends StatelessWidget {
       spacing: 12,
       runSpacing: 12,
       children: [
-        if (showAssistant)
-          _DesktopQuickBtn(
-            icon: Icons.auto_awesome,
-            label: 'المساعد الذكي',
-            color: AppColors.primary,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const AiAssistantScreen()),
-            ),
-          ),
         _DesktopQuickBtn(
           icon: Icons.sports_basketball_outlined,
           label: AppStrings.players,
