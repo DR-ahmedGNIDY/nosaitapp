@@ -293,7 +293,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 Gap(8.h),
                 _RecentActivitiesList(
                     activities: dashState.recentActivities),
-                Gap(24.h),
+                // مساحة إضافية حتى لا يغطي زر المساعد العائم آخر عنصر.
+                Gap(showAiFab ? 100 : 24.h),
               ],
             ),
           ),
