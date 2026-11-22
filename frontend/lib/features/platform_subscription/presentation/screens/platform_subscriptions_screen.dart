@@ -130,10 +130,10 @@ class PlatformSubscriptionsScreen extends ConsumerWidget {
           // ── المساعد الذكي (ميزة مدفوعة) + الحد اليومي ─────────────────────
           _AiAssistantRow(
             enabled: (sub?['aiAssistantEnabled'] as bool?) ?? false,
-            dailyLimit: (sub?['aiDailyLimit'] as num?)?.toInt() ?? 30,
+            dailyLimit: (sub?['aiDailyLimit'] as num?)?.toInt() ?? 15,
             onToggle: (v) => _updateAi(context, ref, row, enabled: v),
             onEditLimit: () => _editAiLimit(context, ref, row,
-                (sub?['aiDailyLimit'] as num?)?.toInt() ?? 30),
+                (sub?['aiDailyLimit'] as num?)?.toInt() ?? 15),
           ),
           Gap(12.h),
           Row(
