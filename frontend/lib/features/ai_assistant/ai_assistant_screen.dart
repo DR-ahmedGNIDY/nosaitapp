@@ -1,7 +1,9 @@
 import 'package:basketball_academy/core/constants/app_colors.dart';
 import 'package:basketball_academy/core/router/app_router.dart';
 import 'package:basketball_academy/features/ai_assistant/ai_assistant_data.dart';
+import 'package:basketball_academy/features/ai_assistant/ai_reply_text.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
@@ -225,16 +227,23 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
       Expanded(
         child: _messages.isEmpty && !_sending
             ? _welcome()
-            : ListView.builder(
-                controller: _scroll,
-                reverse: true,
-                padding: EdgeInsets.fromLTRB(12.w, 12.h, 12.w, 12.h),
-                itemCount: _messages.length + (_sending ? 1 : 0),
-                itemBuilder: (_, i) {
-                  if (_sending && i == 0) return const _TypingBubble();
-                  final m = _messages[_messages.length - 1 - (i - (_sending ? 1 : 0))];
-                  return _Bubble(message: m, onReport: m.isUser || m.reported ? null : () => _report(m));
-                },
+            // على الشاشات العريضة: عمود محادثة في المنتصف بعرض مريح للقراءة.
+            : Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: _kMaxChatWidth),
+                  child: ListView.builder(
+                    controller: _scroll,
+                    reverse: true,
+                    padding: const EdgeInsets.fromLTRB(14, 16, 14, 8),
+                    itemCount: _messages.length + (_sending ? 1 : 0),
+                    itemBuilder: (_, i) {
+                      if (_sending && i == 0) return const _TypingBubble();
+                      final m = _messages[_messages.length - 1 - (i - (_sending ? 1 : 0))];
+                      return _Bubble(message: m, onReport: m.isUser || m.reported ? null : () => _report(m));
+                    },
+                  ),
+                ),
               ),
       ),
       _composer(s),
@@ -372,81 +381,240 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   }
 }
 
+// أحجام خط ثابتة (لا .sp): على الويب العريض .sp كانت تكبّر النص أو تصغّره بشكل مزعج.
+const double _kReplyFont = 15;
+const double _kUserFont = 15;
+const double _kMaxChatWidth = 820;
+
+/// أيقونة المساعد بجانب ردوده.
+class _AssistantAvatar extends StatelessWidget {
+  const _AssistantAvatar();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 32,
+      height: 32,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          colors: [AppColors.primary, AppColors.primary.withValues(alpha: 0.7)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: const Icon(Icons.auto_awesome, size: 17, color: AppColors.white),
+    );
+  }
+}
+
 class _Bubble extends StatelessWidget {
   final AiMessage message;
   final VoidCallback? onReport;
   const _Bubble({required this.message, this.onReport});
 
-  // حماية لو الموديل كتب Markdown رغم التعليمات.
-  String get _text => message.content.replaceAll('**', '').replaceAll(RegExp(r'^#+\s*', multiLine: true), '');
+  @override
+  Widget build(BuildContext context) {
+    return message.isUser ? _user(context) : _assistant(context);
+  }
+
+  // رسالة المدير: يمين (RTL start)، فقاعة ملوّنة بزاوية مميّزة.
+  Widget _user(BuildContext context) {
+    final maxW = MediaQuery.sizeOf(context).width * 0.78;
+    return Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: Container(
+        constraints: BoxConstraints(maxWidth: maxW > 560 ? 560 : maxW),
+        margin: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [AppColors.primary, AppColors.primary.withValues(alpha: 0.85)],
+            begin: Alignment.topRight,
+            end: Alignment.bottomLeft,
+          ),
+          borderRadius: const BorderRadiusDirectional.only(
+            topStart: Radius.circular(18),
+            topEnd: Radius.circular(18),
+            bottomStart: Radius.circular(4),
+            bottomEnd: Radius.circular(18),
+          ),
+        ),
+        child: SelectableText(
+          message.content,
+          style: const TextStyle(
+            fontSize: _kUserFont,
+            height: 1.6,
+            color: AppColors.white,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // رد المساعد: أيقونة + كارت أبيض بظل خفيف ونص منسّق + نسخ/إبلاغ.
+  Widget _assistant(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _AssistantAvatar(),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              decoration: BoxDecoration(
+                color: AppColors.white,
+                borderRadius: const BorderRadiusDirectional.only(
+                  topStart: Radius.circular(4),
+                  topEnd: Radius.circular(18),
+                  bottomStart: Radius.circular(18),
+                  bottomEnd: Radius.circular(18),
+                ),
+                border: Border.all(color: AppColors.grey200),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AiReplyText(text: message.content, fontSize: _kReplyFont),
+                  const SizedBox(height: 2),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      _MiniAction(
+                        icon: Icons.copy_rounded,
+                        label: 'نسخ',
+                        onTap: () {
+                          Clipboard.setData(ClipboardData(text: message.content));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('تم نسخ الرد'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                      ),
+                      if (message.reported)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                          child: Text('تم الإبلاغ',
+                              style: TextStyle(fontSize: 12, color: AppColors.grey500)),
+                        )
+                      else if (onReport != null)
+                        _MiniAction(
+                          icon: Icons.flag_outlined,
+                          label: 'إبلاغ',
+                          onTap: onReport!,
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // مساحة على الطرف الآخر حتى لا يلتصق الكارت بالحافة.
+          const SizedBox(width: 28),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  const _MiniAction({required this.icon, required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final user = message.isUser;
-    final maxW = MediaQuery.sizeOf(context).width * 0.82;
-    return Align(
-      // RTL: start = يمين. رسائل المدير يمين، والمساعد يسار.
-      alignment: user ? AlignmentDirectional.centerStart : AlignmentDirectional.centerEnd,
-      child: Container(
-        constraints: BoxConstraints(maxWidth: maxW > 640 ? 640 : maxW),
-        margin: EdgeInsets.only(bottom: 8.h),
-        padding: EdgeInsets.fromLTRB(12.w, 10.h, 12.w, onReport != null || message.reported ? 2.h : 10.h),
-        decoration: BoxDecoration(
-          color: user ? AppColors.primary : AppColors.white,
-          borderRadius: BorderRadius.circular(16.r),
-          border: user ? null : Border.all(color: AppColors.grey200),
-        ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-          SelectableText(
-            _text,
-            style: TextStyle(
-              fontSize: 14.sp,
-              height: 1.55,
-              color: user ? AppColors.white : AppColors.grey900,
-            ),
-          ),
-          if (!user)
-            Align(
-              alignment: AlignmentDirectional.centerEnd,
-              child: message.reported
-                  ? Padding(
-                      padding: EdgeInsets.only(top: 4.h, bottom: 6.h),
-                      child: Text('تم الإبلاغ', style: TextStyle(fontSize: 10.5.sp, color: AppColors.grey500)),
-                    )
-                  : IconButton(
-                      visualDensity: VisualDensity.compact,
-                      tooltip: 'إبلاغ عن الرد',
-                      icon: Icon(Icons.flag_outlined, size: 16.sp, color: AppColors.grey400),
-                      onPressed: onReport,
-                    ),
-            ),
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, size: 15, color: AppColors.grey500),
+          const SizedBox(width: 4),
+          Text(label, style: const TextStyle(fontSize: 12, color: AppColors.grey500)),
         ]),
       ),
     );
   }
 }
 
-class _TypingBubble extends StatelessWidget {
+/// "بيكتب…": ثلاث نقاط متحركة بجانب أيقونة المساعد.
+class _TypingBubble extends StatefulWidget {
   const _TypingBubble();
 
   @override
+  State<_TypingBubble> createState() => _TypingBubbleState();
+}
+
+class _TypingBubbleState extends State<_TypingBubble>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: AlignmentDirectional.centerEnd,
-      child: Container(
-        margin: EdgeInsets.only(bottom: 8.h),
-        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(16.r),
-          border: Border.all(color: AppColors.grey200),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(children: [
+        const _AssistantAvatar(),
+        const SizedBox(width: 10),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.grey200),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            AnimatedBuilder(
+              animation: _c,
+              builder: (_, __) => Row(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(3, (i) {
+                  final t = (_c.value - i * 0.18) % 1.0;
+                  final up = t < 0.5 ? t * 2 : (1 - t) * 2;
+                  return Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 2.5),
+                    width: 7,
+                    height: 7,
+                    transform: Matrix4.translationValues(0, -4 * up, 0),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.35 + 0.65 * up),
+                      shape: BoxShape.circle,
+                    ),
+                  );
+                }),
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Text('بيدوّر في بيانات الأكاديمية…',
+                style: TextStyle(fontSize: 13, color: AppColors.grey600)),
+          ]),
         ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          SizedBox(width: 14.r, height: 14.r, child: const CircularProgressIndicator(strokeWidth: 2)),
-          Gap(8.w),
-          Text('بيدوّر في بيانات الأكاديمية…', style: TextStyle(fontSize: 12.5.sp, color: AppColors.grey600)),
-        ]),
-      ),
+      ]),
     );
   }
 }
